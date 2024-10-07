@@ -23,33 +23,47 @@ namespace ERPAPI.Controllers
         }
 
         [HttpPost("create")]
-        public IActionResult CreateUser(User user)
+public IActionResult CreateUser(User user)
+{
+    try
+    {
+        // Check if the username already exists
+        var existingUser = _context.Users.FirstOrDefault(u => u.UserName == user.UserName);
+        if (existingUser != null)
         {
-            try
-            {
-
-                _context.Users.Add(user);
-                _context.SaveChanges();
-                string generatedpassword = Passwordgen.GeneratePassword();
-                var hashedPassword = Sha256.ComputeSHA256Hash(generatedpassword);
-                var userAuth = new UserAuth
-                {
-                    UserId = user.UserId,
-                    Password = hashedPassword,
-                    AutogenPass = true // Assuming auto-generated password at user creation
-                };
-
-                _context.UserAuths.Add(userAuth);
-                _context.SaveChanges();
-
-                _loggerService.LogEvent("User created", "User", user.UserId);
-                return Ok(new { Message = "User created", Password = generatedpassword });
-            }
-            catch (Exception ex)
-            {
-                _loggerService.LogError("User creation failed", ex.Message, "UserController");
-                return StatusCode(500, "User creation failed");
-            }
+            return Conflict(new { Message = "Username already exists" });
         }
+
+        // Add the new user to the database
+        _context.Users.Add(user);
+        _context.SaveChanges();
+
+        // Generate and hash a password for the user
+        string generatedPassword = Passwordgen.GeneratePassword();
+        var hashedPassword = Sha256.ComputeSHA256Hash(generatedPassword);
+
+        // Create a UserAuth entry with the auto-generated password
+        var userAuth = new UserAuth
+        {
+            UserId = user.UserId,
+            Password = hashedPassword,
+            AutogenPass = true
+        };
+
+        _context.UserAuths.Add(userAuth);
+        _context.SaveChanges();
+
+        // Log the event
+        _loggerService.LogEvent("User created", "User", user.UserId);
+        
+        return Ok(new { Message = "User created", UserName = user.UserName, Password = generatedPassword });
+    }
+    catch (Exception ex)
+    {
+        _loggerService.LogError("User creation failed", ex.Message, "UserController");
+        return StatusCode(500, "User creation failed");
+    }
+}
+
     }
 }

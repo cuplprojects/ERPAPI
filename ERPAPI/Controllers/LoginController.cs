@@ -136,25 +136,20 @@ namespace ERPAPI.Controllers
         [HttpPost("setSecurityAnswers")]
         public IActionResult SetSecurityAnswers(SetSecurityAnswersRequest request)
         {
-            var user = _context.Users.FirstOrDefault(x => x.UserName == request.UserName);
+            var user = _context.UserAuths.FirstOrDefault(x => x.UserId  == request.UserId);
             if (user == null)
             {
                 return NotFound("User not found.");
             }
 
-            var userAuth = _context.UserAuths.FirstOrDefault(u => u.UserId == user.UserId);
-            if (userAuth == null)
-            {
-                return Unauthorized("User authentication failed.");
-            }
 
-            userAuth.SecurityQuestion1Id = request.SecurityQuestion1Id;
-            userAuth.SecurityQuestion2Id = request.SecurityQuestion2Id;
-            userAuth.SecurityAnswer1 = request.SecurityAnswer1;
-            userAuth.SecurityAnswer2 = request.SecurityAnswer2;
+            user.SecurityQuestion1Id = request.SecurityQuestion1Id;
+            user.SecurityQuestion2Id = request.SecurityQuestion2Id;
+            user.SecurityAnswer1 = request.SecurityAnswer1;
+            user.SecurityAnswer2 = request.SecurityAnswer2;
             _context.SaveChanges();
 
-            _loggerService.LogEvent("Security answers set", "User", userAuth.UserId);
+            _loggerService.LogEvent("Security answers set", "User", user.UserId);
             return Ok("Security answers set successfully.");
         }
 
