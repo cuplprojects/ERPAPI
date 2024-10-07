@@ -2,9 +2,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace ERPAPI.Model
+namespace ERPGenericFunctions.Model
 {
-   
     public class User
     {
         [Key]
@@ -15,9 +14,8 @@ namespace ERPAPI.Model
         public string FirstName { get; set; }
         public string MiddleName { get; set; }
         public string LastName { get; set; }
-       public int RoleId { get; set; }
+        public int RoleId { get; set; }
         public string MobileNo { get; set; }
-        public string ProfilePicturePath { get; set; }
         public bool Status { get; set; }
     }
 }
