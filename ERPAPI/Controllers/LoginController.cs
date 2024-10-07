@@ -15,6 +15,7 @@ using NuGet.Common;
 using ERPAPI.Data;
 using ERPAPI.Model;
 using ERPGenericFunctions.Model;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERPAPI.Controllers
 {
@@ -177,6 +178,45 @@ namespace ERPAPI.Controllers
 
             _loggerService.LogEvent("Password reset", "User", userAuth.UserId);
             return Ok("Password reset successfully.");
+        }
+
+        // PUT: api/SecurityQuestions/SetPassword
+        [HttpPut("SetPassword")]
+        public async Task<IActionResult> SetPassword(SetPass setPassword)
+        {
+            try
+            {
+                // Find the user authentication record
+                var userAuth = await _context.UserAuths.FirstOrDefaultAsync(ua => ua.UserId == setPassword.UserId);
+                if (userAuth == null)
+                {
+                    return NotFound(new { Message = "User not found" });
+                }
+
+                // Hash the new password
+                var hashedPassword = Sha256.ComputeSHA256Hash(setPassword.NewPassword);
+
+                // Update the password in the UserAuth table
+                userAuth.Password = hashedPassword;
+                userAuth.AutogenPass = false; // Assuming the new password is not auto-generated
+
+                // Save changes to the database
+                _context.Entry(userAuth).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+
+                return Ok(new { Message = "Password updated successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "An error occurred while setting the password", Error = ex.Message });
+            }
+        }
+
+       
+
+        private bool SecurityQuestionExists(int id)
+        {
+            return _context.SecurityQuestions.Any(e => e.QuestionId == id);
         }
 
     }
