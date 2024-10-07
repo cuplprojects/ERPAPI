@@ -1,0 +1,20 @@
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
+
+namespace ERPAPI.Model
+{
+    public class ProjectProcess
+    {
+        [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; }
+        public int ProjectId { get; set; }
+        public int ProcessId { get; set; }
+        public double Weightage { get; set; }
+        public int GroupId { get; set; }
+        public int TypeId { get; set; }
+        public int Sequence {  get; set; }
+        public int FeatureId { get; set; }
+        public bool Independent { get; set; }
+    }
+}
