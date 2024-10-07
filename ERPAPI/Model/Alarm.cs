@@ -9,6 +9,5 @@ namespace ERPAPI.Model
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int AlarmId { get; set; }
         public string Message { get; set; }
-        public bool IsAlarm { get; set; }
     }
 }

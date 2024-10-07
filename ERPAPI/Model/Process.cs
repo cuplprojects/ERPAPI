@@ -11,6 +11,6 @@ namespace ERPAPI.Model
         public string Name { get; set; }
         public double Weightage { get; set; }
         public bool Status { get; set; }
-        public string InstalledFeatures { get; set; }
+        public List<int> InstalledFeatures { get; set; }
     }
 }
