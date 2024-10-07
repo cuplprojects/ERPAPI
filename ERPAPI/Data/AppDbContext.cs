@@ -20,6 +20,7 @@ namespace ERPAPI.Data
         //public DbSet<Message> Message { get; set; }
         public DbSet<Camera> Camera { get; set; }
         public DbSet<Alarm> Alarm { get; set; }
+        public DbSet<Message> Message { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
