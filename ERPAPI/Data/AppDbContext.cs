@@ -36,6 +36,7 @@ namespace ERPAPI.Data
                 .HasNoKey();
         }
         public DbSet<ERPAPI.Model.Role> Role { get; set; } = default!;
+        public DbSet<ERPAPI.Model.Machine> Machine { get; set; } = default!;
 
 
 

@@ -10,7 +10,7 @@ namespace ERPAPI.Model
         public int ZoneId { get; set; }
         public string ZoneNo { get; set; }
         public string ZoneDescription { get; set; }
-        public string SortOrder { get; set; }
-        public bool Status { get; set; }
+        public List<int> CameraIds { get; set; }
+        public List<int> MachineId { get; set; }
     }
 }
