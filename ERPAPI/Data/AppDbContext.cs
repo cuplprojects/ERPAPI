@@ -1,4 +1,5 @@
 ﻿using ERPAPI.Model;
+using ERPGenericFunctions.Model;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Reflection.Emit;
@@ -20,6 +21,11 @@ namespace ERPAPI.Data
         //public DbSet<Message> Message { get; set; }
         public DbSet<Camera> Camera { get; set; }
         public DbSet<Alarm> Alarm { get; set; }
+        public DbSet<User> Users { get; set; } // Assuming this is already present
+        public DbSet<UserAuth> UserAuths { get; set; } // Add this for UserAuth
+
+        public DbSet<EventLog> EventLogs { get; set; } // Assuming you have event logs
+        public DbSet<ErrorLog> ErrorLogs { get; set; } // Assuming you have error logs
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
