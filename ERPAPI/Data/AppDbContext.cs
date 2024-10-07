@@ -29,6 +29,7 @@ namespace ERPAPI.Data
             modelBuilder.Entity<ProcessGroupType>()
                 .HasNoKey();
         }
+        public DbSet<ERPAPI.Model.Role> Role { get; set; } = default!;
 
 
 
