@@ -21,12 +21,17 @@ namespace ERPAPI.Data
         //public DbSet<Message> Message { get; set; }
         public DbSet<Camera> Camera { get; set; }
         public DbSet<Alarm> Alarm { get; set; }
+
+        public DbSet<Message> Message { get; set; }
+        public DbSet<TextLabel> TextLabel { get; set; }
+
         public DbSet<User> Users { get; set; } // Assuming this is already present
         public DbSet<UserAuth> UserAuths { get; set; } // Add this for UserAuth
         public DbSet<SecurityQuestion> SecurityQuestions { get; set; }
 
         public DbSet<EventLog> EventLogs { get; set; } // Assuming you have event logs
         public DbSet<ErrorLog> ErrorLogs { get; set; } // Assuming you have error logs
+
 
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
@@ -35,6 +40,12 @@ namespace ERPAPI.Data
         {
             modelBuilder.Entity<ProcessGroupType>()
                 .HasNoKey();
+
+            // Configure LabelKey to be unique
+            modelBuilder.Entity<TextLabel>()
+                .HasIndex(t => t.LabelKey)
+                .IsUnique(); // This makes LabelKey a unique index
+
         }
         public DbSet<ERPAPI.Model.Role> Role { get; set; } = default!;
         public DbSet<ERPAPI.Model.Machine> Machine { get; set; } = default!;
