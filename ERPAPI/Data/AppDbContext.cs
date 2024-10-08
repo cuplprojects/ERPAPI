@@ -26,7 +26,7 @@ namespace ERPAPI.Data
 
         public DbSet<EventLog> EventLogs { get; set; } // Assuming you have event logs
         public DbSet<ErrorLog> ErrorLogs { get; set; } // Assuming you have error logs
-
+        public DbSet<SecurityQuestion> SecurityQuestions { get; set; }
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
