@@ -1,10 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using ERPAPI.Encryption;
-
 using ERPAPI.Model.NonDbModels;
 using ERPAPI.Service;
 using Microsoft.AspNetCore.Identity.Data;
-
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -54,6 +52,8 @@ namespace ERPAPI.Controllers
                 );
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+
         [AllowAnonymous]
         [HttpPost("login")]
         public IActionResult Login([FromBody] Model.NonDbModels.LoginRequest loginRequest)
@@ -102,41 +102,6 @@ namespace ERPAPI.Controllers
                 return Ok(new { token = token, userAuth.ua.UserId, userAuth.ua.AutogenPass });
             }
         }
-
-        //[HttpPost("login")]
-        //public IActionResult Login([FromBody] Model.NonDbModels.LoginRequest loginRequest)
-
-        //{
-
-        //    var userAuth = (from user in _context.Users
-        //                    join ua in _context.UserAuths on user.UserId equals ua.UserId
-        //                    where user.UserName == loginRequest.UserName
-        //                    select new { ua, user.Status, user.UserName }).FirstOrDefault();
-
-        //    if (userAuth == null)
-        //    {
-        //        return NotFound("User not found");
-        //    }
-
-        //    if (!userAuth.Status)
-        //    {
-        //        return Unauthorized("User is inactive");
-        //    }
-
-        //    string hashedPassword = Sha256.ComputeSHA256Hash(loginRequest.Password);
-        //    Console.WriteLine(hashedPassword);
-
-        //    if (hashedPassword != userAuth.ua.Password)
-        //    {
-        //        return Unauthorized("Invalid password");
-        //    }
-
-
-        //    var token = GenerateToken(userAuth.ua);
-        //    _loggerService.LogEvent($"User Logged-in", "Login", userAuth.ua.UserId);
-        //    return Ok(new { token = token, userAuth.ua.UserId, userAuth.ua.AutogenPass });
-        //}
-
 
         // Change Password API
         [Authorize]
@@ -222,14 +187,26 @@ namespace ERPAPI.Controllers
                 return NotFound("Security questions not set for the user.");
             }
 
-            var securityQuestions = new
+            // Fetch the security question details from the SecurityQuestions table
+            var securityQuestion1 = _context.SecurityQuestions.FirstOrDefault(q => q.QuestionId == userAuth.SecurityQuestion1Id);
+            var securityQuestion2 = _context.SecurityQuestions.FirstOrDefault(q => q.QuestionId == userAuth.SecurityQuestion2Id);
+
+            // Check if both questions exist
+            if (securityQuestion1 == null || securityQuestion2 == null)
             {
-                SecurityQuestion1Id = userAuth.SecurityQuestion1Id,
-                SecurityQuestion2Id = userAuth.SecurityQuestion2Id
-            };
+                return NotFound("One or both security questions not found.");
+            }
+
+            // Create an array containing two objects, each with question id and text
+            var securityQuestions = new[]
+            {
+        new { QuestionId = securityQuestion1.QuestionId, Question = securityQuestion1.SecurityQuestions },
+        new { QuestionId = securityQuestion2.QuestionId, Question = securityQuestion2.SecurityQuestions }
+    };
 
             return Ok(securityQuestions);
         }
+
 
 
 
