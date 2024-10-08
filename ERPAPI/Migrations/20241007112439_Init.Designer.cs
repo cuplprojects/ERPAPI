@@ -4,6 +4,7 @@ using ERPAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERPAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241007112439_Init")]
+    partial class Init
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -201,8 +204,6 @@ namespace ERPAPI.Migrations
 
                     b.ToTable("Machine");
                 });
-
-
 
             modelBuilder.Entity("ERPAPI.Model.PaperType", b =>
                 {
@@ -414,7 +415,6 @@ namespace ERPAPI.Migrations
                     b.HasKey("QuestionId");
 
                     b.ToTable("SecurityQuestions");
-
                 });
 
             modelBuilder.Entity("ERPAPI.Model.Transaction", b =>
