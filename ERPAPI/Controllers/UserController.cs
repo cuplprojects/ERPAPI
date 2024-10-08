@@ -84,5 +84,29 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, "Failed to retrieve users");
             }
         }
+
+        // GET: api/User/{id}
+        [HttpGet("{id}")]
+        public async Task<ActionResult<User>> GetUserById(int id)
+        {
+            try
+            {
+                // Retrieve the user from the database by ID
+                var user = await Task.FromResult(_context.Users.FirstOrDefault(u => u.UserId == id));
+
+                if (user == null)
+                {
+                    return NotFound(new { Message = "User not found" });
+                }
+
+                return Ok(user);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Failed to retrieve user", ex.Message, "UserController");
+                return StatusCode(500, "Failed to retrieve user");
+            }
+        }
+
     }
 }
