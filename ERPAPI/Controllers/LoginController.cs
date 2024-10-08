@@ -57,9 +57,7 @@ namespace ERPAPI.Controllers
         [AllowAnonymous]
         [HttpPost("login")]
         public IActionResult Login([FromBody] Model.NonDbModels.LoginRequest loginRequest)
-
         {
-
             var userAuth = (from user in _context.Users
                             join ua in _context.UserAuths on user.UserId equals ua.UserId
                             where user.UserName == loginRequest.UserName
@@ -76,18 +74,68 @@ namespace ERPAPI.Controllers
             }
 
             string hashedPassword = Sha256.ComputeSHA256Hash(loginRequest.Password);
-            Console.WriteLine(hashedPassword);
 
             if (hashedPassword != userAuth.ua.Password)
             {
                 return Unauthorized("Invalid password");
             }
 
-
-            var token = GenerateToken(userAuth.ua);
-            _loggerService.LogEvent($"User Logged-in", "Login", userAuth.ua.UserId);
-            return Ok(new { token = token, userAuth.ua.UserId, userAuth.ua.AutogenPass });
+            // Check if it's the user's first login (AutogenPass == true)
+            if (userAuth.ua.AutogenPass)
+            {
+                // Let the user login but prompt them to change their password
+                var token = GenerateToken(userAuth.ua);
+                _loggerService.LogEvent($"User Logged-in (First Time)", "Login", userAuth.ua.UserId);
+                return Ok(new
+                {
+                    token = token,
+                    userAuth.ua.UserId,
+                    userAuth.ua.AutogenPass,
+                    Message = "This is your first login, please change your password."
+                });
+            }
+            else
+            {
+                // Normal login process
+                var token = GenerateToken(userAuth.ua);
+                _loggerService.LogEvent($"User Logged-in", "Login", userAuth.ua.UserId);
+                return Ok(new { token = token, userAuth.ua.UserId, userAuth.ua.AutogenPass });
+            }
         }
+
+        //[HttpPost("login")]
+        //public IActionResult Login([FromBody] Model.NonDbModels.LoginRequest loginRequest)
+
+        //{
+
+        //    var userAuth = (from user in _context.Users
+        //                    join ua in _context.UserAuths on user.UserId equals ua.UserId
+        //                    where user.UserName == loginRequest.UserName
+        //                    select new { ua, user.Status, user.UserName }).FirstOrDefault();
+
+        //    if (userAuth == null)
+        //    {
+        //        return NotFound("User not found");
+        //    }
+
+        //    if (!userAuth.Status)
+        //    {
+        //        return Unauthorized("User is inactive");
+        //    }
+
+        //    string hashedPassword = Sha256.ComputeSHA256Hash(loginRequest.Password);
+        //    Console.WriteLine(hashedPassword);
+
+        //    if (hashedPassword != userAuth.ua.Password)
+        //    {
+        //        return Unauthorized("Invalid password");
+        //    }
+
+
+        //    var token = GenerateToken(userAuth.ua);
+        //    _loggerService.LogEvent($"User Logged-in", "Login", userAuth.ua.UserId);
+        //    return Ok(new { token = token, userAuth.ua.UserId, userAuth.ua.AutogenPass });
+        //}
 
 
         // Change Password API
@@ -235,6 +283,7 @@ namespace ERPAPI.Controllers
 
             // Set new password
             userAuth.Password = Sha256.ComputeSHA256Hash(request.NewPassword);
+            userAuth.AutogenPass = false;
             _context.SaveChanges();
 
             _loggerService.LogEvent("Password reset", "User", userAuth.UserId);
