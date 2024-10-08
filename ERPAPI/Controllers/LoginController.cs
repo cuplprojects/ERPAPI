@@ -155,30 +155,99 @@ namespace ERPAPI.Controllers
         }
 
 
-        // Forgot Password API
-        [HttpPost("forgotPassword")]
-        public IActionResult ForgotPassword(ERPAPI.Model.NonDbModels.ForgotPasswordRequest request)
+
+
+
+
+        [HttpGet("forgotPassword/securityQuestions/{username}")]
+        public IActionResult GetSecurityQuestions(string username)
         {
-            var user = _context.Users.FirstOrDefault(x => x.UserName == request.UserName);  // Use 'request' instead of 'loginRequest'
+            var user = _context.Users.FirstOrDefault(x => x.UserName == username);
             if (user == null)
             {
                 return NotFound("User not found.");
             }
 
             var userAuth = _context.UserAuths.FirstOrDefault(u => u.UserId == user.UserId);
-            if (userAuth == null ||
-                userAuth.SecurityAnswer1 != request.SecurityAnswer1 ||
-                userAuth.SecurityAnswer2 != request.SecurityAnswer2)
+            if (userAuth == null)
+            {
+                return NotFound("Security questions not set for the user.");
+            }
+
+            var securityQuestions = new
+            {
+                SecurityQuestion1Id = userAuth.SecurityQuestion1Id,
+                SecurityQuestion2Id = userAuth.SecurityQuestion2Id
+            };
+
+            return Ok(securityQuestions);
+        }
+
+
+
+
+
+
+        [HttpPost("forgotPassword/verifySecurityAnswers")]
+        public IActionResult VerifySecurityAnswers([FromBody] VerifySecurityAnswers request)
+        {
+            var user = _context.Users.FirstOrDefault(x => x.UserName == request.UserName);
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            var userAuth = _context.UserAuths.FirstOrDefault(u => u.UserId == user.UserId);
+            if (userAuth == null)
+            {
+                return Unauthorized("Security answers not set for the user.");
+            }
+
+            if (userAuth.SecurityAnswer1 != request.SecurityAnswer1 || userAuth.SecurityAnswer2 != request.SecurityAnswer2)
             {
                 return Unauthorized("Security answers do not match.");
             }
 
+            return Ok(new { Message = "Security answers verified successfully." });
+        }
+
+
+        [HttpPost("forgotPassword/setNewPassword")]
+        public IActionResult SetNewPassword([FromBody] SetNewPassword request)
+        {
+            var user = _context.Users.FirstOrDefault(x => x.UserName == request.UserName);
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            var userAuth = _context.UserAuths.FirstOrDefault(u => u.UserId == user.UserId);
+            if (userAuth == null)
+            {
+                return Unauthorized("Security answers not set for the user.");
+            }
+
+            // Verify if the user has passed the security answers step
+            if (!request.SecurityAnswersVerified)
+            {
+                return Unauthorized("Security answers were not verified.");
+            }
+
+            // Set new password
             userAuth.Password = Sha256.ComputeSHA256Hash(request.NewPassword);
             _context.SaveChanges();
 
             _loggerService.LogEvent("Password reset", "User", userAuth.UserId);
             return Ok("Password reset successfully.");
         }
+
+
+
+
+
+
+
+
 
         // PUT: api/SecurityQuestions/SetPassword
         [HttpPut("SetPassword")]
