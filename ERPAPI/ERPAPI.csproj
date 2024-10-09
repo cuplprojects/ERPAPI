@@ -29,4 +29,8 @@
 		<PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.0" />
 		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.1.1" />
 	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="wwwroot\Image\" />
+	</ItemGroup>
 </Project>

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERPAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241008060815_Textlabel")]
-    partial class Textlabel
+    [Migration("20241009063406_profile")]
+    partial class profile
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -436,6 +436,23 @@ namespace ERPAPI.Migrations
                     b.ToTable("Role");
                 });
 
+            modelBuilder.Entity("ERPAPI.Model.SecurityQuestion", b =>
+                {
+                    b.Property<int>("QuestionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("QuestionId"));
+
+                    b.Property<string>("SecurityQuestions")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("QuestionId");
+
+                    b.ToTable("SecurityQuestions");
+                });
+
             modelBuilder.Entity("ERPAPI.Model.TextLabel", b =>
                 {
                     b.Property<int>("TextLabelId")
@@ -452,11 +469,14 @@ namespace ERPAPI.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
-                    b.Property<string>("Key")
+                    b.Property<string>("LabelKey")
                         .IsRequired()
-                        .HasColumnType("longtext");
+                        .HasColumnType("varchar(255)");
 
                     b.HasKey("TextLabelId");
+
+                    b.HasIndex("LabelKey")
+                        .IsUnique();
 
                     b.ToTable("TextLabel");
                 });
@@ -523,6 +543,10 @@ namespace ERPAPI.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("MobileNo")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ProfilePicturePath")
                         .IsRequired()
                         .HasColumnType("longtext");
 

@@ -2,11 +2,13 @@
 using ERPAPI.Encryption;
 using ERPAPI.Services;
 using ERPAPI.Data;
-using ERPAPI.Model;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using ERPGenericFunctions.Model;
-using System.Collections.Generic;
-using System.Linq;
+using System;
+using System.IO;
 using System.Threading.Tasks;
+
 using ERPAPI.Service;
 
 namespace ERPAPI.Controllers
@@ -17,11 +19,13 @@ namespace ERPAPI.Controllers
     {
         private readonly AppDbContext _context;
         private readonly ILoggerService _loggerService;
+        private readonly IWebHostEnvironment _hostingEnvironment;
 
-        public UserController(AppDbContext context, ILoggerService loggerService)
+        public UserController(AppDbContext context, ILoggerService loggerService, IWebHostEnvironment hostingEnvironment)
         {
             _context = context;
             _loggerService = loggerService;
+            _hostingEnvironment = hostingEnvironment;
         }
 
         // POST: api/User/create
@@ -157,6 +161,116 @@ namespace ERPAPI.Controllers
             }
         }
 
+        // POST: api/User/uploadProfilePicture/{id}
+        [HttpPost("upload/{userId}")]
+        public IActionResult UploadImage(int userId)
+        {
+            try
+            {
+                // Ensure the user with the provided userId exists
+                if (UserExists(userId))
+                {
+                    var file = Request.Form.Files[0];
+
+                    if (file.Length > 0)
+                    {
+                        // Extract the file extension from the original filename
+                        var fileExtension = Path.GetExtension(file.FileName);
+
+                        // Generate the custom filename based on the user ID and original file extension
+                        var customFileName = $"{userId}_profilepic{fileExtension}";
+
+                        var filePath = Path.Combine("wwwroot/Image", customFileName);
+
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            file.CopyTo(stream);
+                        }
+
+                        // Update the user's profile picture path in the database
+                        var user = _context.Users.FirstOrDefault(u => u.UserId == userId);
+                        if (user != null)
+                        {
+                            user.ProfilePicturePath = $"images/{customFileName}";
+                            _context.SaveChanges();
+                        }
+
+                        return Ok(new { message = "Image uploaded successfully", filePath });
+                    }
+                    else
+                    {
+                        return BadRequest("No file uploaded");
+                    }
+                }
+                else
+                {
+                    return BadRequest("Invalid user");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+        // PUT: api/User/updateProfilePicture/{userId}
+        [HttpPut("updateProfilePicture/{userId}")]
+        public IActionResult UpdateProfilePicture(int userId)
+        {
+            try
+            {
+                // Ensure the user with the provided userId exists
+                var user = _context.Users.FirstOrDefault(u => u.UserId == userId);
+                if (user == null)
+                {
+                    return NotFound(new { Message = "User not found" });
+                }
+
+                // Delete the existing profile picture if it exists
+                if (!string.IsNullOrEmpty(user.ProfilePicturePath))
+                {
+                    var oldFilePath = Path.Combine("wwwroot", user.ProfilePicturePath);
+                    if (System.IO.File.Exists(oldFilePath))
+                    {
+                        System.IO.File.Delete(oldFilePath);
+                    }
+                }
+
+                // Proceed to upload the new profile picture
+                var file = Request.Form.Files[0];
+                if (file.Length > 0)
+                {
+                    var fileExtension = Path.GetExtension(file.FileName);
+                    var customFileName = $"{userId}_profilepic{fileExtension}";
+                    var newFilePath = Path.Combine("wwwroot/Image", customFileName);
+
+                    using (var stream = new FileStream(newFilePath, FileMode.Create))
+                    {
+                        file.CopyTo(stream);
+                    }
+
+                    // Update the profile picture path in the database
+                    user.ProfilePicturePath = $"images/{customFileName}";
+                    _context.SaveChanges();
+
+                    return Ok(new { message = "Profile picture updated successfully", filePath = user.ProfilePicturePath });
+                }
+                else
+                {
+                    return BadRequest("No file uploaded");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
+        }
+
+
+        private bool UserExists(int id)
+        {
+            return _context.Users.Any(e => e.UserId == id);
+        }
 
     }
 }

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERPAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241007112439_Init")]
-    partial class Init
+    [Migration("20241009072052_user")]
+    partial class user
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -203,6 +203,42 @@ namespace ERPAPI.Migrations
                     b.HasKey("MachineId");
 
                     b.ToTable("Machine");
+                });
+
+            modelBuilder.Entity("ERPAPI.Model.Message", b =>
+                {
+                    b.Property<int>("MessageId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("MessageId"));
+
+                    b.Property<string>("L1Desc")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("L1Title")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("L2Desc")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("L2Title")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("Status")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("MessageId");
+
+                    b.ToTable("Message");
                 });
 
             modelBuilder.Entity("ERPAPI.Model.PaperType", b =>
@@ -417,6 +453,34 @@ namespace ERPAPI.Migrations
                     b.ToTable("SecurityQuestions");
                 });
 
+            modelBuilder.Entity("ERPAPI.Model.TextLabel", b =>
+                {
+                    b.Property<int>("TextLabelId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("TextLabelId"));
+
+                    b.Property<string>("EnglishLabel")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("HindiLabel")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("LabelKey")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("TextLabelId");
+
+                    b.HasIndex("LabelKey")
+                        .IsUnique();
+
+                    b.ToTable("TextLabel");
+                });
+
             modelBuilder.Entity("ERPAPI.Model.Transaction", b =>
                 {
                     b.Property<int>("TransactionId")
@@ -466,7 +530,15 @@ namespace ERPAPI.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("UserId"));
 
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Gender")
                         .IsRequired()
                         .HasColumnType("longtext");
 
@@ -479,6 +551,10 @@ namespace ERPAPI.Migrations
                         .HasColumnType("longtext");
 
                     b.Property<string>("MobileNo")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ProfilePicturePath")
                         .IsRequired()
                         .HasColumnType("longtext");
 
