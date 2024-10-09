@@ -9,6 +9,6 @@ namespace ERPAPI.Model
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int TeamId { get; set; }
         public string TeamName {  get; set; }
-        public int DepartmentId { get; set; }
+       
     }
 }

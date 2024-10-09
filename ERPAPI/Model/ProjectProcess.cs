@@ -14,7 +14,6 @@ namespace ERPAPI.Model
         public int GroupId { get; set; }
         public int TypeId { get; set; }
         public int Sequence {  get; set; }
-        public int FeatureId { get; set; }
-        public bool Independent { get; set; }
+
     }
 }

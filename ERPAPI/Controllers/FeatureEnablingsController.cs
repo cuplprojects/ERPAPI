@@ -47,7 +47,7 @@ namespace ERPAPI.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutFeatureEnabling(int id, FeatureEnabling featureEnabling)
         {
-            if (id != featureEnabling.FeatureEnablingId)
+            if (id != featureEnabling.ModuleId) // Update to use ModuleId instead of FeatureEnablingId
             {
                 return BadRequest();
             }
@@ -81,7 +81,7 @@ namespace ERPAPI.Controllers
             _context.FeatureEnabling.Add(featureEnabling);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetFeatureEnabling", new { id = featureEnabling.FeatureEnablingId }, featureEnabling);
+            return CreatedAtAction("GetFeatureEnabling", new { id = featureEnabling.ModuleId }, featureEnabling); // Use ModuleId for the route
         }
 
         // DELETE: api/FeatureEnablings/5
@@ -102,7 +102,7 @@ namespace ERPAPI.Controllers
 
         private bool FeatureEnablingExists(int id)
         {
-            return _context.FeatureEnabling.Any(e => e.FeatureEnablingId == id);
+            return _context.FeatureEnabling.Any(e => e.ModuleId == id); // Use ModuleId for existence check
         }
     }
 }

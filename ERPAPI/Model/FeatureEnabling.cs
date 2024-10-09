@@ -7,9 +7,10 @@ namespace ERPAPI.Model
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int FeatureEnablingId { get; set; }
+        public int ModuleId { get; set; }
+
         public int FeatureId { get; set; }
-        public bool Enabled { get; set; }
+        public bool IsEnabled { get; set; }
         public bool Independent { get; set; }
         public int ProcessGroupId { get; set; }
     }
