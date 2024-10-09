@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERPAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241007064928_initial")]
-    partial class initial
+    [Migration("20241007125151_featureenable")]
+    partial class featureenable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -139,14 +139,11 @@ namespace ERPAPI.Migrations
 
             modelBuilder.Entity("ERPAPI.Model.FeatureEnabling", b =>
                 {
-                    b.Property<int>("FeatureEnablingId")
+                    b.Property<int>("ModuleId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("FeatureEnablingId"));
-
-                    b.Property<bool>("Enabled")
-                        .HasColumnType("tinyint(1)");
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ModuleId"));
 
                     b.Property<int>("FeatureId")
                         .HasColumnType("int");
@@ -154,10 +151,13 @@ namespace ERPAPI.Migrations
                     b.Property<bool>("Independent")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<int>("ProcessGroupId")
                         .HasColumnType("int");
 
-                    b.HasKey("FeatureEnablingId");
+                    b.HasKey("ModuleId");
 
                     b.ToTable("FeatureEnabling");
                 });
