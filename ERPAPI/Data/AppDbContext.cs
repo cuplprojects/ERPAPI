@@ -24,6 +24,10 @@ namespace ERPAPI.Data
         public DbSet<User> Users { get; set; } // Assuming this is already present
         public DbSet<UserAuth> UserAuths { get; set; } // Add this for UserAuth
 
+        public DbSet<Role> Role { get; set; }
+        public DbSet<Machine> Machine { get; set; } 
+         public DbSet<Zone> Zone { get; set; } 
+
         public DbSet<EventLog> EventLogs { get; set; } // Assuming you have event logs
         public DbSet<ErrorLog> ErrorLogs { get; set; } // Assuming you have error logs
 
@@ -35,9 +39,6 @@ namespace ERPAPI.Data
             modelBuilder.Entity<ProcessGroupType>()
                 .HasNoKey();
         }
-        public DbSet<ERPAPI.Model.Role> Role { get; set; } = default!;
-        public DbSet<ERPAPI.Model.Machine> Machine { get; set; } = default!;
-        public DbSet<ERPAPI.Model.Zone> Zone { get; set; } = default!;
 
 
 

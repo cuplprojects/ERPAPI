@@ -23,10 +23,38 @@ namespace ERPAPI.Controllers
 
         // GET: api/Zones
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Zone>>> GetZone()
+        public async Task<ActionResult<IEnumerable<object>>> GetZones()
         {
-            return await _context.Zone.ToListAsync();
+            // Fetch all zones from the database
+            var zones = await _context.Zone.ToListAsync();
+
+            // Fetch all machines and create a dictionary of their names
+            var machines = await _context.Machine.ToListAsync();
+            var machineDictionary = machines.ToDictionary(m => m.MachineId, m => m.MachineName);
+
+            // Fetch all cameras and create a dictionary of their names
+            var cameras = await _context.Camera.ToListAsync();
+            var cameraDictionary = cameras.ToDictionary(c => c.CameraId, c => c.Name);
+
+            // Map zones to include full names of assigned machines and cameras
+            var zonesWithNames = zones.Select(zone => new
+            {
+                zone.ZoneId,
+                zone.ZoneNo,
+                zone.ZoneDescription,
+                zone.CameraIds,
+                zone.MachineId,
+                MachineNames = zone.MachineId
+                    .Select(machineId => machineDictionary.TryGetValue(machineId, out var machineName) ? machineName : "Unknown Machine")
+                    .ToList(),
+                CameraNames = zone.CameraIds
+                    .Select(cameraId => cameraDictionary.TryGetValue(cameraId, out var cameraName) ? cameraName : "Unknown Camera")
+                    .ToList()
+            }).ToList();
+
+            return Ok(zonesWithNames);
         }
+
 
         // GET: api/Zones/5
         [HttpGet("{id}")]
