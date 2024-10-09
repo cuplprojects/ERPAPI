@@ -27,7 +27,7 @@ namespace ERPAPI.Controllers
             return await _context.ProjectProcesses.ToListAsync();
         }
 
-        [HttpGet("GetProject")]
+        [HttpGet]
         public async Task<ActionResult<IEnumerable<Project>>> GetProject()
         {
             return await _context.Projects.ToListAsync();
@@ -41,6 +41,36 @@ namespace ERPAPI.Controllers
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("GetProject", new { id = project.ProjectId }, project);
+        }
+
+
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutProject(int id, Project project)
+        {
+            if (id != project.ProjectId)
+            {
+                return BadRequest();
+            }
+
+            _context.Entry(project).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!ProjectExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
         }
 
         [HttpPost("AddProcessesToProject")]
@@ -124,61 +154,10 @@ namespace ERPAPI.Controllers
             return Ok(projectProcesses);
         }
 
-       /* void ProcessCatch(QuantitySheet catchData, List<Process> projectProcesses)
+        private bool ProjectExists(int id)
         {
-            bool isCTPIncluded = false;
-
-            // Process each catch based on the selected processes
-            foreach (var process in projectProcesses)
-            {
-                if (process.Name == "CTP")
-                {
-                    // Apply the CTP check (based on quantity < 2000 and override flag)
-                    if (catchData.Quantity < 2000 && !catchData.IsOverridden)
-                    {
-                        catchData.IsCTPIncluded = false;
-                    }
-                    else
-                    {
-                        catchData.IsCTPIncluded = true;
-                        isCTPIncluded = true;
-                    }
-                }
-            }
-
-            // Determine printing process based on CTP involvement
-            if (isCTPIncluded)
-            {
-                // Apply Offset Printing if CTP is involved
-                ApplyProcess(catchData, "Offset Printing");
-            }
-            else
-            {
-                // Apply Digital Printing if CTP is not involved
-                ApplyProcess(catchData, "Digital Printing");
-            }
+            return _context.Projects.Any(e => e.ProjectId == id);
         }
-
-        void ApplyProcess(QuantitySheet catchData, string processName)
-        {
-            // Check if process is already applied (if not applied earlier)
-            var processApplied = catchData.CatchProcesses
-                                .FirstOrDefault(p => p.Process.Name == processName);
-
-            if (processApplied == null)
-            {
-                // If process is not already applied, apply it
-                catchData.CatchProcesses.Add(new CatchProcessLink
-                {
-                    CatchId = catchData.CatchId,
-                    ProcessName = processName,
-                    IsProcessApplied = true
-                });
-            }
-        }
-
-*/
-
     }
 
     public class ProjectProcessDto

@@ -9,9 +9,7 @@ namespace ERPAPI.Model
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int MachineId { get; set; }
         public string MachineName { get; set; }
-        public string MachineType { get; set; }
-        public int ZoneId { get; set; }
         public bool Status { get; set; }
-        public int DepartmentId { get; set; }
+        public int ProcessId { get; set; }
     }
 }

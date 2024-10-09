@@ -9,5 +9,6 @@ namespace ERPAPI.Model
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int FeatureId { get; set; }
         public string Features { get; set; }
+        public bool Status { get; set; }
     }
 }
