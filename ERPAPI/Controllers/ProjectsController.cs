@@ -137,8 +137,7 @@ namespace ERPAPI.Controllers
                     GroupId = dto.GroupId,
                     TypeId = dto.TypeId,
                     Sequence = dto.Sequence,
-                    FeatureId = dto.FeatureId,
-                    Independent = dto.Independent
+                 
                 };
             }).Where(pp => pp != null).ToList();
 
@@ -169,8 +168,7 @@ namespace ERPAPI.Controllers
         public int GroupId { get; set; }
         public int TypeId { get; set; }
         public int Sequence { get; set; }
-        public int FeatureId { get; set; }
-        public bool Independent { get; set; }
+      
     }
 
     public class AddProcessesDto
