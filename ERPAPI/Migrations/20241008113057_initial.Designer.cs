@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERPAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241008074202_MakeLabelKeyUnique")]
-    partial class MakeLabelKeyUnique
+    [Migration("20241008113057_initial")]
+    partial class initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -434,6 +434,23 @@ namespace ERPAPI.Migrations
                     b.HasKey("RoleId");
 
                     b.ToTable("Role");
+                });
+
+            modelBuilder.Entity("ERPAPI.Model.SecurityQuestion", b =>
+                {
+                    b.Property<int>("QuestionId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("QuestionId"));
+
+                    b.Property<string>("SecurityQuestions")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("QuestionId");
+
+                    b.ToTable("SecurityQuestions");
                 });
 
             modelBuilder.Entity("ERPAPI.Model.TextLabel", b =>
