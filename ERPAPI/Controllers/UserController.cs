@@ -267,6 +267,43 @@ namespace ERPAPI.Controllers
         }
 
 
+        // DELETE: api/User/deleteProfilePicture/{userId}
+        [HttpDelete("deleteProfilePicture/{userId}")]
+        public IActionResult DeleteProfilePicture(int userId)
+        {
+            try
+            {
+                var user = _context.Users.FirstOrDefault(u => u.UserId == userId);
+                if (user == null)
+                {
+                    return NotFound(new { Message = "User not found" });
+                }
+
+                if (string.IsNullOrEmpty(user.ProfilePicturePath))
+                {
+                    return BadRequest(new { Message = "No profile picture to delete" });
+                }
+
+                var filePath = Path.Combine("wwwroot", user.ProfilePicturePath);
+                if (System.IO.File.Exists(filePath))
+                {
+                    System.IO.File.Delete(filePath);
+                }
+
+                user.ProfilePicturePath = null;
+                _context.SaveChanges();
+
+                return Ok(new { Message = "Profile picture deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Internal server error", Details = ex.InnerException?.Message ?? ex.Message });
+            }
+
+        }
+
+
+
         private bool UserExists(int id)
         {
             return _context.Users.Any(e => e.UserId == id);
