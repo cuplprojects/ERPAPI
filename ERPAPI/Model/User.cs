@@ -17,5 +17,8 @@ namespace ERPGenericFunctions.Model
         public int RoleId { get; set; }
         public string MobileNo { get; set; }
         public bool Status { get; set; }
+        public string Gender { get; set; }
+        public string Address { get; set; }
+        public string ProfilePicturePath { get; set; }
     }
 }

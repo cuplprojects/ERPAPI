@@ -4,6 +4,7 @@ using ERPAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERPAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241009072052_user")]
+    partial class user
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -136,11 +139,14 @@ namespace ERPAPI.Migrations
 
             modelBuilder.Entity("ERPAPI.Model.FeatureEnabling", b =>
                 {
-                    b.Property<int>("ModuleId")
+                    b.Property<int>("FeatureEnablingId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ModuleId"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("FeatureEnablingId"));
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<int>("FeatureId")
                         .HasColumnType("int");
@@ -148,13 +154,10 @@ namespace ERPAPI.Migrations
                     b.Property<bool>("Independent")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool>("IsEnabled")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<int>("ProcessGroupId")
                         .HasColumnType("int");
 
-                    b.HasKey("ModuleId");
+                    b.HasKey("FeatureEnablingId");
 
                     b.ToTable("FeatureEnabling");
                 });
