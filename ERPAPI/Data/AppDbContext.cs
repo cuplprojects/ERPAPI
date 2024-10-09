@@ -29,6 +29,10 @@ namespace ERPAPI.Data
         public DbSet<UserAuth> UserAuths { get; set; } // Add this for UserAuth
         public DbSet<SecurityQuestion> SecurityQuestions { get; set; }
 
+        public DbSet<Role> Role { get; set; }
+        public DbSet<Machine> Machine { get; set; } 
+         public DbSet<Zone> Zone { get; set; } 
+
         public DbSet<EventLog> EventLogs { get; set; } // Assuming you have event logs
         public DbSet<ErrorLog> ErrorLogs { get; set; } // Assuming you have error logs
 
@@ -47,8 +51,6 @@ namespace ERPAPI.Data
                 .IsUnique(); // This makes LabelKey a unique index
 
         }
-        public DbSet<ERPAPI.Model.Role> Role { get; set; } = default!;
-        public DbSet<ERPAPI.Model.Machine> Machine { get; set; } = default!;
 
 
 

@@ -23,9 +23,20 @@ namespace ERPAPI.Controllers
 
         // GET: api/Machines
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Machine>>> GetMachine()
+        public async Task<ActionResult<IEnumerable<Machine>>> GetMachines()
         {
-            return await _context.Machine.ToListAsync();
+            var machinesWithProcesses = await (from m in _context.Machine
+                                               join p in _context.Processes on m.ProcessId equals p.Id
+                                               select new
+                                               {
+                                                   m.MachineId,
+                                                   m.MachineName,
+                                                   m.Status,
+                                                   m.ProcessId,
+                                                   ProcessName = p.Name
+                                               }).ToListAsync();
+
+            return Ok(machinesWithProcesses);
         }
 
         // GET: api/Machines/5
