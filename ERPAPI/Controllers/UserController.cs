@@ -10,6 +10,8 @@ using System.IO;
 using System.Threading.Tasks;
 
 using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace ERPAPI.Controllers
 {
@@ -89,6 +91,34 @@ namespace ERPAPI.Controllers
             }
         }
 
+        [HttpGet("LoggedUser")]
+        [Authorize] // Ensures the request is authenticated
+        public async Task<ActionResult<User>> GetUserByJwt()
+        {
+            try
+            {
+                var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name);
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+                {
+                    return BadRequest("Invalid token");
+                }
+
+                // Retrieve the user from the database
+                var user = await _context.Users.FindAsync(userId);
+
+                if (user == null)
+                {
+                    return NotFound("User not found");
+                }
+
+                return Ok(user);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Failed to retrieve user by JWT", ex.Message, "UserController");
+                return StatusCode(500, "Failed to retrieve user");
+            }
+        }
         // GET: api/User/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<User>> GetUserById(int id)
@@ -191,7 +221,7 @@ namespace ERPAPI.Controllers
                         var user = _context.Users.FirstOrDefault(u => u.UserId == userId);
                         if (user != null)
                         {
-                            user.ProfilePicturePath = $"images/{customFileName}";
+                            user.ProfilePicturePath = $"image/{customFileName}";
                             _context.SaveChanges();
                         }
 
@@ -250,7 +280,7 @@ namespace ERPAPI.Controllers
                     }
 
                     // Update the profile picture path in the database
-                    user.ProfilePicturePath = $"images/{customFileName}";
+                    user.ProfilePicturePath = $"image/{customFileName}";
                     _context.SaveChanges();
 
                     return Ok(new { message = "Profile picture updated successfully", filePath = user.ProfilePicturePath });
