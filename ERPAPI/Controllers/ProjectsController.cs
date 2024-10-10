@@ -135,6 +135,7 @@ namespace ERPAPI.Controllers
                     ProcessId = dto.ProcessId,
                     Weightage = adjustedWeightage, // Set the adjusted weightage
                     Sequence = dto.Sequence,
+                    FeaturesList = dto.FeaturesList,
                  
                 };
             }).Where(pp => pp != null).ToList();
@@ -164,6 +165,7 @@ namespace ERPAPI.Controllers
         public int ProcessId { get; set; }
         public double Weightage { get; set; }
         public int Sequence { get; set; }
+        public List<int> FeaturesList { get; set; }
       
     }
 

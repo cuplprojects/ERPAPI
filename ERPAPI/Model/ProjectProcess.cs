@@ -12,6 +12,7 @@ namespace ERPAPI.Model
         public int ProcessId { get; set; }
         public double Weightage { get; set; }
         public int Sequence {  get; set; }
+        public List<int> FeaturesList { get; set; }
 
     }
 }
