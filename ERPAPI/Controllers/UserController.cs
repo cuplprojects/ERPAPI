@@ -191,7 +191,7 @@ namespace ERPAPI.Controllers
                         var user = _context.Users.FirstOrDefault(u => u.UserId == userId);
                         if (user != null)
                         {
-                            user.ProfilePicturePath = $"images/{customFileName}";
+                            user.ProfilePicturePath = $"image/{customFileName}";
                             _context.SaveChanges();
                         }
 
