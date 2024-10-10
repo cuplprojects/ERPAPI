@@ -23,9 +23,28 @@ namespace ERPAPI.Controllers
 
         // GET: api/Processes
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Process>>> GetProcesses()
+        public async Task<ActionResult<IEnumerable<object>>> GetProcesses()
         {
-            return await _context.Processes.ToListAsync();
+            // Fetch all processes from the database
+            var processes = await _context.Processes.ToListAsync();
+
+            // Fetch all features and create a dictionary of their names
+            var features = await _context.Features.ToListAsync();
+            var featureDictionary = features.ToDictionary(f => f.FeatureId, f => f.Features);
+
+            // Map processes to include full names of installed features
+            var processesWithNames = processes.Select(process => new
+            {
+                process.Id,
+                process.Name,
+                process.Status,
+                process.InstalledFeatures,
+                FeatureNames = process.InstalledFeatures
+                    .Select(featureId => featureDictionary.TryGetValue(featureId, out var featureName) ? featureName : "Unknown Feature")
+                    .ToList()
+            }).ToList();
+
+            return Ok(processesWithNames);
         }
 
 
