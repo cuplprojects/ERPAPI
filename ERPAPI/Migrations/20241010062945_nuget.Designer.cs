@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERPAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241009052213_init")]
-    partial class init
+    [Migration("20241010062945_nuget")]
+    partial class nuget
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -139,14 +139,11 @@ namespace ERPAPI.Migrations
 
             modelBuilder.Entity("ERPAPI.Model.FeatureEnabling", b =>
                 {
-                    b.Property<int>("FeatureEnablingId")
+                    b.Property<int>("ModuleId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("FeatureEnablingId"));
-
-                    b.Property<bool>("Enabled")
-                        .HasColumnType("tinyint(1)");
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ModuleId"));
 
                     b.Property<int>("FeatureId")
                         .HasColumnType("int");
@@ -154,10 +151,13 @@ namespace ERPAPI.Migrations
                     b.Property<bool>("Independent")
                         .HasColumnType("tinyint(1)");
 
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("tinyint(1)");
+
                     b.Property<int>("ProcessGroupId")
                         .HasColumnType("int");
 
-                    b.HasKey("FeatureEnablingId");
+                    b.HasKey("ModuleId");
 
                     b.ToTable("FeatureEnabling");
                 });
@@ -347,15 +347,6 @@ namespace ERPAPI.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("FeatureId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("GroupId")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("Independent")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<int>("ProcessId")
                         .HasColumnType("int");
 
@@ -365,15 +356,34 @@ namespace ERPAPI.Migrations
                     b.Property<int>("Sequence")
                         .HasColumnType("int");
 
-                    b.Property<int>("TypeId")
-                        .HasColumnType("int");
-
                     b.Property<double>("Weightage")
                         .HasColumnType("double");
 
                     b.HasKey("Id");
 
                     b.ToTable("ProjectProcesses");
+                });
+
+            modelBuilder.Entity("ERPAPI.Model.ProjectProcessFeature", b =>
+                {
+                    b.Property<int>("ProjectProcessFeatureId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ProjectProcessFeatureId"));
+
+                    b.Property<int>("FeatureId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Independent")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("ProjectProcessId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProjectProcessFeatureId");
+
+                    b.ToTable("ProjectProcessFeatures");
                 });
 
             modelBuilder.Entity("ERPAPI.Model.QuantitySheet", b =>
@@ -522,6 +532,35 @@ namespace ERPAPI.Migrations
                     b.ToTable("Transaction");
                 });
 
+            modelBuilder.Entity("ERPAPI.Model.Zone", b =>
+                {
+                    b.Property<int>("ZoneId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ZoneId"));
+
+                    b.Property<string>("CameraIds")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("MachineId")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ZoneDescription")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ZoneNo")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("ZoneId");
+
+                    b.ToTable("Zone");
+                });
+
             modelBuilder.Entity("ERPGenericFunctions.Model.User", b =>
                 {
                     b.Property<int>("UserId")
@@ -530,7 +569,15 @@ namespace ERPAPI.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("UserId"));
 
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Gender")
                         .IsRequired()
                         .HasColumnType("longtext");
 
@@ -544,6 +591,9 @@ namespace ERPAPI.Migrations
 
                     b.Property<string>("MobileNo")
                         .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ProfilePicturePath")
                         .HasColumnType("longtext");
 
                     b.Property<int>("RoleId")

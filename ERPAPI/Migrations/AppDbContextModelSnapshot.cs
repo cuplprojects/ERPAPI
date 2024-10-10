@@ -344,15 +344,6 @@ namespace ERPAPI.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("FeatureId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("GroupId")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("Independent")
-                        .HasColumnType("tinyint(1)");
-
                     b.Property<int>("ProcessId")
                         .HasColumnType("int");
 
@@ -362,15 +353,34 @@ namespace ERPAPI.Migrations
                     b.Property<int>("Sequence")
                         .HasColumnType("int");
 
-                    b.Property<int>("TypeId")
-                        .HasColumnType("int");
-
                     b.Property<double>("Weightage")
                         .HasColumnType("double");
 
                     b.HasKey("Id");
 
                     b.ToTable("ProjectProcesses");
+                });
+
+            modelBuilder.Entity("ERPAPI.Model.ProjectProcessFeature", b =>
+                {
+                    b.Property<int>("ProjectProcessFeatureId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ProjectProcessFeatureId"));
+
+                    b.Property<int>("FeatureId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("Independent")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int>("ProjectProcessId")
+                        .HasColumnType("int");
+
+                    b.HasKey("ProjectProcessFeatureId");
+
+                    b.ToTable("ProjectProcessFeatures");
                 });
 
             modelBuilder.Entity("ERPAPI.Model.QuantitySheet", b =>
@@ -517,6 +527,35 @@ namespace ERPAPI.Migrations
                     b.HasKey("TransactionId");
 
                     b.ToTable("Transaction");
+                });
+
+            modelBuilder.Entity("ERPAPI.Model.Zone", b =>
+                {
+                    b.Property<int>("ZoneId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ZoneId"));
+
+                    b.Property<string>("CameraIds")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("MachineId")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ZoneDescription")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("ZoneNo")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("ZoneId");
+
+                    b.ToTable("Zone");
                 });
 
             modelBuilder.Entity("ERPGenericFunctions.Model.User", b =>

@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ERPAPI.Migrations
 {
     /// <inheritdoc />
-    public partial class initial : Migration
+    public partial class trust : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -89,16 +89,16 @@ namespace ERPAPI.Migrations
                 name: "FeatureEnabling",
                 columns: table => new
                 {
-                    FeatureEnablingId = table.Column<int>(type: "int", nullable: false)
+                    ModuleId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
                     FeatureId = table.Column<int>(type: "int", nullable: false),
-                    Enabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    IsEnabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Independent = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     ProcessGroupId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_FeatureEnabling", x => x.FeatureEnablingId);
+                    table.PrimaryKey("PK_FeatureEnabling", x => x.ModuleId);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -221,13 +221,27 @@ namespace ERPAPI.Migrations
                     Weightage = table.Column<double>(type: "double", nullable: false),
                     GroupId = table.Column<int>(type: "int", nullable: false),
                     TypeId = table.Column<int>(type: "int", nullable: false),
-                    Sequence = table.Column<int>(type: "int", nullable: false),
+                    Sequence = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ProjectProcesses", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "ProjectProcessFeatures",
+                columns: table => new
+                {
+                    ProjectProcessFeatureId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ProjectProcessId = table.Column<int>(type: "int", nullable: false),
                     FeatureId = table.Column<int>(type: "int", nullable: false),
                     Independent = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ProjectProcesses", x => x.Id);
+                    table.PrimaryKey("PK_ProjectProcessFeatures", x => x.ProjectProcessFeatureId);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -404,11 +418,38 @@ namespace ERPAPI.Migrations
                     RoleId = table.Column<int>(type: "int", nullable: false),
                     MobileNo = table.Column<string>(type: "longtext", nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    Status = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                    Status = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    Gender = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Address = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ProfilePicturePath = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4")
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Users", x => x.UserId);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "Zone",
+                columns: table => new
+                {
+                    ZoneId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    ZoneNo = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ZoneDescription = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CameraIds = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    MachineId = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Zone", x => x.ZoneId);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -459,6 +500,9 @@ namespace ERPAPI.Migrations
                 name: "ProjectProcesses");
 
             migrationBuilder.DropTable(
+                name: "ProjectProcessFeatures");
+
+            migrationBuilder.DropTable(
                 name: "Projects");
 
             migrationBuilder.DropTable(
@@ -484,6 +528,9 @@ namespace ERPAPI.Migrations
 
             migrationBuilder.DropTable(
                 name: "Users");
+
+            migrationBuilder.DropTable(
+                name: "Zone");
         }
     }
 }
