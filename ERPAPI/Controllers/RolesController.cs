@@ -25,14 +25,14 @@ namespace ERPAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Role>>> GetRole()
         {
-            return await _context.Role.ToListAsync();
+            return await _context.Roles.ToListAsync();
         }
 
         // GET: api/Roles/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Role>> GetRole(int id)
         {
-            var role = await _context.Role.FindAsync(id);
+            var role = await _context.Roles.FindAsync(id);
 
             if (role == null)
             {
@@ -78,7 +78,22 @@ namespace ERPAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Role>> PostRole(Role role)
         {
-            _context.Role.Add(role);
+            // Validate the incoming role object
+            if (string.IsNullOrEmpty(role.RoleName))
+            {
+                return BadRequest(new { role = new[] { "The role field is required." } });
+            }
+
+            if (role.PriorityOrder <= 0)
+            {
+                return BadRequest(new { priorityOrder = new[] { "Priority order must be a positive integer." } });
+            }
+
+            if (role.PermissionList == null || !role.PermissionList.Any())
+            {
+                return BadRequest(new { permissionList = new[] { "At least one permission must be provided." } });
+            }
+            _context.Roles.Add(role);
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("GetRole", new { id = role.RoleId }, role);
@@ -88,13 +103,13 @@ namespace ERPAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRole(int id)
         {
-            var role = await _context.Role.FindAsync(id);
+            var role = await _context.Roles.FindAsync(id);
             if (role == null)
             {
                 return NotFound();
             }
 
-            _context.Role.Remove(role);
+            _context.Roles.Remove(role);
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -102,7 +117,7 @@ namespace ERPAPI.Controllers
 
         private bool RoleExists(int id)
         {
-            return _context.Role.Any(e => e.RoleId == id);
+            return _context.Roles.Any(e => e.RoleId == id);
         }
     }
 }

@@ -134,9 +134,8 @@ namespace ERPAPI.Controllers
                     ProjectId = dto.ProjectId,
                     ProcessId = dto.ProcessId,
                     Weightage = adjustedWeightage, // Set the adjusted weightage
-                    GroupId = dto.GroupId,
-                    TypeId = dto.TypeId,
                     Sequence = dto.Sequence,
+                    FeaturesList = dto.FeaturesList,
                  
                 };
             }).Where(pp => pp != null).ToList();
@@ -165,9 +164,8 @@ namespace ERPAPI.Controllers
         public int ProjectId { get; set; }
         public int ProcessId { get; set; }
         public double Weightage { get; set; }
-        public int GroupId { get; set; }
-        public int TypeId { get; set; }
         public int Sequence { get; set; }
+        public List<int> FeaturesList { get; set; }
       
     }
 

@@ -150,7 +150,7 @@ namespace ERPAPI.Controllers
         [HttpPost("setSecurityAnswers")]
         public IActionResult SetSecurityAnswers(SetSecurityAnswersRequest request)
         {
-            var user = _context.UserAuths.FirstOrDefault(x => x.UserId  == request.UserId);
+            var user = _context.UserAuths.FirstOrDefault(x => x.UserId == request.UserId);
             if (user == null)
             {
                 return NotFound("User not found.");
@@ -307,7 +307,7 @@ namespace ERPAPI.Controllers
             }
         }
 
-       
+
 
         private bool SecurityQuestionExists(int id)
         {

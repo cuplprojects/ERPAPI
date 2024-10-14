@@ -10,6 +10,8 @@ using System.IO;
 using System.Threading.Tasks;
 
 using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace ERPAPI.Controllers
 {
@@ -89,6 +91,34 @@ namespace ERPAPI.Controllers
             }
         }
 
+        [HttpGet("LoggedUser")]
+        [Authorize] // Ensures the request is authenticated
+        public async Task<ActionResult<User>> GetUserByJwt()
+        {
+            try
+            {
+                var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name);
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+                {
+                    return BadRequest("Invalid token");
+                }
+
+                // Retrieve the user from the database
+                var user = await _context.Users.FindAsync(userId);
+
+                if (user == null)
+                {
+                    return NotFound("User not found");
+                }
+
+                return Ok(user);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Failed to retrieve user by JWT", ex.Message, "UserController");
+                return StatusCode(500, "Failed to retrieve user");
+            }
+        }
         // GET: api/User/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<User>> GetUserById(int id)
@@ -191,7 +221,7 @@ namespace ERPAPI.Controllers
                         var user = _context.Users.FirstOrDefault(u => u.UserId == userId);
                         if (user != null)
                         {
-                            user.ProfilePicturePath = $"images/{customFileName}";
+                            user.ProfilePicturePath = $"image/{customFileName}";
                             _context.SaveChanges();
                         }
 
@@ -250,7 +280,7 @@ namespace ERPAPI.Controllers
                     }
 
                     // Update the profile picture path in the database
-                    user.ProfilePicturePath = $"images/{customFileName}";
+                    user.ProfilePicturePath = $"image/{customFileName}";
                     _context.SaveChanges();
 
                     return Ok(new { message = "Profile picture updated successfully", filePath = user.ProfilePicturePath });
@@ -265,6 +295,43 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
+
+        // DELETE: api/User/deleteProfilePicture/{userId}
+        [HttpDelete("deleteProfilePicture/{userId}")]
+        public IActionResult DeleteProfilePicture(int userId)
+        {
+            try
+            {
+                var user = _context.Users.FirstOrDefault(u => u.UserId == userId);
+                if (user == null)
+                {
+                    return NotFound(new { Message = "User not found" });
+                }
+
+                if (string.IsNullOrEmpty(user.ProfilePicturePath))
+                {
+                    return BadRequest(new { Message = "No profile picture to delete" });
+                }
+
+                var filePath = Path.Combine("wwwroot", user.ProfilePicturePath);
+                if (System.IO.File.Exists(filePath))
+                {
+                    System.IO.File.Delete(filePath);
+                }
+
+                user.ProfilePicturePath = null;
+                _context.SaveChanges();
+
+                return Ok(new { Message = "Profile picture deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "Internal server error", Details = ex.InnerException?.Message ?? ex.Message });
+            }
+
+        }
+
 
 
         private bool UserExists(int id)
