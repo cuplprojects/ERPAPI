@@ -56,12 +56,29 @@ namespace ERPAPI.Controllers
 
         [AllowAnonymous]
         [HttpPost("login")]
+
         public IActionResult Login([FromBody] Model.NonDbModels.LoginRequest loginRequest)
         {
             var userAuth = (from user in _context.Users
                             join ua in _context.UserAuths on user.UserId equals ua.UserId
+                            join ur in _context.Set<User>() on user.UserId equals ur.UserId
+
+                            join r in _context.Set<Role>() on ur.RoleId equals r.RoleId
                             where user.UserName == loginRequest.UserName
-                            select new { ua, user.Status, user.UserName }).FirstOrDefault();
+                            select new
+                            {
+                                ua,
+                                user.Status,
+                                user.UserName,
+                                Role = new
+                                {
+                                    r.RoleId,
+                                    r.RoleName,
+                                    r.PriorityOrder,
+                                    r.PermissionList,
+                                    r.Status,
+                                }
+                            }).FirstOrDefault();
 
             if (userAuth == null)
             {
@@ -91,6 +108,7 @@ namespace ERPAPI.Controllers
                     token = token,
                     userAuth.ua.UserId,
                     userAuth.ua.AutogenPass,
+
                     Message = "This is your first login, please change your password."
                 });
             }
@@ -99,8 +117,9 @@ namespace ERPAPI.Controllers
                 // Normal login process
                 var token = GenerateToken(userAuth.ua);
                 _loggerService.LogEvent($"User Logged-in", "Login", userAuth.ua.UserId);
-                return Ok(new { token = token, userAuth.ua.UserId, userAuth.ua.AutogenPass });
+                return Ok(new { token = token, userAuth.ua.UserId, userAuth.ua.AutogenPass, role = userAuth.Role });
             }
+
         }
 
         [HttpPost("setSecurityAnswers")]
@@ -201,7 +220,27 @@ namespace ERPAPI.Controllers
 
         }
 
-        
+
+        [HttpPost("setSecurityAnswers")]
+        public IActionResult SetSecurityAnswers(SetSecurityAnswersRequest request)
+        {
+            var user = _context.UserAuths.FirstOrDefault(x => x.UserId == request.UserId);
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+
+            user.SecurityQuestion1Id = request.SecurityQuestion1Id;
+            user.SecurityQuestion2Id = request.SecurityQuestion2Id;
+            user.SecurityAnswer1 = request.SecurityAnswer1;
+            user.SecurityAnswer2 = request.SecurityAnswer2;
+            _context.SaveChanges();
+
+            _loggerService.LogEvent("Security answers set", "User", user.UserId);
+            return Ok("Security answers set successfully.");
+        }
+
 
 
 
@@ -311,7 +350,40 @@ namespace ERPAPI.Controllers
 
 
 
-       
+        // PUT: api/SecurityQuestions/SetPassword
+        [HttpPut("SetPassword")]
+        public async Task<IActionResult> SetPassword(SetPass setPassword)
+        {
+            try
+            {
+                // Find the user authentication record
+                var userAuth = await _context.UserAuths.FirstOrDefaultAsync(ua => ua.UserId == setPassword.UserId);
+                if (userAuth == null)
+                {
+                    return NotFound(new { Message = "User not found" });
+                }
+
+                // Hash the new password
+                var hashedPassword = Sha256.ComputeSHA256Hash(setPassword.NewPassword);
+
+                // Update the password in the UserAuth table
+                userAuth.Password = hashedPassword;
+                userAuth.AutogenPass = false; // Assuming the new password is not auto-generated
+
+                // Save changes to the database
+                _context.Entry(userAuth).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+
+                return Ok(new { Message = "Password updated successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "An error occurred while setting the password", Error = ex.Message });
+            }
+        }
+
+
+
 
         private bool SecurityQuestionExists(int id)
         {
