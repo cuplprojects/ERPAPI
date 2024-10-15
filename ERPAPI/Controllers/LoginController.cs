@@ -56,12 +56,29 @@ namespace ERPAPI.Controllers
 
         [AllowAnonymous]
         [HttpPost("login")]
+
         public IActionResult Login([FromBody] Model.NonDbModels.LoginRequest loginRequest)
         {
             var userAuth = (from user in _context.Users
                             join ua in _context.UserAuths on user.UserId equals ua.UserId
+                            join ur in _context.Set<User>() on user.UserId equals ur.UserId
+
+                            join r in _context.Set<Role>() on ur.RoleId equals r.RoleId
                             where user.UserName == loginRequest.UserName
-                            select new { ua, user.Status, user.UserName }).FirstOrDefault();
+                            select new
+                            {
+                                ua,
+                                user.Status,
+                                user.UserName,
+                                Role = new
+                                {
+                                    r.RoleId,
+                                    r.RoleName,
+                                    r.PriorityOrder,
+                                    r.PermissionList,
+                                    r.Status,
+                                }
+                            }).FirstOrDefault();
 
             if (userAuth == null)
             {
@@ -91,6 +108,7 @@ namespace ERPAPI.Controllers
                     token = token,
                     userAuth.ua.UserId,
                     userAuth.ua.AutogenPass,
+
                     Message = "This is your first login, please change your password."
                 });
             }
@@ -99,8 +117,9 @@ namespace ERPAPI.Controllers
                 // Normal login process
                 var token = GenerateToken(userAuth.ua);
                 _loggerService.LogEvent($"User Logged-in", "Login", userAuth.ua.UserId);
-                return Ok(new { token = token, userAuth.ua.UserId, userAuth.ua.AutogenPass });
+                return Ok(new { token = token, userAuth.ua.UserId, userAuth.ua.AutogenPass, role = userAuth.Role });
             }
+
         }
 
         // Change Password API
@@ -150,7 +169,7 @@ namespace ERPAPI.Controllers
         [HttpPost("setSecurityAnswers")]
         public IActionResult SetSecurityAnswers(SetSecurityAnswersRequest request)
         {
-            var user = _context.UserAuths.FirstOrDefault(x => x.UserId  == request.UserId);
+            var user = _context.UserAuths.FirstOrDefault(x => x.UserId == request.UserId);
             if (user == null)
             {
                 return NotFound("User not found.");
@@ -307,7 +326,7 @@ namespace ERPAPI.Controllers
             }
         }
 
-       
+
 
         private bool SecurityQuestionExists(int id)
         {
