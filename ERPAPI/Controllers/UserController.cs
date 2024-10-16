@@ -339,5 +339,39 @@ namespace ERPAPI.Controllers
             return _context.Users.Any(e => e.UserId == id);
         }
 
+        // PUT: api/User/edit/{id}
+        [HttpPut("edit/{id}")]
+        public IActionResult EditUser(int id, [FromBody] User updatedUser)
+        {
+            try
+            {
+                // Find the user by ID
+                var existingUser = _context.Users.FirstOrDefault(u => u.UserId == id);
+                if (existingUser == null)
+                {
+                    return NotFound(new { Message = "User not found" });
+                }
+
+                // Update user properties
+                existingUser.RoleId = updatedUser.RoleId;
+                existingUser.Address = updatedUser.Address;
+                existingUser.MobileNo = updatedUser.MobileNo;
+
+                // Save changes to the database
+                _context.SaveChanges();
+
+                // Log the event
+                _loggerService.LogEvent("User details updated", "User", id);
+
+                return Ok(new { Message = "User updated successfully", User = existingUser });
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Failed to update user", ex.Message, "UserController");
+                return StatusCode(500, new { Message = "Failed to update user" });
+            }
+        }
+
+
     }
 }
