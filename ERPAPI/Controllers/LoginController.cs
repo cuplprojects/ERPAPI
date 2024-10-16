@@ -99,8 +99,9 @@ namespace ERPAPI.Controllers
                 // Normal login process
                 var token = GenerateToken(userAuth.ua);
                 _loggerService.LogEvent($"User Logged-in", "Login", userAuth.ua.UserId);
-                return Ok(new { token = token, userAuth.ua.UserId, userAuth.ua.AutogenPass });
+                return Ok(new { token = token, userAuth.ua.UserId, userAuth.ua.AutogenPass, role = userAuth.Role });
             }
+
         }
 
         // Change Password API
@@ -266,13 +267,6 @@ namespace ERPAPI.Controllers
             _loggerService.LogEvent("Password reset", "User", userAuth.UserId);
             return Ok("Password reset successfully.");
         }
-
-
-
-
-
-
-
 
 
         // PUT: api/SecurityQuestions/SetPassword
