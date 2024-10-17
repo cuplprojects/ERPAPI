@@ -4,6 +4,7 @@ using ERPAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERPAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241014121110_hjghjug")]
+    partial class hjghjug
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -344,11 +347,9 @@ namespace ERPAPI.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-
                     b.Property<string>("FeaturesList")
                         .IsRequired()
                         .HasColumnType("longtext");
-
 
                     b.Property<int>("ProcessId")
                         .HasColumnType("int");
@@ -359,10 +360,6 @@ namespace ERPAPI.Migrations
                     b.Property<int>("Sequence")
                         .HasColumnType("int");
 
-
-                    b.Property<int>("TypeId")
-                        .HasColumnType("int");
-
                     b.Property<double>("Weightage")
                         .HasColumnType("double");
 
@@ -370,7 +367,6 @@ namespace ERPAPI.Migrations
 
                     b.ToTable("ProjectProcesses");
                 });
-
 
             modelBuilder.Entity("ERPAPI.Model.QuantitySheet", b =>
                 {
@@ -398,56 +394,19 @@ namespace ERPAPI.Migrations
                         .HasColumnType("time(6)");
 
                     b.Property<string>("InnerEnvelope")
-
-            modelBuilder.Entity("ERPAPI.Model.ProjectProcessFeature", b =>
-                {
-                    b.Property<int>("ProjectProcessFeatureId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("ProjectProcessFeatureId"));
-
-                    b.Property<int>("FeatureId")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("Independent")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("ProjectProcessId")
-                        .HasColumnType("int");
-
-                    b.HasKey("ProjectProcessFeatureId");
-
-                    b.ToTable("ProjectProcessFeatures");
-                });
-
-            modelBuilder.Entity("ERPAPI.Model.QuantitySheet", b =>
-                {
-                    b.Property<int>("QuantitySheetId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("QuantitySheetId"));
-
-                    b.Property<string>("CatchNo")
-                        .IsRequired()
-
                         .HasColumnType("longtext");
 
                     b.Property<bool>("IsOverridden")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("LotNo")
-
                         .HasColumnType("longtext");
 
                     b.Property<string>("OuterEnvelope")
                         .HasColumnType("longtext");
 
                     b.Property<string>("Paper")
-
-                        .IsRequired()
-       .HasColumnType("longtext");
+                        .HasColumnType("longtext");
 
                     b.Property<double>("PercentageCatch")
                         .HasColumnType("double");
@@ -462,11 +421,9 @@ namespace ERPAPI.Migrations
                     b.Property<double>("Quantity")
                         .HasColumnType("double");
 
-
                     b.Property<string>("Subject")
                         .IsRequired()
                         .HasColumnType("longtext");
-
 
                     b.HasKey("QuantitySheetId");
 
@@ -481,11 +438,9 @@ namespace ERPAPI.Migrations
 
                     MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("RoleId"));
 
-
                     b.Property<string>("Permission")
                         .IsRequired()
                         .HasColumnType("longtext");
-
 
                     b.Property<int>("PriorityOrder")
                         .HasColumnType("int");
@@ -499,9 +454,7 @@ namespace ERPAPI.Migrations
 
                     b.HasKey("RoleId");
 
-
                     b.ToTable("Roles");
-
                 });
 
             modelBuilder.Entity("ERPAPI.Model.SecurityQuestion", b =>
