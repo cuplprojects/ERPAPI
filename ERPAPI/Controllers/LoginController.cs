@@ -287,13 +287,6 @@ namespace ERPAPI.Controllers
         }
 
 
-
-
-
-
-
-
-
         // PUT: api/SecurityQuestions/SetPassword
         [HttpPut("SetPassword")]
         public async Task<IActionResult> SetPassword(SetPass setPassword)

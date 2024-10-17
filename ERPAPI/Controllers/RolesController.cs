@@ -119,5 +119,6 @@ namespace ERPAPI.Controllers
         {
             return _context.Roles.Any(e => e.RoleId == id);
         }
+
     }
 }
