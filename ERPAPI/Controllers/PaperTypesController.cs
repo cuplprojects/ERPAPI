@@ -61,7 +61,11 @@ namespace ERPAPI.Controllers
                 .Select(p => new
                 {
                     p.Id,
-                    p.Name
+                    p.Name,
+                    p.InstalledFeatures,
+                    p.Status,
+                    p.Weightage,
+                   
                 })
                 .ToListAsync();
 

@@ -13,6 +13,7 @@ namespace ERPAPI.Model
         public double Weightage { get; set; }
         public int Sequence {  get; set; }
         public List<int> FeaturesList { get; set; }
+        public List<int> UserId { get; set; } = new List<int>();
 
     }
 }
