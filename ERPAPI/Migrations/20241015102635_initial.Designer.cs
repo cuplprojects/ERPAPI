@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ERPAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20241007073200_Initial")]
-    partial class Initial
+    [Migration("20241015102635_initial")]
+    partial class initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -139,25 +139,19 @@ namespace ERPAPI.Migrations
 
             modelBuilder.Entity("ERPAPI.Model.FeatureEnabling", b =>
                 {
-                    b.Property<int>("FeatureEnablingId")
+                    b.Property<int>("FeatureId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("FeatureEnablingId"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("FeatureId"));
 
-                    b.Property<bool>("Enabled")
-                        .HasColumnType("tinyint(1)");
-
-                    b.Property<int>("FeatureId")
+                    b.Property<int>("Id")
                         .HasColumnType("int");
 
-                    b.Property<bool>("Independent")
+                    b.Property<bool>("IsEnabled")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<int>("ProcessGroupId")
-                        .HasColumnType("int");
-
-                    b.HasKey("FeatureEnablingId");
+                    b.HasKey("FeatureId");
 
                     b.ToTable("FeatureEnabling");
                 });
@@ -214,6 +208,19 @@ namespace ERPAPI.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("longtext");
+
+                    b.Property<int>("ProcessIdInput")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ProcessType")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<int?>("RangeEnd")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("RangeStart")
+                        .HasColumnType("int");
 
                     b.Property<bool>("Status")
                         .HasColumnType("tinyint(1)");

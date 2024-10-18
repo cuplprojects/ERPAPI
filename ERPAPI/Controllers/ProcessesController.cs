@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
@@ -28,35 +26,11 @@ namespace ERPAPI.Controllers
             return await _context.Processes.ToListAsync();
         }
 
-
-        [HttpGet("process")]
-        public IActionResult GetCatchesByProcess(int processid)
-        {
-            // Fetch all QuantitySheets from the database
-            var catches = _context.QuantitySheets.ToList();
-
-            // Filter catches where the specified process ID is included in the ProcessId list
-            var filteredCatches = catches
-                .Where(q => q.ProcessId != null && q.ProcessId.Contains(processid))
-                .ToList();
-
-            // Check if there are no catches found
-            if (filteredCatches == null || !filteredCatches.Any())
-            {
-                return NotFound($"No catches found for the process: {processid}");
-            }
-
-            return Ok(filteredCatches);
-        }
-
-
-
         // GET: api/Processes/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Process>> GetProcess(int id)
         {
             var process = await _context.Processes.FindAsync(id);
-
             if (process == null)
             {
                 return NotFound();
@@ -65,8 +39,25 @@ namespace ERPAPI.Controllers
             return process;
         }
 
+        // POST: api/Processes
+        [HttpPost]
+        public async Task<ActionResult<Process>> PostProcess(Process process)
+        {
+            process.Id = 0;  // Ensure ID is not set (auto-increment)
+            try
+            {
+                _context.Processes.Add(process);
+                await _context.SaveChangesAsync();
+
+                return CreatedAtAction("GetProcess", new { id = process.Id }, process);
+            }
+            catch (DbUpdateException ex)
+            {
+                return BadRequest(new { message = "An error occurred while saving the process.", details = ex.InnerException?.Message });
+            }
+        }
+
         // PUT: api/Processes/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutProcess(int id, Process process)
         {
@@ -87,24 +78,10 @@ namespace ERPAPI.Controllers
                 {
                     return NotFound();
                 }
-                else
-                {
-                    throw;
-                }
+                throw;
             }
 
             return NoContent();
-        }
-
-        // POST: api/Processes
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-        [HttpPost]
-        public async Task<ActionResult<Process>> PostProcess(Process process)
-        {
-            _context.Processes.Add(process);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetProcess", new { id = process.Id }, process);
         }
 
         // DELETE: api/Processes/5

@@ -5,34 +5,24 @@
 namespace ERPAPI.Migrations
 {
     /// <inheritdoc />
-    public partial class featureenable : Migration
+    public partial class feature : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.RenameColumn(
-                name: "Enabled",
+                name: "Id",
                 table: "FeatureEnabling",
-                newName: "IsEnabled");
-
-            migrationBuilder.RenameColumn(
-                name: "FeatureEnablingId",
-                table: "FeatureEnabling",
-                newName: "ModuleId");
+                newName: "ProcessId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.RenameColumn(
-                name: "IsEnabled",
+                name: "ProcessId",
                 table: "FeatureEnabling",
-                newName: "Enabled");
-
-            migrationBuilder.RenameColumn(
-                name: "ModuleId",
-                table: "FeatureEnabling",
-                newName: "FeatureEnablingId");
+                newName: "Id");
         }
     }
 }

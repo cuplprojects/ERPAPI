@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ERPAPI.Migrations
 {
     /// <inheritdoc />
-    public partial class Initial : Migration
+    public partial class initial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -90,16 +90,14 @@ namespace ERPAPI.Migrations
                 name: "FeatureEnabling",
                 columns: table => new
                 {
-                    FeatureEnablingId = table.Column<int>(type: "int", nullable: false)
+                    FeatureId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    FeatureId = table.Column<int>(type: "int", nullable: false),
-                    Enabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    Independent = table.Column<bool>(type: "tinyint(1)", nullable: false),
-                    ProcessGroupId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    IsEnabled = table.Column<bool>(type: "tinyint(1)", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_FeatureEnabling", x => x.FeatureEnablingId);
+                    table.PrimaryKey("PK_FeatureEnabling", x => x.FeatureId);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -145,7 +143,12 @@ namespace ERPAPI.Migrations
                     Weightage = table.Column<double>(type: "double", nullable: false),
                     Status = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     InstalledFeatures = table.Column<string>(type: "longtext", nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4")
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    ProcessIdInput = table.Column<int>(type: "int", nullable: false),
+                    ProcessType = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    RangeStart = table.Column<int>(type: "int", nullable: true),
+                    RangeEnd = table.Column<int>(type: "int", nullable: true)
                 },
                 constraints: table =>
                 {

@@ -1,5 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ERPAPI.Model
 {
@@ -7,10 +7,17 @@ namespace ERPAPI.Model
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
+        public int Id { get; set; }  // Auto-incrementing primary key
+
         public string Name { get; set; }
         public double Weightage { get; set; }
         public bool Status { get; set; }
-        public string InstalledFeatures { get; set; }
+        public List<int> InstalledFeatures { get; set; }
+        public int ProcessIdInput { get; set; }  // New field for process Order input
+        public string ProcessType { get; set; }  // New field for process type
+
+        // New properties for range
+        public int? RangeStart { get; set; }  // Nullable to allow for independent processes
+        public int? RangeEnd { get; set; }    // Nullable to allow for independent processes
     }
 }
