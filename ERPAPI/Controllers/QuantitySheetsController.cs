@@ -27,6 +27,7 @@ public class QuantitySheetController : ControllerBase
         {
             return BadRequest("No data provided.");
         }
+
         var projectId = newSheets.First().ProjectId;
         var projectTypeId = await _context.Projects
             .Where(p => p.ProjectId == projectId)
@@ -34,9 +35,9 @@ public class QuantitySheetController : ControllerBase
             .FirstOrDefaultAsync();
 
         var projectType = await _context.Types
-        .Where(t => t.TypeId == projectTypeId) // Assuming TypeId in the Type table
-        .Select(t => t.Types) // Assuming TypeName is the field that contains the type description
-        .FirstOrDefaultAsync();
+            .Where(t => t.TypeId == projectTypeId)
+            .Select(t => t.Types)
+            .FirstOrDefaultAsync();
 
         // If project type is Booklet, adjust quantities and duplicate entries
         if (projectType == "Booklet")
@@ -68,8 +69,16 @@ public class QuantitySheetController : ControllerBase
             newSheets = adjustedSheets;
         }
 
+        // Get existing sheets for the same project and lots
+        var existingSheets = await _context.QuantitySheets
+            .Where(s => s.ProjectId == projectId && newSheets.Select(ns => ns.LotNo).Contains(s.LotNo))
+            .ToListAsync();
+
+        // Combine new sheets with existing sheets
+        var allSheets = existingSheets.Concat(newSheets);
+
         // Group by lotNo
-        var groupedSheets = newSheets.GroupBy(sheet => sheet.LotNo);
+        var groupedSheets = allSheets.GroupBy(sheet => sheet.LotNo);
 
         foreach (var group in groupedSheets)
         {
@@ -85,10 +94,10 @@ public class QuantitySheetController : ControllerBase
             {
                 sheet.PercentageCatch = (sheet.Quantity / totalQuantityForLot) * 100;
                 _processService.ProcessCatch(sheet);
-
             }
         }
 
+        // Add new sheets to the database
         await _context.QuantitySheets.AddRangeAsync(newSheets);
         await _context.SaveChangesAsync();
 
@@ -158,6 +167,43 @@ public class QuantitySheetController : ControllerBase
 
         return Ok(columnNames);
     }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteQuantitysheet(int id)
+    {
+        var sheetToDelete = await _context.QuantitySheets.FindAsync(id);
+        if (sheetToDelete == null)
+        {
+            return NotFound();
+        }
+
+        var projectId = sheetToDelete.ProjectId;
+        var lotNo = sheetToDelete.LotNo;
+
+        _context.QuantitySheets.Remove(sheetToDelete);
+        await _context.SaveChangesAsync();
+
+        // After deletion, recalculate percentages for remaining sheets in the same project and lot
+        var remainingSheets = await _context.QuantitySheets
+            .Where(s => s.ProjectId == projectId && s.LotNo == lotNo)
+            .ToListAsync();
+
+        double totalQuantityForLot = remainingSheets.Sum(sheet => sheet.Quantity);
+
+        if (totalQuantityForLot > 0)
+        {
+            foreach (var sheet in remainingSheets)
+            {
+                sheet.PercentageCatch = (sheet.Quantity / totalQuantityForLot) * 100;
+            }
+
+            // Save changes to update the percentages
+            await _context.SaveChangesAsync();
+        }
+
+        return NoContent();
+    }
+
     private bool QuantitySheetExists(int id)
     {
         return _context.QuantitySheets.Any(e => e.QuantitySheetId == id);
