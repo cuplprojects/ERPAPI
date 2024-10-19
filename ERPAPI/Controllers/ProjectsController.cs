@@ -221,6 +221,24 @@ namespace ERPAPI.Controllers
         }
 
 
+        // GET: api/Project/GetActiveProjects
+        [HttpGet("GetActiveProjects")]
+        public async Task<ActionResult<IEnumerable<Project>>> GetActiveProjects()
+        {
+            var activeProjects = await _context.Projects
+                .Where(p => p.Status == true) // Filtering projects with Status = true
+                .ToListAsync();
+
+            if (activeProjects == null || !activeProjects.Any())
+            {
+                return NotFound("No active projects found.");
+            }
+
+            return Ok(activeProjects);
+        }
+
+
+
         [HttpPost("UpdateProcessUsers/{projectId}")]
         public async Task<IActionResult> UpdateProcessUsers(int projectId, [FromBody] Dictionary<int, List<int>> userIdsByProcessId)
         {
