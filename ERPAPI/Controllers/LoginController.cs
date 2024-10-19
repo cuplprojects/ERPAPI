@@ -122,6 +122,60 @@ namespace ERPAPI.Controllers
 
         }
 
+        [HttpPost("setSecurityAnswers")]
+        public IActionResult SetSecurityAnswers(SetSecurityAnswersRequest request)
+        {
+            var user = _context.UserAuths.FirstOrDefault(x => x.UserId == request.UserId);
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+
+            user.SecurityQuestion1Id = request.SecurityQuestion1Id;
+            user.SecurityQuestion2Id = request.SecurityQuestion2Id;
+            user.SecurityAnswer1 = request.SecurityAnswer1;
+            user.SecurityAnswer2 = request.SecurityAnswer2;
+            _context.SaveChanges();
+
+            _loggerService.LogEvent("Security answers set", "User", user.UserId);
+            return Ok("Security answers set successfully.");
+        }
+
+
+        // PUT: api/SecurityQuestions/SetPassword
+        [HttpPut("SetPassword")]
+        public async Task<IActionResult> SetPassword(SetPass setPassword)
+        {
+            try
+            {
+                // Find the user authentication record
+                var userAuth = await _context.UserAuths.FirstOrDefaultAsync(ua => ua.UserId == setPassword.UserId);
+                if (userAuth == null)
+                {
+                    return NotFound(new { Message = "User not found" });
+                }
+
+                // Hash the new password
+                var hashedPassword = Sha256.ComputeSHA256Hash(setPassword.NewPassword);
+
+                // Update the password in the UserAuth table
+                userAuth.Password = hashedPassword;
+                userAuth.AutogenPass = false; // Assuming the new password is not auto-generated
+
+                // Save changes to the database
+                _context.Entry(userAuth).State = EntityState.Modified;
+                await _context.SaveChangesAsync();
+
+                return Ok(new { Message = "Password updated successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "An error occurred while setting the password", Error = ex.Message });
+            }
+        }
+
+
         // Change Password API
         [Authorize]
         [HttpPut("Changepassword/{id}")]
@@ -166,6 +220,7 @@ namespace ERPAPI.Controllers
 
         }
 
+
         [HttpPost("setSecurityAnswers")]
         public IActionResult SetSecurityAnswers(SetSecurityAnswersRequest request)
         {
@@ -185,6 +240,7 @@ namespace ERPAPI.Controllers
             _loggerService.LogEvent("Security answers set", "User", user.UserId);
             return Ok("Security answers set successfully.");
         }
+
 
 
 
@@ -325,6 +381,7 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, new { Message = "An error occurred while setting the password", Error = ex.Message });
             }
         }
+
 
 
 
