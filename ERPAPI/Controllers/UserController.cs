@@ -372,6 +372,43 @@ namespace ERPAPI.Controllers
             }
         }
 
+        // DELETE: api/User/delete/{id}
+        [HttpDelete("delete/{id}")]
+        public IActionResult DeleteUser(int id)
+        {
+            try
+            {
+                // Find the user by ID
+                var user = _context.Users.FirstOrDefault(u => u.UserId == id);
+                if (user == null)
+                {
+                    return NotFound(new { Message = "User not found" });
+                }
+
+                // Remove the user from the database
+                _context.Users.Remove(user);
+
+                // Remove associated UserAuth if it exists
+                var userAuth = _context.UserAuths.FirstOrDefault(ua => ua.UserId == id);
+                if (userAuth != null)
+                {
+                    _context.UserAuths.Remove(userAuth);
+                }
+
+                // Save changes to the database
+                _context.SaveChanges();
+
+                // Log the event
+                _loggerService.LogEvent("User deleted", "User", id);
+
+                return Ok(new { Message = "User deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Failed to delete user", ex.Message, "UserController");
+                return StatusCode(500, new { Message = "Failed to delete user" });
+            }
+        }
 
     }
 }
