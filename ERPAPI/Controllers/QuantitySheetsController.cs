@@ -168,6 +168,30 @@ public class QuantitySheetController : ControllerBase
         return Ok(columnNames);
     }
 
+    [HttpGet("check-all-quantity-sheets")]
+    public async Task<ActionResult<IEnumerable<object>>> GetAllProjectsQuantitySheetStatus()
+    {
+        // Get all projects from the database
+        var projects = await _context.Projects.ToListAsync();
+
+        var result = new List<object>();
+
+        foreach (var project in projects)
+        {
+            var hasQuantitySheet = await _context.QuantitySheets
+                .AnyAsync(s => s.ProjectId == project.ProjectId);
+
+            result.Add(new
+            {
+                projectId = project.ProjectId,
+                quantitySheet = hasQuantitySheet
+            });
+        }
+
+        return Ok(result);
+    }
+
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteQuantitysheet(int id)
     {
