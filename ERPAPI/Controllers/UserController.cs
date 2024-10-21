@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using ERPAPI.Service;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
 
 namespace ERPAPI.Controllers
 {
@@ -104,14 +105,42 @@ namespace ERPAPI.Controllers
                 }
 
                 // Retrieve the user from the database
-                var user = await _context.Users.FindAsync(userId);
+                var user = await _context.Users
+                    .Where(u => u.UserId == userId)
+                    .Join(
+                        _context.Roles,
+                        user => user.RoleId,
+                        role => role.RoleId,
+                        (user, role) => new
+                        {
+                            user.UserId,
+                            user.UserName,
+                            user.FirstName,
+                            user.MiddleName,
+                            user.LastName,
+                            user.MobileNo,
+                            user.Status,
+                            user.Gender,
+                            user.Address,
+                            user.ProfilePicturePath,
+                            Role = new
+                            {
+                                role.RoleId,
+                                role.RoleName,
+                                role.PriorityOrder,
+                                role.Status,
+                                Permissions = role.PermissionList // Use PermissionList for deserialized permissions
+                            }
+                        }
+                    )
+                    .FirstOrDefaultAsync();
 
                 if (user == null)
                 {
-                    return NotFound("User not found");
+                    return NotFound("User not found.");
                 }
 
-                return Ok(user);
+                return Ok(user); // Return the retrieved user information
             }
             catch (Exception ex)
             {
@@ -119,6 +148,8 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, "Failed to retrieve user");
             }
         }
+
+
         // GET: api/User/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<User>> GetUserById(int id)
