@@ -121,6 +121,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(processedNewSheets);
     }
 
+
     [HttpPut("{id}")]
     public async Task<IActionResult> PutQuantitySheet(int id, QuantitySheet quantity)
     {
@@ -170,6 +171,7 @@ public class QuantitySheetController : ControllerBase
         return await _context.QuantitySheets.Where(r=> r.ProjectId == ProjectId && r.LotNo == lotNo).ToListAsync();
     }
 
+
     [HttpGet("Columns")]
     public IActionResult GetColumnNames()
     {
@@ -184,6 +186,15 @@ public class QuantitySheetController : ControllerBase
 
         return Ok(columnNames);
     }
+
+
+    [HttpGet("Catch")]
+    public async Task<ActionResult<IEnumerable<object>>> GetCatches(int ProjectId, string lotNo)
+    {
+
+        return await _context.QuantitySheets.Where(r => r.ProjectId == ProjectId && r.LotNo == lotNo).ToListAsync();
+    }
+
 
     [HttpGet("check-all-quantity-sheets")]
     public async Task<ActionResult<IEnumerable<object>>> GetAllProjectsQuantitySheetStatus()
@@ -207,6 +218,7 @@ public class QuantitySheetController : ControllerBase
 
         return Ok(result);
     }
+
 
 
     [HttpDelete("{id}")]
