@@ -36,7 +36,7 @@ namespace ERPAPI.Model
 
         public bool IsOverridden { get; set; }
        
-       public List<int> ProcessId { get; set; } = new List<int>();
+       public List<int> ProcessId { get; set; } 
     }
 
    
