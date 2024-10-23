@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
@@ -21,9 +23,54 @@ namespace ERPAPI.Controllers
 
         // GET: api/Processes
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Process>>> GetProcesses()
+        public async Task<ActionResult<IEnumerable<object>>> GetProcesses()
         {
-            return await _context.Processes.ToListAsync();
+            // Fetch all processes from the database
+            var processes = await _context.Processes.ToListAsync();
+
+            // Fetch all features and create a dictionary of their names
+            var features = await _context.Features.ToListAsync();
+            var featureDictionary = features.ToDictionary(f => f.FeatureId, f => f.Features);
+
+            // Map processes to include full names of installed features and new properties
+            var processesWithNames = processes.Select(process => new
+            {
+                process.Id,
+                process.Name,
+                process.Weightage,    // Include new field Weightage
+                process.Status,
+                process.InstalledFeatures,
+                FeatureNames = process.InstalledFeatures
+                    .Select(featureId => featureDictionary.TryGetValue(featureId, out var featureName) ? featureName : "Unknown Feature")
+                    .ToList(),
+                process.ProcessIdInput,  // Include new field ProcessIdInput
+                process.ProcessType,     // Include new field ProcessType
+                process.RangeStart,      // Include new field RangeStart
+                process.RangeEnd         // Include new field RangeEnd
+            }).ToList();
+
+            return Ok(processesWithNames);
+        }
+
+        // GET: api/Processes/process
+        [HttpGet("process")]
+        public IActionResult GetCatchesByProcess(int processid)
+        {
+            // Fetch all QuantitySheets from the database
+            var catches = _context.QuantitySheets.ToList();
+
+            // Filter catches where the specified process ID is included in the ProcessId list
+            var filteredCatches = catches
+                .Where(q => q.ProcessId != null && q.ProcessId.Contains(processid))
+                .ToList();
+
+            // Check if there are no catches found
+            if (filteredCatches == null || !filteredCatches.Any())
+            {
+                return NotFound($"No catches found for the process: {processid}");
+            }
+
+            return Ok(filteredCatches);
         }
 
         // GET: api/Processes/5
@@ -31,30 +78,13 @@ namespace ERPAPI.Controllers
         public async Task<ActionResult<Process>> GetProcess(int id)
         {
             var process = await _context.Processes.FindAsync(id);
+
             if (process == null)
             {
                 return NotFound();
             }
 
             return process;
-        }
-
-        // POST: api/Processes
-        [HttpPost]
-        public async Task<ActionResult<Process>> PostProcess(Process process)
-        {
-            process.Id = 0;  // Ensure ID is not set (auto-increment)
-            try
-            {
-                _context.Processes.Add(process);
-                await _context.SaveChangesAsync();
-
-                return CreatedAtAction("GetProcess", new { id = process.Id }, process);
-            }
-            catch (DbUpdateException ex)
-            {
-                return BadRequest(new { message = "An error occurred while saving the process.", details = ex.InnerException?.Message });
-            }
         }
 
         // PUT: api/Processes/5
@@ -78,10 +108,23 @@ namespace ERPAPI.Controllers
                 {
                     return NotFound();
                 }
-                throw;
+                else
+                {
+                    throw;
+                }
             }
 
             return NoContent();
+        }
+
+        // POST: api/Processes
+        [HttpPost]
+        public async Task<ActionResult<Process>> PostProcess(Process process)
+        {
+            _context.Processes.Add(process);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction("GetProcess", new { id = process.Id }, process);
         }
 
         // DELETE: api/Processes/5

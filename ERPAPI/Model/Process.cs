@@ -1,9 +1,9 @@
-﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
+﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations;
 
 namespace ERPAPI.Model
 {
-    public class Process
+      public class Process
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
