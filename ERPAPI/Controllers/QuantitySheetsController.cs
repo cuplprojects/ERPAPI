@@ -61,7 +61,7 @@ public class QuantitySheetController : ControllerBase
                         PercentageCatch = 0, // This will be recalculated below
                         ProjectId = sheet.ProjectId,
                         IsOverridden = sheet.IsOverridden,
-                        ProcessId = sheet.ProcessId
+                        ProcessId = new List<int>() // Start with an empty list for the new catch
                     };
                     adjustedSheets.Add(newSheet);
                 }
@@ -71,13 +71,24 @@ public class QuantitySheetController : ControllerBase
 
         // Get existing sheets for the same project and lots
         var existingSheets = await _context.QuantitySheets
-            .Where(s => s.ProjectId == projectId && newSheets.Select(ns => ns.LotNo).Contains(s.LotNo))
-            .ToListAsync();
+        .Where(s => s.ProjectId == projectId && newSheets.Select(ns => ns.LotNo).Contains(s.LotNo))
+        .ToListAsync();
+
+        // Prepare a list to track new catches that need to be processed
+        var processedNewSheets = new List<QuantitySheet>();
+
+        foreach (var sheet in newSheets)
+        {
+            // For new sheets, clear the ProcessId and process it
+            sheet.ProcessId.Clear();
+            _processService.ProcessCatch(sheet);
+            processedNewSheets.Add(sheet);
+        }
 
         // Combine new sheets with existing sheets
-        var allSheets = existingSheets.Concat(newSheets);
+        var allSheets = existingSheets.Concat(processedNewSheets).ToList();
 
-        // Group by lotNo
+        // Group by LotNo to recalculate quantities and percentages
         var groupedSheets = allSheets.GroupBy(sheet => sheet.LotNo);
 
         foreach (var group in groupedSheets)
@@ -93,15 +104,21 @@ public class QuantitySheetController : ControllerBase
             foreach (var sheet in group)
             {
                 sheet.PercentageCatch = (sheet.Quantity / totalQuantityForLot) * 100;
-                _processService.ProcessCatch(sheet);
+
+                // For existing sheets, just update the percentage
+                if (!processedNewSheets.Contains(sheet))
+                {
+                    // No need to call ProcessCatch again for existing sheets
+                    continue;
+                }
             }
         }
 
         // Add new sheets to the database
-        await _context.QuantitySheets.AddRangeAsync(newSheets);
+        await _context.QuantitySheets.AddRangeAsync(processedNewSheets);
         await _context.SaveChangesAsync();
 
-        return Ok(newSheets);
+        return Ok(processedNewSheets);
     }
 
     [HttpPut("{id}")]
