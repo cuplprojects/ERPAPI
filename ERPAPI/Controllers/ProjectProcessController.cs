@@ -73,5 +73,45 @@ namespace ERPAPI.Controllers
 
             return Ok(filteredProcesses);
         }
+
+
+        [HttpGet("ByProjectAndSequence/{projectId}/{sequenceId}")]
+        public async Task<ActionResult<object>> GetProcessByProjectAndSequence(int projectId, int sequenceId)
+        {
+            // Check if the project exists
+            var project = await _context.Projects.FindAsync(projectId);
+            if (project == null)
+            {
+                return NotFound(new { message = "Project not found." });
+            }
+
+            // Get the process associated with the projectId and sequenceId
+            var process = await _context.ProjectProcesses
+                .Where(pp => pp.ProjectId == projectId && pp.Sequence == sequenceId)
+                .Join(_context.Processes,
+                      pp => pp.ProcessId,
+                      p => p.Id,
+                      (pp, p) => new
+                      {
+                          pp.Id,
+                          pp.ProjectId,
+                          pp.ProcessId,
+                          ProcessName = p.Name,   // Assuming Process entity has a "Name" property
+                          pp.Weightage,
+                          pp.Sequence,
+                          pp.FeaturesList,
+                          pp.UserId
+                      })
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+
+            // Check if the process was found
+            if (process == null)
+            {
+                return NotFound(new { message = "Process not found for the given project and sequence." });
+            }
+
+            return Ok(process);
+        }
     }
 }
