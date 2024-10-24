@@ -74,6 +74,7 @@ namespace ERPAPI.Controllers
             return Ok(filteredCatches);
         }
 
+
         // GET: api/Processes/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Process>> GetProcess(int id)
@@ -231,6 +232,7 @@ namespace ERPAPI.Controllers
 
             return Ok(filteredCatches);
         }
+
 
         // GET: api/Processes/5
         [HttpGet("{id}")]
