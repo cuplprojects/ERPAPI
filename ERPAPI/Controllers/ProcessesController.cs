@@ -33,6 +33,7 @@ namespace ERPAPI.Controllers
             var featureDictionary = features.ToDictionary(f => f.FeatureId, f => f.Features);
 
             // Map processes to include full names of installed features and new properties
+
             var processesWithNames = processes.Select(process => new
             {
                 process.Id,
@@ -190,21 +191,27 @@ namespace ERPAPI.Controllers
             var featureDictionary = features.ToDictionary(f => f.FeatureId, f => f.Features);
 
             // Map processes to include full names of installed features
+
             var processesWithNames = processes.Select(process => new
             {
                 process.Id,
                 process.Name,
+                process.Weightage,    // Include new field Weightage
                 process.Status,
                 process.InstalledFeatures,
                 FeatureNames = process.InstalledFeatures
                     .Select(featureId => featureDictionary.TryGetValue(featureId, out var featureName) ? featureName : "Unknown Feature")
-                    .ToList()
+                    .ToList(),
+                process.ProcessIdInput,  // Include new field ProcessIdInput
+                process.ProcessType,     // Include new field ProcessType
+                process.RangeStart,      // Include new field RangeStart
+                process.RangeEnd         // Include new field RangeEnd
             }).ToList();
 
             return Ok(processesWithNames);
         }
 
-
+        // GET: api/Processes/process
         [HttpGet("process")]
         public IActionResult GetCatchesByProcess(int processid)
         {
@@ -225,8 +232,6 @@ namespace ERPAPI.Controllers
             return Ok(filteredCatches);
         }
 
-
-
         // GET: api/Processes/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Process>> GetProcess(int id)
@@ -242,7 +247,6 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/Processes/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutProcess(int id, Process process)
         {
@@ -273,7 +277,6 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/Processes
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Process>> PostProcess(Process process)
         {
