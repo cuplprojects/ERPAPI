@@ -188,6 +188,14 @@ public class QuantitySheetController : ControllerBase
     }
 
 
+        [HttpGet("CatchByproject")]
+    public async Task<ActionResult<IEnumerable<object>>> CatchByproject(int ProjectId)
+    {
+
+        return await _context.QuantitySheets.Where(r => r.ProjectId == ProjectId).ToListAsync();
+    }
+
+
     [HttpGet("check-all-quantity-sheets")]
     public async Task<ActionResult<IEnumerable<object>>> GetAllProjectsQuantitySheetStatus()
     {
