@@ -179,10 +179,16 @@ public class QuantitySheetController : ControllerBase
         return Ok(columnNames);
     }
 
+    [HttpGet("Catch")]
+    public async Task<ActionResult<IEnumerable<object>>> GetCatches(int ProjectId, string lotNo)
+    {
 
-    
+        return await _context.QuantitySheets.Where(r => r.ProjectId == ProjectId && r.LotNo == lotNo).ToListAsync();
+    }
 
-        [HttpGet("CatchByproject")]
+
+
+    [HttpGet("CatchByproject")]
     public async Task<ActionResult<IEnumerable<object>>> CatchByproject(int ProjectId)
     {
 
