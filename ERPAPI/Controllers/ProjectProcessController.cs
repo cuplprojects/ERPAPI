@@ -1,6 +1,5 @@
 using ERPAPI.Data;
 using ERPAPI.Model;
-
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +8,6 @@ namespace ERPAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-
     public class ProjectProcessController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -79,108 +77,6 @@ namespace ERPAPI.Controllers
 
 
 
-
-        [HttpPost("AddProcessesToProject")]
-        public async Task<IActionResult> AddProcessesToProject([FromBody] AddProcessesDto addProcessesDto)
-        {
-            if (addProcessesDto.ProjectProcesses == null || !addProcessesDto.ProjectProcesses.Any())
-            {
-                return BadRequest("No processes provided.");
-            }
-
-            var projectId = addProcessesDto.ProjectProcesses.First().ProjectId;
-            var project = await _context.Projects.FindAsync(projectId);
-            if (project == null)
-            {
-                return BadRequest("Project does not exist.");
-            }
-
-            var existingProcesses = await _context.ProjectProcesses
-                .Where(pp => pp.ProjectId == projectId)
-                .ToListAsync();
-
-            foreach (var dto in addProcessesDto.ProjectProcesses)
-            {
-                var existingProcess = existingProcesses
-                    .FirstOrDefault(pp => pp.ProjectId == dto.ProjectId && pp.ProcessId == dto.ProcessId);
-
-                if (existingProcess != null)
-                {
-                    // Update existing process
-                    existingProcess.Weightage = dto.Weightage;
-                    existingProcess.Sequence = dto.Sequence;
-                    existingProcess.FeaturesList = dto.FeaturesList;
-                    existingProcess.UserId = dto.UserId; // Update user IDs directly
-                    _context.ProjectProcesses.Update(existingProcess);
-                }
-                else
-                {
-                    // Add new process if it does not exist
-                    var newProcess = new ProjectProcess
-                    {
-                        ProjectId = dto.ProjectId,
-                        ProcessId = dto.ProcessId,
-                        Weightage = dto.Weightage,
-                        Sequence = dto.Sequence,
-                        FeaturesList = dto.FeaturesList,
-                        UserId = dto.UserId // Set user IDs
-                    };
-                    await _context.ProjectProcesses.AddAsync(newProcess);
-                }
-            }
-
-            await _context.SaveChangesAsync();
-            return Ok("Processes updated successfully!");
-        }
-
-
-        private bool ProjectProcessExists(int id)
-        {
-            return _context.ProjectProcesses.Any(e => e.Id == id);
-        }
-
-        [HttpGet("GetProcessesWithUsers/{projectId}")]
-        public async Task<ActionResult<object>> GetProcessesWithUsers(int projectId)
-        {
-            // Check if the project exists
-            var project = await _context.Projects.FindAsync(projectId);
-            if (project == null)
-            {
-                return NotFound("Project does not exist.");
-            }
-
-            // Use LINQ to fetch project processes and associated users
-            var processesWithUsers = await (from pp in _context.ProjectProcesses
-                                            where pp.ProjectId == projectId
-                                            join p in _context.Processes on pp.ProcessId equals p.Id into processGroup
-                                            from p in processGroup.DefaultIfEmpty() // Left join to handle potential null
-                                            select new
-                                            {
-                                                pp.Id,
-                                                pp.ProcessId,
-                                                ProcessName = p != null ? p.Name : "Unknown", // Handle potential null
-                                                pp.Weightage,
-                                                pp.Sequence,
-                                                UserId = pp.UserId == null ? new List<int>() : pp.UserId // Handle potential null
-                                            }).ToListAsync();
-
-            var users = await _context.Users.Select(u => new
-            {
-                u.UserId,
-                u.UserName
-            }).ToListAsync();
-
-            return new
-            {
-                Processes = processesWithUsers,
-                Users = users
-            };
-        }
-
-
-        [HttpPost("UpdateProcessUsers/{projectId}")]
-        public async Task<IActionResult> UpdateProcessUsers(int projectId, [FromBody] Dictionary<int, List<int>> userIdsByProcessId)
-
         // GET: api/ProjectProcess/{userId}/{projectId}
         [HttpGet()]
         public async Task<ActionResult<IEnumerable<object>>> GetProjectProcesses(int userId, int projectId)
@@ -239,13 +135,158 @@ namespace ERPAPI.Controllers
 
         [HttpGet("ByProjectAndSequence/{projectId}/{sequenceId}")]
         public async Task<ActionResult<object>> GetProcessByProjectAndSequence(int projectId, int sequenceId)
-
         {
             // Check if the project exists
             var project = await _context.Projects.FindAsync(projectId);
             if (project == null)
             {
+                return NotFound(new { message = "Project not found." });
+            }
 
+            // Get the process associated with the projectId and sequenceId
+            var process = await _context.ProjectProcesses
+                .Where(pp => pp.ProjectId == projectId && pp.Sequence == sequenceId)
+                .Join(_context.Processes,
+                      pp => pp.ProcessId,
+                      p => p.Id,
+                      (pp, p) => new
+                      {
+                          pp.Id,
+                          pp.ProjectId,
+                          pp.ProcessId,
+                          ProcessName = p.Name,   // Assuming Process entity has a "Name" property
+                          pp.Weightage,
+                          pp.Sequence,
+                          pp.FeaturesList,
+                          pp.UserId
+                      })
+                .AsNoTracking()
+                .FirstOrDefaultAsync();
+
+            // Check if the process was found
+            if (process == null)
+            {
+                return NotFound(new { message = "Process not found for the given project and sequence." });
+            }
+
+            return Ok(process);
+        }
+
+
+        [HttpPost("AddProcessesToProject")]
+        public async Task<IActionResult> AddProcessesToProject([FromBody] AddProcessesDto addProcessesDto)
+        {
+            if (addProcessesDto.ProjectProcesses == null || !addProcessesDto.ProjectProcesses.Any())
+            {
+                return BadRequest("No processes provided.");
+            }
+
+            var projectId = addProcessesDto.ProjectProcesses.First().ProjectId;
+            var project = await _context.Projects.FindAsync(projectId);
+            if (project == null)
+            {
+                return BadRequest("Project does not exist.");
+            }
+
+            var existingProcesses = await _context.ProjectProcesses
+                .Where(pp => pp.ProjectId == projectId)
+                .ToListAsync();
+
+            // Calculate total weightage for existing processes to find an adjustment factor
+            var totalExistingWeightage = existingProcesses.Sum(pp => pp.Weightage);
+            var newProcesses = new List<ProjectProcess>();
+
+            foreach (var dto in addProcessesDto.ProjectProcesses)
+            {
+                var existingProcess = existingProcesses
+                    .FirstOrDefault(pp => pp.ProjectId == dto.ProjectId && pp.ProcessId == dto.ProcessId);
+
+                if (existingProcess != null)
+                {
+                    // Update existing process
+                    existingProcess.Weightage = dto.Weightage; // Directly set the weightage from DTO
+                    existingProcess.Sequence = dto.Sequence;
+                    existingProcess.FeaturesList = dto.FeaturesList;
+                    existingProcess.UserId = dto.UserId;
+                    _context.ProjectProcesses.Update(existingProcess);
+                }
+                else
+                {
+                    // Add new process if it does not exist
+                    var newProcess = new ProjectProcess
+                    {
+                        ProjectId = dto.ProjectId,
+                        ProcessId = dto.ProcessId,
+                        Weightage = dto.Weightage, // Set weightage from DTO
+                        Sequence = dto.Sequence,
+                        FeaturesList = dto.FeaturesList,
+                        UserId = dto.UserId
+                    };
+                    newProcesses.Add(newProcess);
+                }
+            }
+
+            // Add new processes to the context
+            if (newProcesses.Any())
+            {
+                await _context.ProjectProcesses.AddRangeAsync(newProcesses);
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok("Processes updated successfully!");
+        }
+
+        private bool ProjectProcessExists(int id)
+        {
+            return _context.ProjectProcesses.Any(e => e.Id == id);
+        }
+
+        [HttpGet("GetProcessesWithUsers/{projectId}")]
+        public async Task<ActionResult<object>> GetProcessesWithUsers(int projectId)
+        {
+            // Check if the project exists
+            var project = await _context.Projects.FindAsync(projectId);
+            if (project == null)
+            {
+                return NotFound("Project does not exist.");
+            }
+
+            // Use LINQ to fetch project processes and associated users
+            var processesWithUsers = await (from pp in _context.ProjectProcesses
+                                            where pp.ProjectId == projectId
+                                            join p in _context.Processes on pp.ProcessId equals p.Id into processGroup
+                                            from p in processGroup.DefaultIfEmpty() // Left join to handle potential null
+                                            select new
+                                            {
+                                                pp.Id,
+                                                pp.ProcessId,
+                                                ProcessName = p != null ? p.Name : "Unknown", // Handle potential null
+                                                pp.Weightage,
+                                                pp.Sequence,
+                                                UserId = pp.UserId == null ? new List<int>() : pp.UserId // Handle potential null
+                                            }).ToListAsync();
+
+            var users = await _context.Users.Select(u => new
+            {
+                u.UserId,
+                u.UserName
+            }).ToListAsync();
+
+            return new
+            {
+                Processes = processesWithUsers,
+                Users = users
+            };
+        }
+
+
+        [HttpPost("UpdateProcessUsers/{projectId}")]
+        public async Task<IActionResult> UpdateProcessUsers(int projectId, [FromBody] Dictionary<int, List<int>> userIdsByProcessId)
+        {
+            // Check if the project exists
+            var project = await _context.Projects.FindAsync(projectId);
+            if (project == null)
+            {
                 return NotFound("Project does not exist.");
             }
 
@@ -345,14 +386,14 @@ namespace ERPAPI.Controllers
 
             return NoContent(); // Return 204 No Content
         }
-    
 
-    public class DeleteRequest
-    {
-        public int ProjectId { get; set; }
-        public List<int> ProcessIds { get; set; }
-    }
-    public class ProjectProcessDto
+
+        public class DeleteRequest
+        {
+            public int ProjectId { get; set; }
+            public List<int> ProcessIds { get; set; }
+        }
+        public class ProjectProcessDto
         {
             public int Id { get; set; }
             public int ProjectId { get; set; }
@@ -372,38 +413,6 @@ namespace ERPAPI.Controllers
         public class UpdateProcessRequest
         {
             public List<ProjectProcessDto> ProjectProcesses { get; set; }
-
-                return NotFound(new { message = "Project not found." });
-            }
-
-            // Get the process associated with the projectId and sequenceId
-            var process = await _context.ProjectProcesses
-                .Where(pp => pp.ProjectId == projectId && pp.Sequence == sequenceId)
-                .Join(_context.Processes,
-                      pp => pp.ProcessId,
-                      p => p.Id,
-                      (pp, p) => new
-                      {
-                          pp.Id,
-                          pp.ProjectId,
-                          pp.ProcessId,
-                          ProcessName = p.Name,   // Assuming Process entity has a "Name" property
-                          pp.Weightage,
-                          pp.Sequence,
-                          pp.FeaturesList,
-                          pp.UserId
-                      })
-                .AsNoTracking()
-                .FirstOrDefaultAsync();
-
-            // Check if the process was found
-            if (process == null)
-            {
-                return NotFound(new { message = "Process not found for the given project and sequence." });
-            }
-
-            return Ok(process);
-
         }
     }
 }
