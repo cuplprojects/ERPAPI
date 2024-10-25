@@ -164,7 +164,6 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-
     [HttpGet("Columns")]
     public IActionResult GetColumnNames()
     {
@@ -186,6 +185,14 @@ public class QuantitySheetController : ControllerBase
     {
 
         return await _context.QuantitySheets.Where(r => r.ProjectId == ProjectId && r.LotNo == lotNo).ToListAsync();
+    }
+
+
+        [HttpGet("CatchByproject")]
+    public async Task<ActionResult<IEnumerable<object>>> CatchByproject(int ProjectId)
+    {
+
+        return await _context.QuantitySheets.Where(r => r.ProjectId == ProjectId).ToListAsync();
     }
 
 
