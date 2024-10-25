@@ -163,7 +163,6 @@ public class QuantitySheetController : ControllerBase
         return Ok(uniqueLotNumbers);
     }
 
-
     [HttpGet("Columns")]
     public IActionResult GetColumnNames()
     {
