@@ -386,6 +386,32 @@ namespace ERPAPI.Controllers
 
             return NoContent(); // Return 204 No Content
         }
+        [HttpPost("UpdateProcessFeatures")]
+        public async Task<IActionResult> UpdateProcessFeatures([FromBody] UpdateProcessFeaturesRequest request)
+        {
+            if (request == null || request.ProjectId <= 0 || request.ProcessId <= 0)
+            {
+                return BadRequest("Invalid request data.");
+            }
+
+            var existingProcess = await _context.ProjectProcesses
+                .FirstOrDefaultAsync(pp => pp.ProjectId == request.ProjectId && pp.ProcessId == request.ProcessId);
+
+            if (existingProcess == null)
+            {
+                return NotFound("Process not found.");
+            }
+
+            // Update the installed features
+            existingProcess.FeaturesList = request.FeaturesList;
+
+            _context.ProjectProcesses.Update(existingProcess);
+            await _context.SaveChangesAsync();
+
+            return Ok("Process features updated successfully!");
+        }
+
+
 
 
         public class DeleteRequest
@@ -414,5 +440,12 @@ namespace ERPAPI.Controllers
         {
             public List<ProjectProcessDto> ProjectProcesses { get; set; }
         }
+        public class UpdateProcessFeaturesRequest
+        {
+            public int ProjectId { get; set; }
+            public int ProcessId { get; set; }
+            public List<int> FeaturesList { get; set; }
+        }
+
     }
 }
