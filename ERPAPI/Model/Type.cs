@@ -12,5 +12,6 @@ namespace ERPAPI.Model
         public bool Status { get; set; }
         public List<int> AssociatedProcessId { get; set; }
         public List<int> RequiredProcessId { get; set; }
+
     }
 }
