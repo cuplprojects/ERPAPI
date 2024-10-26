@@ -60,7 +60,6 @@ public class QuantitySheetController : ControllerBase
                         Quantity = adjustedQuantity,
                         PercentageCatch = 0, // This will be recalculated below
                         ProjectId = sheet.ProjectId,
-                        IsOverridden = sheet.IsOverridden,
                         ProcessId = new List<int>() // Start with an empty list for the new catch
                     };
                     adjustedSheets.Add(newSheet);
@@ -170,18 +169,23 @@ public class QuantitySheetController : ControllerBase
             .Where(prop => prop.Name != "QuantitySheetId" &&
                            prop.Name != "PercentageCatch" &&
                            prop.Name != "ProjectId" &&
-                           prop.Name != "ProcessId" &&
-                           prop.Name != "IsOverridden")
+                           prop.Name != "ProcessId" )
             .Select(prop => prop.Name)
             .ToList();
 
         return Ok(columnNames);
     }
 
+    [HttpGet("Catch")]
+    public async Task<ActionResult<IEnumerable<object>>> GetCatches(int ProjectId, string lotNo)
+    {
 
-    
+        return await _context.QuantitySheets.Where(r => r.ProjectId == ProjectId && r.LotNo == lotNo).ToListAsync();
+    }
 
-        [HttpGet("CatchByproject")]
+
+
+    [HttpGet("CatchByproject")]
     public async Task<ActionResult<IEnumerable<object>>> CatchByproject(int ProjectId)
     {
 

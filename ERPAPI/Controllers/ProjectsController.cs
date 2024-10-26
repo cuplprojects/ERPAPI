@@ -28,29 +28,35 @@ namespace ERPAPI.Controllers
                 return await _context.ProjectProcesses.ToListAsync();
             }
     */
-       
 
 
-       
 
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Project>>> GetProject()
-        {
-            return await _context.Projects.ToListAsync();
-        }
-        // GET: api/Project/{id}
+
+
         [HttpGet("{id}")]
         public async Task<ActionResult<Project>> GetProjectById(int id)
         {
-            var project = await _context.Projects.FindAsync(id);
+            var projectWithType = await (from m in _context.Projects
+                                         join p in _context.Types on m.TypeId equals p.TypeId
+                                         where m.ProjectId == id // Filter by the provided id
+                                         select new
+                                         {
+                                             m.ProjectId,
+                                             m.TypeId,
+                                             m.Status,
+                                             m.GroupId,
+                                             m.Name,
+                                             m.Description,
+                                             ProjectType = p.Types
+                                         }).FirstOrDefaultAsync(); // Use FirstOrDefault to get a single project
 
-            if (project == null)
+            if (projectWithType == null)
             {
-                return NotFound();
+                return NotFound(); // Return 404 if not found
             }
 
-            return project;
+            return Ok(projectWithType); // Return the found project
         }
 
 
@@ -95,11 +101,11 @@ namespace ERPAPI.Controllers
         }
 
 
-       
 
 
 
-        
+
+
         /* [HttpPost("AddProcessesToProject")]
          public async Task<IActionResult> AddProcessesToProject([FromBody] AddProcessesDto addProcessesDto)
          {
@@ -165,7 +171,7 @@ namespace ERPAPI.Controllers
         {
             return _context.Projects.Any(e => e.ProjectId == id);
         }
-       
+
         // GET: api/Project/GetActiveProjects
         [HttpGet("GetActiveProjects")]
         public async Task<ActionResult<IEnumerable<Project>>> GetActiveProjects()
@@ -214,13 +220,13 @@ namespace ERPAPI.Controllers
 
 
 
-       
+
     }
 
 
 
 
-       
+
 
 }
 
