@@ -34,7 +34,6 @@ namespace ERPAPI.Model
 
         public int ProjectId { get; set; }
 
-        public bool IsOverridden { get; set; }
        
        public List<int> ProcessId { get; set; } 
     }
