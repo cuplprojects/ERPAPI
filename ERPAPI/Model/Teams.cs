@@ -20,10 +20,7 @@ namespace ERPAPI.Model
 
         public bool Status { get; set; } = true;
 
-        // New property to hold user IDs
+        // Property to hold user IDs
         public List<int> UserIds { get; set; } = new List<int>();
-
-        // New property to hold full names
-        public string UserNames { get; set; } // Store full names as a comma-separated string
     }
 }

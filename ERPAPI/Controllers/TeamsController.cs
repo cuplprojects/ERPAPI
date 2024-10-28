@@ -24,99 +24,130 @@ namespace ERPAPI.Controllers
 
         // GET: api/Teams
         [HttpGet]
-public async Task<ActionResult<IEnumerable<Teams>>> GetTeams()
-{
-    try
-    {
-        var teams = await _context.Teams.ToListAsync();
-
-        // Populate UserNames based on UserIds
-        foreach (var team in teams)
+        public async Task<ActionResult<IEnumerable<Teams>>> GetTeams()
         {
-            team.UserNames = GetUserNamesByIds(team.UserIds);
+            try
+            {
+                var teams = await _context.Teams.ToListAsync();
+
+                // Map user IDs to user details
+                var userIds = teams.SelectMany(t => t.UserIds).Distinct().ToList();
+                var users = await _context.Users
+                    .Where(u => userIds.Contains(u.UserId))
+                    .Select(u => new 
+                    {
+                        u.UserId,
+                        FullName = $"{u.FirstName} {(string.IsNullOrEmpty(u.MiddleName) ? "" : u.MiddleName + " ")}{(string.IsNullOrEmpty(u.LastName) ? "" : u.LastName)}".Trim()
+                    })
+                    .ToListAsync();
+
+                // Create a dictionary for quick lookup
+                var userMap = users.ToDictionary(u => u.UserId, u => u.FullName);
+
+                // Update teams with user objects
+                var updatedTeams = teams.Select(team => new 
+                {
+                    team.TeamId,
+                    team.TeamName,
+                    team.Description,
+                    team.CreatedDate,
+                    team.Status,
+                    Users = team.UserIds.Select(id => new 
+                    {
+                        Id = id,
+                        Name = userMap.ContainsKey(id) ? userMap[id] : "Unknown" // Map user IDs to user objects
+                    }).ToList()
+                });
+
+                return Ok(updatedTeams);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Failed to retrieve teams", ex.Message, "TeamsController");
+                return StatusCode(500, "Failed to retrieve teams");
+            }
         }
 
-        return Ok(teams);
-    }
-    catch (Exception ex)
-    {
-        _loggerService.LogError("Failed to retrieve teams", ex.Message, "TeamsController");
-        return StatusCode(500, "Failed to retrieve teams");
-    }
-}
+
 
         // GET: api/Teams/5
-[HttpGet("{id}")]
-public async Task<ActionResult<Teams>> GetTeam(int id)
-{
-    try
-    {
-        var team = await _context.Teams
-            .FirstOrDefaultAsync(t => t.TeamId == id);
-
-        if (team == null)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Teams>> GetTeam(int id)
         {
-            return NotFound(new { Message = "Team not found" });
+            try
+            {
+                var team = await _context.Teams
+                    .FirstOrDefaultAsync(t => t.TeamId == id);
+
+                if (team == null)
+                {
+                    return NotFound(new { Message = "Team not found" });
+                }
+
+                return Ok(team);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Failed to retrieve team", ex.Message, "TeamsController");
+                return StatusCode(500, "Failed to retrieve team");
+            }
         }
 
-        // Populate UserNames based on UserIds
-        team.UserNames = GetUserNamesByIds(team.UserIds);
-
-        return Ok(team);
-    }
-    catch (Exception ex)
-    {
-        _loggerService.LogError("Failed to retrieve team", ex.Message, "TeamsController");
-        return StatusCode(500, "Failed to retrieve team");
-    }
-}
-
-
-        // Helper method to get usernames by user IDs
-       private string GetUserNamesByIds(List<int> userIds)
-{
-    var userNames = new List<string>();
-    var users = _context.Users.Where(u => userIds.Contains(u.UserId)).ToList(); // Fetch users in one query
-    foreach (var user in users)
-    {
-        // Construct the full name
-        var fullName = user.FirstName;
-        if (!string.IsNullOrEmpty(user.MiddleName))
+        // GET: api/Teams/5/Users
+        [HttpGet("{id}/Users")]
+        public async Task<ActionResult> GetTeamUserNames(int id)
         {
-            fullName += " " + user.MiddleName;
+            try
+            {
+                // Fetch the team by ID
+                var team = await _context.Teams
+                    .FirstOrDefaultAsync(t => t.TeamId == id);
+
+                if (team == null)
+                {
+                    return NotFound(new { Message = "Team not found" });
+                }
+
+                // Fetch the user names based on UserIds in the team
+                var userNames = await _context.Users
+                    .Where(u => team.UserIds.Contains(u.UserId))
+                    .Select(u => new { u.UserId, u.UserName })
+                    .ToListAsync();
+
+                if (!userNames.Any())
+                {
+                    return NotFound(new { Message = "No users found for this team" });
+                }
+
+                return Ok(userNames);
+            }
+            catch
+            {
+                return StatusCode(500, "Failed to retrieve user names for team");
+            }
         }
-        if (!string.IsNullOrEmpty(user.LastName))
-        {
-            fullName += " " + user.LastName;
-        }
-        userNames.Add(fullName.Trim()); // Add the full name to the list
-    }
-    return string.Join(", ", userNames); // Return as a comma-separated string
-}
+
 
         // POST: api/Teams
         [HttpPost]
-public async Task<ActionResult<Teams>> CreateTeam(Teams team)
-{
-    try
-    {
-        // Populate UserNames based on UserIds
-        team.UserNames = GetUserNamesByIds(team.UserIds);
+        public async Task<ActionResult<Teams>> CreateTeam(Teams team)
+        {
+            try
+            {
+                // Add the team to the context
+                _context.Teams.Add(team);
+                await _context.SaveChangesAsync();
 
-        // Add the team to the context
-        _context.Teams.Add(team);
-        await _context.SaveChangesAsync();
+                _loggerService.LogEvent("Team created", "Teams", team.TeamId);
 
-        _loggerService.LogEvent("Team created", "Teams", team.TeamId);
-
-        return CreatedAtAction(nameof(GetTeam), new { id = team.TeamId }, team);
-    }
-    catch (Exception ex)
-    {
-        _loggerService.LogError("Failed to create team", ex.Message, "TeamsController");
-        return StatusCode(500, "Failed to create team");
-    }
-}
+                return CreatedAtAction(nameof(GetTeam), new { id = team.TeamId }, team);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Failed to create team", ex.Message, "TeamsController");
+                return StatusCode(500, "Failed to create team");
+            }
+        }
 
         // PUT: api/Teams/5
         [HttpPut("{id}")]
