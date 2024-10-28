@@ -60,7 +60,8 @@ public class QuantitySheetController : ControllerBase
                         Quantity = adjustedQuantity,
                         PercentageCatch = 0, // This will be recalculated below
                         ProjectId = sheet.ProjectId,
-                        IsOverridden = sheet.IsOverridden,
+                        ExamDate = sheet.ExamDate,
+                        ExamTime = sheet.ExamTime,
                         ProcessId = new List<int>() // Start with an empty list for the new catch
                     };
                     adjustedSheets.Add(newSheet);
@@ -163,6 +164,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(uniqueLotNumbers);
     }
 
+
     [HttpGet("Columns")]
     public IActionResult GetColumnNames()
     {
@@ -178,7 +180,6 @@ public class QuantitySheetController : ControllerBase
         return Ok(columnNames);
     }
 
-
     [HttpGet("Catch")]
     public async Task<ActionResult<IEnumerable<object>>> GetCatches(int ProjectId, string lotNo)
     {
@@ -187,12 +188,16 @@ public class QuantitySheetController : ControllerBase
     }
 
 
+
+
+
     [HttpGet("CatchByproject")]
     public async Task<ActionResult<IEnumerable<object>>> CatchByproject(int ProjectId)
     {
 
         return await _context.QuantitySheets.Where(r => r.ProjectId == ProjectId).ToListAsync();
     }
+
 
 
     [HttpGet("check-all-quantity-sheets")]
@@ -217,7 +222,6 @@ public class QuantitySheetController : ControllerBase
 
         return Ok(result);
     }
-
 
 
     [HttpDelete("{id}")]
