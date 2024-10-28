@@ -23,9 +23,10 @@ namespace ERPAPI.Controllers
 
         // GET: api/Transactions
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Transaction>>> GetTransaction()
+        public async Task<ActionResult<IEnumerable<Transaction>>> GetTransaction(int ProjectId, int ProcessId)
         {
-            return await _context.Transaction.ToListAsync();
+            var transaction = await _context.Transaction.Where(r=> r.ProjectId == ProjectId && r.ProcessId == ProcessId).ToListAsync();
+            return Ok(transaction);
         }
 
         // GET: api/Transactions/5
@@ -126,8 +127,8 @@ namespace ERPAPI.Controllers
                 throw new ArgumentNullException("One or more input lists are null.");
             }
 
-            var completedProcesses = transactions.Where(t => t.StatusId == 3).ToList();
-            var partiallyCompletedProcesses = transactions.Where(t => t.StatusId == 2).ToList();
+            var completedProcesses = transactions.Where(t => t.Status == 3).ToList();
+            var partiallyCompletedProcesses = transactions.Where(t => t.Status == 2).ToList();
 
             var sheetPercentages = new List<SheetPercentage>();
             var lotPercentages = new Dictionary<string, double>();
@@ -166,7 +167,7 @@ namespace ERPAPI.Controllers
 
                     var partiallyCompletedQty = partiallyCompletedProcesses
                         .Where(t => t.QuantitysheetId == sheet.QuantitySheetId)
-                        .Sum(t => t.Quantity);
+                        .Sum(t => t.InterimQuantity);
 
                     var totalWeightage = completedProcessWeightage +
                         (partiallyCompletedWeightage * partiallyCompletedQty / Math.Max(sheet.Quantity, 1));
@@ -189,7 +190,7 @@ namespace ERPAPI.Controllers
 
                         if (processWeightage > 0)
                         {
-                            catchPercent += (processWeightage * transaction.Quantity) / Math.Max(sheet.Quantity, 1);
+                            catchPercent += (processWeightage * transaction.InterimQuantity) / Math.Max(sheet.Quantity, 1);
                         }
                     }
 

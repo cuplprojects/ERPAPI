@@ -21,13 +21,24 @@ namespace ERPAPI.Controllers
             _context = context;
         }
 
-        // GET: api/Project/GetProcesses
-        /*    [HttpGet("GetProjectProcesses")]
-            public async Task<ActionResult<IEnumerable<ProjectProcess>>> GetProjectProcesses()
-            {
-                return await _context.ProjectProcesses.ToListAsync();
-            }
-    */
+
+        [HttpGet("GetProjectProcesses")]
+        public async Task<ActionResult<IEnumerable<ProjectProcess>>> GetProjectProcesses()
+        {
+            var projectProcesses = await _context.ProjectProcesses
+                .Select(pp => new
+                {
+                    pp.Id,
+                    pp.ProjectId,
+                    pp.ProcessId,
+                    pp.Weightage,
+                    pp.Sequence,
+                    UserIds = pp.UserId // Use the updated UserIds
+                })
+                .ToListAsync();
+
+            return Ok(projectProcesses);
+        }
 
 
 
@@ -36,6 +47,7 @@ namespace ERPAPI.Controllers
         {
             return await _context.Projects.ToListAsync();
         }
+
 
 
         [HttpGet("{id}")]

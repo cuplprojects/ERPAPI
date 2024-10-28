@@ -40,7 +40,7 @@ public class QuantitySheetController : ControllerBase
             .FirstOrDefaultAsync();
 
         // If project type is Booklet, adjust quantities and duplicate entries
-        if (projectType == "Booklet")
+        if (projectType == "Booklets")
         {
             var adjustedSheets = new List<QuantitySheet>();
             foreach (var sheet in newSheets)
@@ -60,6 +60,10 @@ public class QuantitySheetController : ControllerBase
                         Quantity = adjustedQuantity,
                         PercentageCatch = 0, // This will be recalculated below
                         ProjectId = sheet.ProjectId,
+
+                       ExamDate = sheet.ExamDate,
+                       ExamTime = sheet.ExamTime,
+
                         ProcessId = new List<int>() // Start with an empty list for the new catch
                     };
                     adjustedSheets.Add(newSheet);
@@ -185,12 +189,15 @@ public class QuantitySheetController : ControllerBase
 
 
 
+
+
     [HttpGet("CatchByproject")]
     public async Task<ActionResult<IEnumerable<object>>> CatchByproject(int ProjectId)
     {
 
         return await _context.QuantitySheets.Where(r => r.ProjectId == ProjectId).ToListAsync();
     }
+
 
 
     [HttpGet("check-all-quantity-sheets")]
@@ -215,7 +222,6 @@ public class QuantitySheetController : ControllerBase
 
         return Ok(result);
     }
-
 
 
     [HttpDelete("{id}")]
