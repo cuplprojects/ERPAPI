@@ -23,11 +23,36 @@ namespace ERPAPI.Controllers
 
         // GET: api/Transactions
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Transaction>>> GetTransaction(int ProjectId, int ProcessId)
+        public async Task<ActionResult<IEnumerable<object>>> GetTransaction(int projectId, int processId)
         {
-            var transaction = await _context.Transaction.Where(r=> r.ProjectId == ProjectId && r.ProcessId == ProcessId).ToListAsync();
-            return Ok(transaction);
+            var transactionsWithAlarms = await (from t in _context.Transaction
+                                                join a in _context.Alarm on t.AlarmId equals a.AlarmId into alarmGroup
+                                                from a in alarmGroup.DefaultIfEmpty() // Left join
+                                                where t.ProjectId == projectId && t.ProcessId == processId
+                                                select new
+                                                {
+                                                    t.TransactionId,
+                                                    t.AlarmId,
+                                                    t.ZoneId,
+                                                    t.QuantitysheetId,
+                                                    t.TeamId,
+                                                    t.Remarks,
+                                                    t.LotNo,
+                                                    t.InterimQuantity,
+                                                    t.ProcessId,
+                                                    t.Status,
+                                                    AlarmMessage = a != null ? a.Message : null // Handle null case for alarms
+                                                }).ToListAsync();
+
+            if (transactionsWithAlarms == null || !transactionsWithAlarms.Any())
+            {
+                return NotFound(); // Return a 404 if no transactions are found
+            }
+
+            return Ok(transactionsWithAlarms);
         }
+
+
 
         // GET: api/Transactions/5
         [HttpGet("{id}")]
