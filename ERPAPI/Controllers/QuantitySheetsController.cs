@@ -60,8 +60,10 @@ public class QuantitySheetController : ControllerBase
                         Quantity = adjustedQuantity,
                         PercentageCatch = 0, // This will be recalculated below
                         ProjectId = sheet.ProjectId,
+
                        ExamDate = sheet.ExamDate,
                        ExamTime = sheet.ExamTime,
+
                         ProcessId = new List<int>() // Start with an empty list for the new catch
                     };
                     adjustedSheets.Add(newSheet);
@@ -164,7 +166,6 @@ public class QuantitySheetController : ControllerBase
         return Ok(uniqueLotNumbers);
     }
 
-
     [HttpGet("Columns")]
     public IActionResult GetColumnNames()
     {
@@ -172,8 +173,7 @@ public class QuantitySheetController : ControllerBase
             .Where(prop => prop.Name != "QuantitySheetId" &&
                            prop.Name != "PercentageCatch" &&
                            prop.Name != "ProjectId" &&
-                           prop.Name != "ProcessId" &&
-                           prop.Name != "IsOverridden")
+                           prop.Name != "ProcessId" )
             .Select(prop => prop.Name)
             .ToList();
 
