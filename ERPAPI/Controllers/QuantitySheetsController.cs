@@ -41,6 +41,7 @@ public class QuantitySheetController : ControllerBase
 
         // If project type is Booklet, adjust quantities and duplicate entries
         if (projectType == "Booklet")
+        if (projectType == "Booklets")
         {
             var adjustedSheets = new List<QuantitySheet>();
             foreach (var sheet in newSheets)
@@ -172,8 +173,7 @@ public class QuantitySheetController : ControllerBase
             .Where(prop => prop.Name != "QuantitySheetId" &&
                            prop.Name != "PercentageCatch" &&
                            prop.Name != "ProjectId" &&
-                           prop.Name != "ProcessId" &&
-                           prop.Name != "IsOverridden")
+                           prop.Name != "ProcessId")
             .Select(prop => prop.Name)
             .ToList();
 

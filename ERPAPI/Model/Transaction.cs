@@ -9,6 +9,7 @@ namespace ERPAPI.Model
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int TransactionId { get; set; }
         public int Quantity { get; set; }
+        public int InterimQuantity { get; set; }
         public string Remarks { get; set; }
         public int ProjectId { get; set; }
         public int QuantitysheetId { get; set; }
@@ -16,6 +17,8 @@ namespace ERPAPI.Model
         public int ZoneId { get; set; }
         public int StatusId { get; set; }
         public int AlarmId { get; set; }
+        public int Status { get; set; }
+        public string AlarmId { get; set; }
         public int LotNo { get; set; }
     }
 }
