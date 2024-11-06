@@ -21,28 +21,41 @@ namespace ERPAPI.Controllers
             _context = context;
         }
 
-        // GET: api/Transactions
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetTransaction(int projectId, int processId)
         {
-            var transactionsWithAlarms = await (from t in _context.Transaction
-                                                join a in _context.Alarm on t.AlarmId equals a.AlarmId into alarmGroup
-                                                from a in alarmGroup.DefaultIfEmpty() // Left join
-                                                where t.ProjectId == projectId && t.ProcessId == processId
-                                                select new
-                                                {
-                                                    t.TransactionId,
-                                                    t.AlarmId,
-                                                    t.ZoneId,
-                                                    t.QuantitysheetId,
-                                                    t.TeamId,
-                                                    t.Remarks,
-                                                    t.LotNo,
-                                                    t.InterimQuantity,
-                                                    t.ProcessId,
-                                                    t.Status,
-                                                    AlarmMessage = a != null ? a.Message : null // Handle null case for alarms
-                                                }).ToListAsync();
+            // Fetch the data first (without trying to parse AlarmId)
+            var transactions = await (from t in _context.Transaction
+                                      where t.ProjectId == projectId && t.ProcessId == processId
+                                      select t).ToListAsync(); // Fetch data to memory
+
+            // Now, you can perform the parsing on the client-side after data is fetched
+            var transactionsWithAlarms = transactions
+                .Select(t =>
+                {
+                    var parsedAlarmId = TryParseAlarmId(t.AlarmId); // Apply parsing here
+                                                                    // Check if parsedAlarmId is an integer (in case the parsing was successful)
+                    var alarm = parsedAlarmId is int parsedId
+                        ? _context.Alarm.FirstOrDefault(a => a.AlarmId == parsedId)
+                        : null;
+
+                    return new
+                    {
+                        t.TransactionId,
+                        t.AlarmId,
+                        t.ZoneId,
+                        t.QuantitysheetId,
+                        t.TeamId,
+                        t.Remarks,
+                        t.LotNo,
+                        t.InterimQuantity,
+                        t.ProcessId,
+                        t.VoiceRecording,
+                        t.Status,
+                        t.MachineId,
+                        AlarmMessage = alarm != null ? alarm.Message : null // Handle null case for alarms
+                    };
+                }).ToList(); // Apply the transformation in memory
 
             if (transactionsWithAlarms == null || !transactionsWithAlarms.Any())
             {
@@ -51,6 +64,24 @@ namespace ERPAPI.Controllers
 
             return Ok(transactionsWithAlarms);
         }
+
+        // Utility function to attempt parsing AlarmId and return an integer if possible, else return the original value
+        private object TryParseAlarmId(object alarmId)
+        {
+            if (alarmId == null)
+            {
+                return null; // Return null if AlarmId is null
+            }
+
+            int parsedId;
+            if (int.TryParse(alarmId.ToString(), out parsedId))
+            {
+                return parsedId; // Return integer if parsing succeeds
+            }
+
+            return alarmId; // Return the original value if parsing fails
+        }
+
 
 
 
@@ -98,15 +129,22 @@ namespace ERPAPI.Controllers
             return NoContent();
         }
 
-        // POST: api/Transactions
         [HttpPost]
-        public async Task<ActionResult<Transaction>> PostTransaction(Transaction transaction)
+        public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
         {
+            if (transaction == null)
+            {
+                return BadRequest("Invalid data.");
+            }
+
+            // Add a new transaction object
             _context.Transaction.Add(transaction);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetTransaction", new { id = transaction.TransactionId }, transaction);
+            return Ok(new { message = "Transaction created successfully." });
         }
+
+
 
         // DELETE: api/Transactions/5
         [HttpDelete("{id}")]
