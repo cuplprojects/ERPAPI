@@ -40,13 +40,29 @@ public class QuantitySheetController : ControllerBase
             .FirstOrDefaultAsync();
 
         // If project type is Booklet, adjust quantities and duplicate entries
-        if (projectType == "Booklets")
+        var numberMatch = System.Text.RegularExpressions.Regex.Match(projectType, @"\d+");
+        Console.WriteLine(numberMatch);
+
+        int iterations;
+
+        // If a number is found, use that number for iterations, else default to 1
+        if (numberMatch.Success)
         {
-            var adjustedSheets = new List<QuantitySheet>();
+            // Parse the number from the string
+            iterations = int.Parse(numberMatch.Value);
+        }
+        else
+        {
+            // Default to 1 if no number is found
+            iterations = 1;
+        }
+        Console.WriteLine(iterations);
+
+        var adjustedSheets = new List<QuantitySheet>();
             foreach (var sheet in newSheets)
             {
                 var adjustedQuantity = sheet.Quantity / 4;
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < iterations; i++)
                 {
                     var newSheet = new QuantitySheet
                     {
@@ -70,7 +86,7 @@ public class QuantitySheetController : ControllerBase
                 }
             }
             newSheets = adjustedSheets;
-        }
+        
 
         // Get existing sheets for the same project and lots
         var existingSheets = await _context.QuantitySheets
