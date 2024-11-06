@@ -268,10 +268,10 @@ public class QuantitySheetController : ControllerBase
     // First, create a DTO to handle the transfer request
     public class CatchTransferRequest
     {
-        public int ProjectId { get; set; }
-        public string SourceLotNo { get; set; }
-        public string TargetLotNo { get; set; }
-        public List<int> CatchIds { get; set; }
+        public required int ProjectId { get; set; }
+        public required string SourceLotNo { get; set; }
+        public required string TargetLotNo { get; set; }
+        public required List<int> CatchIds { get; set; }
     }
 
     [HttpPut("transfer-catches")]
