@@ -19,5 +19,6 @@ namespace ERPAPI.Model
         // New properties for range
         public int? RangeStart { get; set; }  // Nullable to allow for independent processes
         public int? RangeEnd { get; set; }    // Nullable to allow for independent processes
+
     }
 }

@@ -18,15 +18,23 @@ namespace ERPAPI.Data
         public DbSet<ProcessGroupType> ProcessGroups { get; set; }
         public DbSet<FeatureEnabling> FeatureEnabling { get; set; }
         public DbSet<Transaction> Transaction { get; set; }
-        //public DbSet<Message> Message { get; set; }
         public DbSet<Camera> Camera { get; set; }
         public DbSet<Alarm> Alarm { get; set; }
+
+        public DbSet<Message> Message { get; set; }
+        public DbSet<TextLabel> TextLabel { get; set; }
+
         public DbSet<User> Users { get; set; } // Assuming this is already present
         public DbSet<UserAuth> UserAuths { get; set; } // Add this for UserAuth
+        public DbSet<SecurityQuestion> SecurityQuestions { get; set; }
 
+        public DbSet<Role> Roles { get; set; }
+
+        public DbSet<Machine> Machine { get; set; } 
+         public DbSet<Zone> Zone { get; set; }
         public DbSet<EventLog> EventLogs { get; set; } // Assuming you have event logs
         public DbSet<ErrorLog> ErrorLogs { get; set; } // Assuming you have error logs
-
+        public DbSet<Teams> Teams { get; set; }
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
@@ -34,8 +42,13 @@ namespace ERPAPI.Data
         {
             modelBuilder.Entity<ProcessGroupType>()
                 .HasNoKey();
+
+            // Configure LabelKey to be unique
+            modelBuilder.Entity<TextLabel>()
+                .HasIndex(t => t.LabelKey)
+                .IsUnique(); // This makes LabelKey a unique index
+
         }
-        public DbSet<ERPAPI.Model.Role> Role { get; set; } = default!;
 
 
 

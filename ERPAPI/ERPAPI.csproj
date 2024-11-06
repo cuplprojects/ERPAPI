@@ -31,4 +31,10 @@
 		<!-- Added packages -->
 	</ItemGroup>
 
+
+	<ItemGroup>
+	  <Folder Include="wwwroot\Image\" />
+	  <Folder Include="wwwroot\Recording\" />
+	</ItemGroup>
+
 </Project>

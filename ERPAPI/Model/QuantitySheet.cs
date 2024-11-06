@@ -13,8 +13,18 @@ namespace ERPAPI.Model
 
         [Required]
         public string CatchNo { get; set; }
+        public string? Paper {  get; set; }
+        
+        public string ExamDate { get; set; }
 
-        public string LotNo { get; set; }
+        public string ExamTime { get; set; }
+
+        public string Course { get; set; }
+        public string Subject { get; set; }
+        public string? InnerEnvelope { get; set; }
+        public string? OuterEnvelope { get; set; }
+
+        public string? LotNo { get; set; }
 
         public double Quantity { get; set; }
 
@@ -22,9 +32,7 @@ namespace ERPAPI.Model
 
         public int ProjectId { get; set; }
 
-        public bool IsOverridden { get; set; }
-        // List of processes linked to the catch
-       public List<int> ProcessId { get; set; } = new List<int>();
+       public List<int> ProcessId { get; set; } 
     }
 
    

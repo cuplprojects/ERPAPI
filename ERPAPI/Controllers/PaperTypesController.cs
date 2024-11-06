@@ -42,6 +42,110 @@ namespace ERPAPI.Controllers
             return paperType;
         }
 
+
+        [HttpGet("{typeId}/Processes")]
+        public async Task<ActionResult<IEnumerable<object>>> GetProcessesByTypeId(int typeId)
+        {
+            // Fetch the paper type
+            var paperType = await _context.Types
+                .FirstOrDefaultAsync(t => t.TypeId == typeId);
+
+            if (paperType == null)
+            {
+                return NotFound("No paper type found for the specified TypeId.");
+            }
+
+            // Fetch processes that match the associatedProcessId
+            var processes = await _context.Processes
+                .Where(p => paperType.AssociatedProcessId.Contains(p.Id))
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Name,
+                    p.InstalledFeatures,
+                    p.Status,
+                    p.Weightage,
+                   
+                })
+                .ToListAsync();
+
+            if (processes == null || !processes.Any())
+            {
+                return NotFound("No processes found for the specified TypeId.");
+            }
+
+            return Ok(processes);
+        }
+
+        [HttpGet("{typeId}/RequiredProcesses")]
+        public async Task<ActionResult<IEnumerable<object>>> GetRequiredProcessByTypeId(int typeId)
+        {
+            // Fetch the paper type
+            var paperType = await _context.Types
+                .FirstOrDefaultAsync(t => t.TypeId == typeId);
+
+            if (paperType == null)
+            {
+                return NotFound("No paper type found for the specified TypeId.");
+            }
+
+            // Fetch processes that match the associatedProcessId
+            var processes = await _context.Processes
+                .Where(p => paperType.RequiredProcessId.Contains(p.Id))
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Name,
+                    p.InstalledFeatures,
+                    p.Status,
+                    p.Weightage,
+
+                })
+                .ToListAsync();
+
+            if (processes == null || !processes.Any())
+            {
+                return NotFound("No processes found for the specified TypeId.");
+            }
+
+            return Ok(processes);
+        }
+
+        [HttpGet("{typeId}/AssociatedProcesses")]
+        public async Task<ActionResult<IEnumerable<object>>> GetAssociatedProcessByTypeId(int typeId)
+        {
+            // Fetch the paper type
+            var paperType = await _context.Types
+                .FirstOrDefaultAsync(t => t.TypeId == typeId);
+
+            if (paperType == null)
+            {
+                return NotFound("No paper type found for the specified TypeId.");
+            }
+
+            // Fetch processes that match the associatedProcessId
+            var processes = await _context.Processes
+                .Where(p => paperType.AssociatedProcessId.Contains(p.Id))
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Name,
+                    p.InstalledFeatures,
+                    p.Status,
+                    p.Weightage,
+
+                })
+                .ToListAsync();
+
+            if (processes == null || !processes.Any())
+            {
+                return NotFound("No processes found for the specified TypeId.");
+            }
+
+            return Ok(processes);
+        }
+
+
         // PUT: api/PaperTypes/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]

@@ -3,11 +3,11 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ERPAPI.Model
 {
-    public class Alarm
+    public class SecurityQuestion
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int AlarmId { get; set; }
-        public string Message { get; set; }
+        public int QuestionId { get; set; }
+        public string SecurityQuestions { get; set; }
     }
 }

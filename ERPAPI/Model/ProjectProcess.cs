@@ -11,10 +11,9 @@ namespace ERPAPI.Model
         public int ProjectId { get; set; }
         public int ProcessId { get; set; }
         public double Weightage { get; set; }
-        public int GroupId { get; set; }
-        public int TypeId { get; set; }
         public int Sequence {  get; set; }
-        public int FeatureId { get; set; }
-        public bool Independent { get; set; }
+        public List<int> FeaturesList { get; set; }
+        public List<int> UserId { get; set; } = new List<int>();
+
     }
 }
