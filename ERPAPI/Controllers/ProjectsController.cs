@@ -21,13 +21,25 @@ namespace ERPAPI.Controllers
             _context = context;
         }
 
-        // GET: api/Project/GetProcesses
-        /*    [HttpGet("GetProjectProcesses")]
-            public async Task<ActionResult<IEnumerable<ProjectProcess>>> GetProjectProcesses()
-            {
-                return await _context.ProjectProcesses.ToListAsync();
-            }
-    */
+
+        [HttpGet("GetProjectProcesses")]
+        public async Task<ActionResult<IEnumerable<ProjectProcess>>> GetProjectProcesses()
+        {
+            var projectProcesses = await _context.ProjectProcesses
+                .Select(pp => new
+                {
+                    pp.Id,
+                    pp.ProjectId,
+                    pp.ProcessId,
+                    pp.Weightage,
+                    pp.Sequence,
+                    UserIds = pp.UserId // Use the updated UserIds
+                })
+                .ToListAsync();
+
+            return Ok(projectProcesses);
+        }
+
 
 
         [HttpGet]
@@ -52,6 +64,8 @@ namespace ERPAPI.Controllers
                                              m.GroupId,
                                              m.Name,
                                              m.Description,
+                                             m.NoOfSeries,
+                                             m.SeriesName,
                                              ProjectType = p.Types
                                          }).FirstOrDefaultAsync(); // Use FirstOrDefault to get a single project
 
@@ -68,6 +82,17 @@ namespace ERPAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Project>> PostProject(Project project)
         {
+            // Check if project type is Booklets and series is not provided
+            var projectType = await _context.Types
+                .Where(t => t.TypeId == project.TypeId)
+                .Select(t => t.Types)
+                .FirstOrDefaultAsync();
+
+            if (projectType == "Booklets" && (!project.NoOfSeries.HasValue || string.IsNullOrEmpty(project.SeriesName)))
+            {
+                return BadRequest("NoOfSeries and SeriesName are required for Booklet type projects");
+            }
+
             _context.Projects.Add(project);
             await _context.SaveChangesAsync();
 
@@ -81,6 +106,17 @@ namespace ERPAPI.Controllers
             if (id != project.ProjectId)
             {
                 return BadRequest();
+            }
+
+            // Check if project type is Booklets and series is not provided
+            var projectType = await _context.Types
+                .Where(t => t.TypeId == project.TypeId)
+                .Select(t => t.Types)
+                .FirstOrDefaultAsync();
+
+            if (projectType == "Booklets" && (!project.NoOfSeries.HasValue || string.IsNullOrEmpty(project.SeriesName)))
+            {
+                return BadRequest("NoOfSeries and SeriesName are required for Booklet type projects");
             }
 
             _context.Entry(project).State = EntityState.Modified;
@@ -103,11 +139,6 @@ namespace ERPAPI.Controllers
 
             return NoContent();
         }
-
-
-
-
-
 
 
         /* [HttpPost("AddProcessesToProject")]
@@ -220,5 +251,16 @@ namespace ERPAPI.Controllers
 
             return Ok(projects);
         }
+
+
+
+
+
     }
+
+
+
+
+
+
 }

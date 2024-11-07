@@ -38,6 +38,7 @@ namespace ERPAPI.Data
         public DbSet<CatchTeam> CatchTeams { get; set; }
 
 
+
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
         {
         }
