@@ -220,18 +220,5 @@ namespace ERPAPI.Controllers
 
             return Ok(projects);
         }
-
-
-
-
-
     }
-
-
-
-
-
-
 }
-
-
