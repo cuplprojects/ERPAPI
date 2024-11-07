@@ -3,6 +3,7 @@ using ERPAPI.Model;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace ERPAPI.Controllers
 {
@@ -67,8 +68,9 @@ namespace ERPAPI.Controllers
                                               name = p.Name, // Process name from Process table
                                               installedFeatures = pp.FeaturesList, // Installed features from Process table (array of ints)
                                               status = p.Status, // Status from Process table
-                                              weightage = p.Weightage // Weightage from Process table
-
+                                              weightage = p.Weightage, // Weightage from Process table
+                                              userId = pp.UserId,
+                                              sequence = pp.Sequence,
                                           })
                                           .ToListAsync();
 
@@ -386,6 +388,74 @@ namespace ERPAPI.Controllers
 
             return NoContent(); // Return 204 No Content
         }
+        [HttpPost("UpdateProcessFeatures")]
+        public async Task<IActionResult> UpdateProcessFeatures([FromBody] UpdateProcessFeaturesRequest request)
+        {
+            if (request == null || request.ProjectId <= 0 || request.ProcessId <= 0)
+            {
+                return BadRequest("Invalid request data.");
+            }
+
+            var existingProcess = await _context.ProjectProcesses
+                .FirstOrDefaultAsync(pp => pp.ProjectId == request.ProjectId && pp.ProcessId == request.ProcessId);
+
+            if (existingProcess == null)
+            {
+                return NotFound("Process not found.");
+            }
+
+            // Update the installed features
+            existingProcess.FeaturesList = request.FeaturesList;
+
+            _context.ProjectProcesses.Update(existingProcess);
+            await _context.SaveChangesAsync();
+
+            return Ok("Process features updated successfully!");
+        }
+        [HttpPost("UpdateProcessSequence")]
+        public async Task<IActionResult> UpdateProcessSequence([FromBody] List<UpdateSequenceDto> sequenceUpdates)
+        {
+            if (sequenceUpdates == null || !sequenceUpdates.Any())
+            {
+                return BadRequest("Invalid request data.");
+            }
+
+            var projectIds = sequenceUpdates.Select(s => s.ProjectId).Distinct().ToList();
+
+            // Ensure that all provided projectIds belong to the same project
+            var projects = await _context.Projects
+                .Where(p => projectIds.Contains(p.ProjectId))
+                .ToListAsync();
+
+            if (projects.Count != projectIds.Count)
+            {
+                return BadRequest("One or more projects do not exist.");
+            }
+
+            // Update the sequence for each process
+            foreach (var update in sequenceUpdates)
+            {
+                var existingProcess = await _context.ProjectProcesses
+                    .FirstOrDefaultAsync(pp => pp.ProjectId == update.ProjectId && pp.ProcessId == update.ProcessId);
+
+                if (existingProcess != null)
+                {
+                    existingProcess.Sequence = update.NewSequence; // Update the sequence
+                    _context.ProjectProcesses.Update(existingProcess);
+                }
+                else
+                {
+                    return NotFound($"Process with ID {update.ProcessId} not found in project {update.ProjectId}.");
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok("Process sequences updated successfully!");
+        }
+
+
+
 
 
         public class DeleteRequest
@@ -414,5 +484,19 @@ namespace ERPAPI.Controllers
         {
             public List<ProjectProcessDto> ProjectProcesses { get; set; }
         }
+        public class UpdateProcessFeaturesRequest
+        {
+            public int ProjectId { get; set; }
+            public int ProcessId { get; set; }
+            public List<int> FeaturesList { get; set; }
+        }
+        public class UpdateSequenceDto
+        {
+            public int ProjectId { get; set; }
+            public int ProcessId { get; set; }
+            public int NewSequence { get; set; }
+        }
+
+
     }
 }
