@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
+using ERPAPI.Services;
+using ERPAPI.Service;
 
 namespace ERPAPI.Controllers
 {
@@ -15,46 +17,66 @@ namespace ERPAPI.Controllers
     public class MachinesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ILoggerService _loggerService;
 
-        public MachinesController(AppDbContext context)
+        public MachinesController(AppDbContext context, ILoggerService loggerService)
         {
             _context = context;
+            _loggerService = loggerService;
         }
 
         // GET: api/Machines
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Machine>>> GetMachines()
         {
-            var machinesWithProcesses = await (from m in _context.Machine
-                                               join p in _context.Processes on m.ProcessId equals p.Id
-                                               select new
-                                               {
-                                                   m.MachineId,
-                                                   m.MachineName,
-                                                   m.Status,
-                                                   m.ProcessId,
-                                                   ProcessName = p.Name
-                                               }).ToListAsync();
+            try
+            {
+                var machinesWithProcesses = await (from m in _context.Machine
+                                                   join p in _context.Processes on m.ProcessId equals p.Id
+                                                   select new
+                                                   {
+                                                       m.MachineId,
+                                                       m.MachineName,
+                                                       m.Status,
+                                                       m.ProcessId,
+                                                       ProcessName = p.Name
+                                                   }).ToListAsync();
 
-            return Ok(machinesWithProcesses);
+                _loggerService.LogEvent("Fetched all machines with processes", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return Ok(machinesWithProcesses);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching machines", ex.Message, nameof(MachinesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // GET: api/Machines/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Machine>> GetMachine(int id)
         {
-            var machine = await _context.Machine.FindAsync(id);
-
-            if (machine == null)
+            try
             {
-                return NotFound();
-            }
+                var machine = await _context.Machine.FindAsync(id);
 
-            return machine;
+                if (machine == null)
+                {
+                    _loggerService.LogEvent($"Machine with ID {id} not found", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound();
+                }
+
+                _loggerService.LogEvent($"Fetched machine with ID {id}", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return machine;
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching machine", ex.Message, nameof(MachinesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // PUT: api/Machines/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutMachine(int id, Machine machine)
         {
@@ -68,47 +90,75 @@ namespace ERPAPI.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                _loggerService.LogEvent($"Updated machine with ID {id}", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
                 if (!MachineExists(id))
                 {
+                    _loggerService.LogEvent($"Machine with ID {id} not found during update", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                     return NotFound();
                 }
                 else
                 {
+                    _loggerService.LogError("Concurrency error during machine update", ex.Message, nameof(MachinesController));
                     throw;
                 }
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error updating machine", ex.Message, nameof(MachinesController));
+                return StatusCode(500, "Internal server error");
             }
 
             return NoContent();
         }
 
         // POST: api/Machines
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Machine>> PostMachine(Machine machine)
         {
-            _context.Machine.Add(machine);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.Machine.Add(machine);
+                await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetMachine", new { id = machine.MachineId }, machine);
+                _loggerService.LogEvent("Created a new machine", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+
+                return CreatedAtAction("GetMachine", new { id = machine.MachineId }, machine);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error creating machine", ex.Message, nameof(MachinesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // DELETE: api/Machines/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteMachine(int id)
         {
-            var machine = await _context.Machine.FindAsync(id);
-            if (machine == null)
+            try
             {
-                return NotFound();
+                var machine = await _context.Machine.FindAsync(id);
+                if (machine == null)
+                {
+                    _loggerService.LogEvent($"Machine with ID {id} not found during delete", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound();
+                }
+
+                _context.Machine.Remove(machine);
+                await _context.SaveChangesAsync();
+
+                _loggerService.LogEvent($"Deleted machine with ID {id}", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+
+                return NoContent();
             }
-
-            _context.Machine.Remove(machine);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error deleting machine", ex.Message, nameof(MachinesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         private bool MachineExists(int id)

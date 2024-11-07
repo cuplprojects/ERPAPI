@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
+using ERPAPI.Services;
+using ERPAPI.Service;
 
 namespace ERPAPI.Controllers
 {
@@ -15,35 +17,54 @@ namespace ERPAPI.Controllers
     public class SecurityQuestionsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ILoggerService _loggerService;
 
-        public SecurityQuestionsController(AppDbContext context)
+        public SecurityQuestionsController(AppDbContext context, ILoggerService loggerService)
         {
             _context = context;
+            _loggerService = loggerService;
+        }
+
+        // Helper method to retrieve the UserId from claims
+        private int GetUserId()
+        {
+            // Retrieve the UserId from the authenticated user's claims
+            if (int.TryParse(User?.FindFirst("UserId")?.Value, out int userId))
+            {
+                return userId;
+            }
+            return 0; // Return 0 or a default ID if not available
         }
 
         // GET: api/SecurityQuestions
         [HttpGet]
         public async Task<ActionResult<IEnumerable<SecurityQuestion>>> GetSecurityQuestions()
         {
-            return await _context.SecurityQuestions.ToListAsync();
+            int userId = GetUserId();
+            _loggerService.LogEvent("Retrieve all security questions", "Information", userId);
+
+            var securityQuestions = await _context.SecurityQuestions.ToListAsync();
+            return Ok(securityQuestions);
         }
 
         // GET: api/SecurityQuestions/5
         [HttpGet("{id}")]
         public async Task<ActionResult<SecurityQuestion>> GetSecurityQuestion(int id)
         {
-            var securityQuestion = await _context.SecurityQuestions.FindAsync(id);
+            int userId = GetUserId();
+            _loggerService.LogEvent($"Retrieve security question with ID {id}", "Information", userId);
 
+            var securityQuestion = await _context.SecurityQuestions.FindAsync(id);
             if (securityQuestion == null)
             {
+                _loggerService.LogEvent($"Security question with ID {id} not found", "Error", userId);
                 return NotFound();
             }
 
-            return securityQuestion;
+            return Ok(securityQuestion);
         }
 
         // PUT: api/SecurityQuestions/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutSecurityQuestion(int id, SecurityQuestion securityQuestion)
         {
@@ -51,6 +72,9 @@ namespace ERPAPI.Controllers
             {
                 return BadRequest();
             }
+
+            int userId = GetUserId();
+            _loggerService.LogEvent($"Update security question with ID {id}", "Update", userId);
 
             _context.Entry(securityQuestion).State = EntityState.Modified;
 
@@ -74,10 +98,12 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/SecurityQuestions
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<SecurityQuestion>> PostSecurityQuestion(SecurityQuestion securityQuestion)
         {
+            int userId = GetUserId();
+            _loggerService.LogEvent("Create new security question", "Create", userId);
+
             _context.SecurityQuestions.Add(securityQuestion);
             await _context.SaveChangesAsync();
 
@@ -88,9 +114,13 @@ namespace ERPAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteSecurityQuestion(int id)
         {
+            int userId = GetUserId();
+            _loggerService.LogEvent($"Delete security question with ID {id}", "Delete", userId);
+
             var securityQuestion = await _context.SecurityQuestions.FindAsync(id);
             if (securityQuestion == null)
             {
+                _loggerService.LogEvent($"Security question with ID {id} not found", "Error", userId);
                 return NotFound();
             }
 

@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
+using ERPAPI.Services;
+using ERPAPI.Service;
 
 namespace ERPAPI.Controllers
 {
@@ -15,35 +16,56 @@ namespace ERPAPI.Controllers
     public class AlarmsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ILoggerService _loggerService;
 
-        public AlarmsController(AppDbContext context)
+        public AlarmsController(AppDbContext context, ILoggerService loggerService)
         {
             _context = context;
+            _loggerService = loggerService;
         }
 
         // GET: api/Alarms
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Alarm>>> GetAlarm()
         {
-            return await _context.Alarm.ToListAsync();
+            try
+            {
+                var alarms = await _context.Alarm.ToListAsync();
+                _loggerService.LogEvent("Fetched all alarms", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return alarms;
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching alarms", ex.Message, nameof(AlarmsController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // GET: api/Alarms/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Alarm>> GetAlarm(int id)
         {
-            var alarm = await _context.Alarm.FindAsync(id);
-
-            if (alarm == null)
+            try
             {
-                return NotFound();
-            }
+                var alarm = await _context.Alarm.FindAsync(id);
 
-            return alarm;
+                if (alarm == null)
+                {
+                    _loggerService.LogEvent($"Alarm with ID {id} not found", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound();
+                }
+
+                _loggerService.LogEvent($"Fetched alarm with ID {id}", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return alarm;
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching alarm", ex.Message, nameof(AlarmsController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // PUT: api/Alarms/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutAlarm(int id, Alarm alarm)
         {
@@ -57,47 +79,73 @@ namespace ERPAPI.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                _loggerService.LogEvent($"Updated alarm with ID {id}", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
                 if (!AlarmExists(id))
                 {
+                    _loggerService.LogEvent($"Alarm with ID {id} not found during update", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                     return NotFound();
                 }
                 else
                 {
+                    _loggerService.LogError("Concurrency error during alarm update", ex.Message, nameof(AlarmsController));
                     throw;
                 }
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error updating alarm", ex.Message, nameof(AlarmsController));
+                return StatusCode(500, "Internal server error");
             }
 
             return NoContent();
         }
 
         // POST: api/Alarms
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Alarm>> PostAlarm(Alarm alarm)
         {
-            _context.Alarm.Add(alarm);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.Alarm.Add(alarm);
+                await _context.SaveChangesAsync();
+                _loggerService.LogEvent("Created a new alarm", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
 
-            return CreatedAtAction("GetAlarm", new { id = alarm.AlarmId }, alarm);
+                return CreatedAtAction("GetAlarm", new { id = alarm.AlarmId }, alarm);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error creating alarm", ex.Message, nameof(AlarmsController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // DELETE: api/Alarms/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAlarm(int id)
         {
-            var alarm = await _context.Alarm.FindAsync(id);
-            if (alarm == null)
+            try
             {
-                return NotFound();
+                var alarm = await _context.Alarm.FindAsync(id);
+                if (alarm == null)
+                {
+                    _loggerService.LogEvent($"Alarm with ID {id} not found during delete", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound();
+                }
+
+                _context.Alarm.Remove(alarm);
+                await _context.SaveChangesAsync();
+                _loggerService.LogEvent($"Deleted alarm with ID {id}", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+
+                return NoContent();
             }
-
-            _context.Alarm.Remove(alarm);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error deleting alarm", ex.Message, nameof(AlarmsController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         private bool AlarmExists(int id)

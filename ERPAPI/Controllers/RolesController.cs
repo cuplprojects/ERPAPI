@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
+using ERPAPI.Services;
+using ERPAPI.Service;
 
 namespace ERPAPI.Controllers
 {
@@ -15,35 +17,56 @@ namespace ERPAPI.Controllers
     public class RolesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ILoggerService _loggerService;
 
-        public RolesController(AppDbContext context)
+        public RolesController(AppDbContext context, ILoggerService loggerService)
         {
             _context = context;
+            _loggerService = loggerService;
         }
 
         // GET: api/Roles
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Role>>> GetRole()
         {
-            return await _context.Roles.ToListAsync();
+            try
+            {
+                var roles = await _context.Roles.ToListAsync();
+                _loggerService.LogEvent("Fetched all roles", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return Ok(roles);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching roles", ex.Message, nameof(RolesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // GET: api/Roles/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Role>> GetRole(int id)
         {
-            var role = await _context.Roles.FindAsync(id);
-
-            if (role == null)
+            try
             {
-                return NotFound();
-            }
+                var role = await _context.Roles.FindAsync(id);
 
-            return role;
+                if (role == null)
+                {
+                    _loggerService.LogEvent($"Role with ID {id} not found", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound();
+                }
+
+                _loggerService.LogEvent($"Fetched role with ID {id}", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return role;
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching role", ex.Message, nameof(RolesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // PUT: api/Roles/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutRole(int id, Role role)
         {
@@ -57,68 +80,94 @@ namespace ERPAPI.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                _loggerService.LogEvent($"Updated role with ID {id}", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
                 if (!RoleExists(id))
                 {
+                    _loggerService.LogEvent($"Role with ID {id} not found during update", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                     return NotFound();
                 }
                 else
                 {
+                    _loggerService.LogError("Concurrency error during role update", ex.Message, nameof(RolesController));
                     throw;
                 }
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error updating role", ex.Message, nameof(RolesController));
+                return StatusCode(500, "Internal server error");
             }
 
             return NoContent();
         }
 
         // POST: api/Roles
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Role>> PostRole(Role role)
         {
-            // Validate the incoming role object
-            if (string.IsNullOrEmpty(role.RoleName))
+            try
             {
-                return BadRequest(new { role = new[] { "The role field is required." } });
-            }
+                // Validate the incoming role object
+                if (string.IsNullOrEmpty(role.RoleName))
+                {
+                    return BadRequest(new { role = new[] { "The role field is required." } });
+                }
 
-            if (role.PriorityOrder <= 0)
+                if (role.PriorityOrder <= 0)
+                {
+                    return BadRequest(new { priorityOrder = new[] { "Priority order must be a positive integer." } });
+                }
+
+                if (role.PermissionList == null || !role.PermissionList.Any())
+                {
+                    return BadRequest(new { permissionList = new[] { "At least one permission must be provided." } });
+                }
+
+                _context.Roles.Add(role);
+                await _context.SaveChangesAsync();
+
+                _loggerService.LogEvent($"Created a new role with ID {role.RoleId}", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return CreatedAtAction("GetRole", new { id = role.RoleId }, role);
+            }
+            catch (Exception ex)
             {
-                return BadRequest(new { priorityOrder = new[] { "Priority order must be a positive integer." } });
+                _loggerService.LogError("Error creating role", ex.Message, nameof(RolesController));
+                return StatusCode(500, "Internal server error");
             }
-
-            if (role.PermissionList == null || !role.PermissionList.Any())
-            {
-                return BadRequest(new { permissionList = new[] { "At least one permission must be provided." } });
-            }
-            _context.Roles.Add(role);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction("GetRole", new { id = role.RoleId }, role);
         }
 
         // DELETE: api/Roles/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRole(int id)
         {
-            var role = await _context.Roles.FindAsync(id);
-            if (role == null)
+            try
             {
-                return NotFound();
+                var role = await _context.Roles.FindAsync(id);
+                if (role == null)
+                {
+                    _loggerService.LogEvent($"Role with ID {id} not found during delete", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound();
+                }
+
+                _context.Roles.Remove(role);
+                await _context.SaveChangesAsync();
+
+                _loggerService.LogEvent($"Deleted role with ID {id}", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return NoContent();
             }
-
-            _context.Roles.Remove(role);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error deleting role", ex.Message, nameof(RolesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         private bool RoleExists(int id)
         {
             return _context.Roles.Any(e => e.RoleId == id);
         }
-
     }
 }
