@@ -1,11 +1,14 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using ERPAPI.Data;
 using ERPAPI.Model;
+
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Service;
 using System;
 using System.Collections.Generic;
+
 using System.Linq;
+
 using System.Threading.Tasks;
 
 namespace ERPAPI.Controllers
@@ -25,11 +28,14 @@ namespace ERPAPI.Controllers
 
         // GET: api/Teams
         [HttpGet]
+
         public async Task<ActionResult<IEnumerable<object>>> GetTeams()
+
         {
             try
             {
                 var teams = await _context.Teams.ToListAsync();
+
 
                 // Collect all unique user IDs from the teams
                 var userIds = teams.SelectMany(t => t.UserIds).Distinct().ToList();
@@ -38,6 +44,7 @@ namespace ERPAPI.Controllers
                 var users = await _context.Users
                     .Where(u => userIds.Contains(u.UserId))
                     .Select(u => new
+
                     {
                         u.UserId,
                         FullName = $"{u.FirstName} {(string.IsNullOrEmpty(u.MiddleName) ? "" : u.MiddleName + " ")}{(string.IsNullOrEmpty(u.LastName) ? "" : u.LastName)}".Trim()
@@ -58,6 +65,7 @@ namespace ERPAPI.Controllers
                     {
                         Id = id,
                         Name = userMap.ContainsKey(id) ? userMap[id] : "Unknown"
+
                     }).ToList()
                 });
 
@@ -70,6 +78,7 @@ namespace ERPAPI.Controllers
             }
         }
 
+
         // GET: api/Teams/5
         [HttpGet("{id}")]
         public async Task<ActionResult<object>> GetTeam(int id)
@@ -77,6 +86,7 @@ namespace ERPAPI.Controllers
             try
             {
                 var team = await _context.Teams.FirstOrDefaultAsync(t => t.TeamId == id);
+
 
                 if (team == null)
                 {
@@ -104,6 +114,7 @@ namespace ERPAPI.Controllers
                 };
 
                 return Ok(updatedTeam);
+
             }
             catch (Exception ex)
             {
@@ -206,19 +217,24 @@ namespace ERPAPI.Controllers
                 await _context.SaveChangesAsync();
 
                 Console.WriteLine($"Team created successfully with ID: {team.TeamId}");
+
                 return CreatedAtAction(nameof(GetTeam), new { id = team.TeamId }, team);
             }
             catch (Exception ex)
             {
+
                 Console.WriteLine("Failed to create team: " + ex.ToString());
+
+                _loggerService.LogError("Failed to create team", ex.Message, "TeamsController");
+
                 return StatusCode(500, "Failed to create team");
             }
         }
 
-
         // PUT: api/Teams/5
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTeam(int id, Team team)
+
         {
             if (id != team.TeamId)
             {
@@ -234,6 +250,8 @@ namespace ERPAPI.Controllers
                 }
 
                 existingTeam.TeamName = team.TeamName;
+
+
                 existingTeam.Status = team.Status;
                 existingTeam.UserIds = team.UserIds; // Update user IDs
 

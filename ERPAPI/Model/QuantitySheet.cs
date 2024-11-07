@@ -15,11 +15,9 @@ namespace ERPAPI.Model
         public string CatchNo { get; set; }
         public string? Paper {  get; set; }
         
-       // public DateOnly? ExamDate { get; set; }
+        public string ExamDate { get; set; }
 
-       // public TimeOnly? ExamTime { get; set; }
-
-       // public TimeOnly? ExamDuration { get; set; }
+        public string ExamTime { get; set; }
 
         public string Course { get; set; }
         public string Subject { get; set; }
@@ -34,7 +32,6 @@ namespace ERPAPI.Model
 
         public int ProjectId { get; set; }
 
-       
        public List<int> ProcessId { get; set; } 
     }
 

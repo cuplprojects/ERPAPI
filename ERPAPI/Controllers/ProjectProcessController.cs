@@ -71,6 +71,7 @@ namespace ERPAPI.Controllers
                                               weightage = p.Weightage, // Weightage from Process table
                                               userId = pp.UserId,
                                               sequence = pp.Sequence,
+
                                           })
                                           .ToListAsync();
 
