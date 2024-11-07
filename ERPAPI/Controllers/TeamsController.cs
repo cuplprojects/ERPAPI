@@ -1,10 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using ERPAPI.Data;
-using ERPAPI.Model;  
+using ERPAPI.Model;
+
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Service;
 using System;
 using System.Collections.Generic;
+
+using System.Linq;
+
 using System.Threading.Tasks;
 
 namespace ERPAPI.Controllers
@@ -24,38 +28,44 @@ namespace ERPAPI.Controllers
 
         // GET: api/Teams
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Teams>>> GetTeams()
+
+        public async Task<ActionResult<IEnumerable<object>>> GetTeams()
+
         {
             try
             {
                 var teams = await _context.Teams.ToListAsync();
 
-                // Map user IDs to user details
+
+                // Collect all unique user IDs from the teams
                 var userIds = teams.SelectMany(t => t.UserIds).Distinct().ToList();
+
+                // Fetch user details for the collected user IDs
                 var users = await _context.Users
                     .Where(u => userIds.Contains(u.UserId))
-                    .Select(u => new 
+                    .Select(u => new
+
                     {
                         u.UserId,
                         FullName = $"{u.FirstName} {(string.IsNullOrEmpty(u.MiddleName) ? "" : u.MiddleName + " ")}{(string.IsNullOrEmpty(u.LastName) ? "" : u.LastName)}".Trim()
                     })
                     .ToListAsync();
 
-                // Create a dictionary for quick lookup
+                // Create a dictionary for quick lookup of user full names
                 var userMap = users.ToDictionary(u => u.UserId, u => u.FullName);
 
-                // Update teams with user objects
-                var updatedTeams = teams.Select(team => new 
+                // Update teams to include full names of users
+                var updatedTeams = teams.Select(team => new
                 {
                     team.TeamId,
                     team.TeamName,
-                    team.Description,
                     team.CreatedDate,
                     team.Status,
-                    Users = team.UserIds.Select(id => new 
+                    Users = team.UserIds.Select(id => new
                     {
                         Id = id,
-                        Name = userMap.ContainsKey(id) ? userMap[id] : "Unknown" // Map user IDs to user objects
+                        Name = userMap.ContainsKey(id) ? userMap[id] : "Unknown"
+
                     }).ToList()
                 });
 
@@ -69,22 +79,42 @@ namespace ERPAPI.Controllers
         }
 
 
-
         // GET: api/Teams/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Teams>> GetTeam(int id)
+        public async Task<ActionResult<object>> GetTeam(int id)
         {
             try
             {
-                var team = await _context.Teams
-                    .FirstOrDefaultAsync(t => t.TeamId == id);
+                var team = await _context.Teams.FirstOrDefaultAsync(t => t.TeamId == id);
+
 
                 if (team == null)
                 {
                     return NotFound(new { Message = "Team not found" });
                 }
 
-                return Ok(team);
+                // Map user IDs to user details
+                var userIds = team.UserIds;
+                var users = await _context.Users
+                    .Where(u => userIds.Contains(u.UserId))
+                    .Select(u => new
+                    {
+                        u.UserId,
+                        FullName = $"{u.FirstName} {(string.IsNullOrEmpty(u.MiddleName) ? "" : u.MiddleName + " ")}{(string.IsNullOrEmpty(u.LastName) ? "" : u.LastName)}".Trim()
+                    })
+                    .ToListAsync();
+
+                var updatedTeam = new
+                {
+                    team.TeamId,
+                    team.TeamName,
+                    team.CreatedDate,
+                    team.Status,
+                    Users = users
+                };
+
+                return Ok(updatedTeam);
+
             }
             catch (Exception ex)
             {
@@ -93,65 +123,118 @@ namespace ERPAPI.Controllers
             }
         }
 
-        // GET: api/Teams/5/Users
-        [HttpGet("{id}/Users")]
-        public async Task<ActionResult> GetTeamUserNames(int id)
+        // GET: api/Teams/Process/{processId}
+        [HttpGet("Process/{processId}")]
+        public async Task<ActionResult<IEnumerable<object>>> GetTeamsByProcessId(int processId)
         {
             try
             {
-                // Fetch the team by ID
-                var team = await _context.Teams
-                    .FirstOrDefaultAsync(t => t.TeamId == id);
-
-                if (team == null)
-                {
-                    return NotFound(new { Message = "Team not found" });
-                }
-
-                // Fetch the user names based on UserIds in the team
-                var userNames = await _context.Users
-                    .Where(u => team.UserIds.Contains(u.UserId))
-                    .Select(u => new { u.UserId, u.UserName })
+                var teams = await _context.Teams
+                    .Where(t => t.ProcessId == processId)
                     .ToListAsync();
 
-                if (!userNames.Any())
+                if (!teams.Any())
                 {
-                    return NotFound(new { Message = "No users found for this team" });
+                    return NotFound(new { Message = "No teams found for this process ID" });
                 }
 
-                return Ok(userNames);
+                // Collect all unique user IDs from the teams
+                var userIds = teams.SelectMany(t => t.UserIds).Distinct().ToList();
+
+                // Fetch user details for the collected user IDs
+                var users = await _context.Users
+                    .Where(u => userIds.Contains(u.UserId))
+                    .Select(u => new
+                    {
+                        u.UserId,
+                        FullName = $"{u.FirstName} {(string.IsNullOrEmpty(u.MiddleName) ? "" : u.MiddleName + " ")}{(string.IsNullOrEmpty(u.LastName) ? "" : u.LastName)}".Trim()
+                    })
+                    .ToListAsync();
+
+                // Create a dictionary for quick lookup of user full names
+                var userMap = users.ToDictionary(u => u.UserId, u => u.FullName);
+
+                // Update teams to include full names of users
+                var updatedTeams = teams.Select(team => new
+                {
+                    team.TeamId,
+                    team.TeamName,
+                    team.CreatedDate,
+                    team.Status,
+                    Users = team.UserIds.Select(id => new
+                    {
+                        Id = id,
+                        Name = userMap.ContainsKey(id) ? userMap[id] : "Unknown"
+                    }).ToList()
+                });
+
+                return Ok(updatedTeams);
             }
-            catch
+            catch (Exception ex)
             {
-                return StatusCode(500, "Failed to retrieve user names for team");
+                _loggerService.LogError("Failed to retrieve teams by process ID", ex.Message, "TeamsController");
+                return StatusCode(500, "Failed to retrieve teams by process ID");
             }
         }
 
-
-        // POST: api/Teams
         [HttpPost]
-        public async Task<ActionResult<Teams>> CreateTeam(Teams team)
+        public async Task<ActionResult<Team>> PostTeam(Team team)
         {
             try
             {
-                // Add the team to the context
+                // Normalize user IDs by ordering them
+                var normalizedUserIds = team.UserIds.OrderBy(id => id).ToList();
+
+                // Check if a team with the same name already exists
+                bool nameExists = await _context.Teams
+                    .AnyAsync(t => t.TeamName == team.TeamName && t.ProcessId == team.ProcessId);
+
+                if (nameExists)
+                {
+                    // Log conflict information
+                    Console.WriteLine($"Conflict: Team with the same name '{team.TeamName}' and process ID '{team.ProcessId}' already exists.");
+                    return Conflict(new { Message = "A team with the same name and process ID already exists." });
+                }
+
+                // Get the existing teams with the same process ID
+                var existingTeams = await _context.Teams
+                    .Where(t => t.ProcessId == team.ProcessId)
+                    .ToListAsync();
+
+                // Check if a team with the same user IDs already exists
+                bool exists = existingTeams.Any(t =>
+                    t.UserIds.OrderBy(id => id).SequenceEqual(normalizedUserIds));
+
+                if (exists)
+                {
+                    // Log conflict information
+                    Console.WriteLine($"Conflict: Team with process ID '{team.ProcessId}' and user IDs '{string.Join(", ", normalizedUserIds)}' already exists.");
+                    return Conflict(new { Message = "A team with the same process ID and user IDs already exists." });
+                }
+
+                // If no existing team found, add the new team
                 _context.Teams.Add(team);
                 await _context.SaveChangesAsync();
 
-                _loggerService.LogEvent("Team created", "Teams", team.TeamId);
+                Console.WriteLine($"Team created successfully with ID: {team.TeamId}");
 
                 return CreatedAtAction(nameof(GetTeam), new { id = team.TeamId }, team);
             }
             catch (Exception ex)
             {
+
+                Console.WriteLine("Failed to create team: " + ex.ToString());
+
                 _loggerService.LogError("Failed to create team", ex.Message, "TeamsController");
+
                 return StatusCode(500, "Failed to create team");
             }
         }
 
         // PUT: api/Teams/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateTeam(int id, Teams team)
+        public async Task<IActionResult> UpdateTeam(int id, Team team)
+
         {
             if (id != team.TeamId)
             {
@@ -167,7 +250,8 @@ namespace ERPAPI.Controllers
                 }
 
                 existingTeam.TeamName = team.TeamName;
-                existingTeam.Description = team.Description;
+
+
                 existingTeam.Status = team.Status;
                 existingTeam.UserIds = team.UserIds; // Update user IDs
 
