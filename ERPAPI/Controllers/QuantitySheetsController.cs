@@ -281,4 +281,117 @@ public class QuantitySheetController : ControllerBase
         return _context.QuantitySheets.Any(e => e.QuantitySheetId == id);
     }
 
+    // First, create a DTO to handle the transfer request
+    public class CatchTransferRequest
+    {
+        public required int ProjectId { get; set; }
+        public required string SourceLotNo { get; set; }
+        public required string TargetLotNo { get; set; }
+        public required List<int> CatchIds { get; set; }
+    }
+
+    [HttpPut("transfer-catches")]
+    public async Task<IActionResult> TransferCatches([FromBody] CatchTransferRequest request)
+    {
+        try
+        {
+            // Validate request
+            if (request == null || string.IsNullOrEmpty(request.SourceLotNo) || 
+                string.IsNullOrEmpty(request.TargetLotNo) || 
+                request.CatchIds == null || !request.CatchIds.Any())
+            {
+                return BadRequest("Invalid transfer request");
+            }
+
+            if (request.SourceLotNo == request.TargetLotNo)
+            {
+                return BadRequest("Source and target lots cannot be the same");
+            }
+
+            // Get catches to transfer
+            var catchesToTransfer = await _context.QuantitySheets
+                .Where(qs => qs.ProjectId == request.ProjectId && 
+                            qs.LotNo == request.SourceLotNo && 
+                            request.CatchIds.Contains(qs.QuantitySheetId))
+                .ToListAsync();
+
+            if (!catchesToTransfer.Any())
+            {
+                return NotFound("No catches found to transfer");
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Create new entries for target lot
+                var newCatches = catchesToTransfer.Select(catch_ => new QuantitySheet
+                {
+                    ProjectId = catch_.ProjectId,
+                    LotNo = request.TargetLotNo,
+                    CatchNo = catch_.CatchNo,
+                    Paper = catch_.Paper,
+                    Course = catch_.Course,
+                    Subject = catch_.Subject,
+                    InnerEnvelope = catch_.InnerEnvelope,
+                    OuterEnvelope = catch_.OuterEnvelope,
+                    Quantity = catch_.Quantity,
+                    ExamDate = catch_.ExamDate,
+                    ExamTime = catch_.ExamTime,
+                    ProcessId = new List<int>(catch_.ProcessId), // Create a new list with the same process IDs
+                    PercentageCatch = 0 // Will be recalculated
+                }).ToList();
+
+                // Add new catches to target lot
+                await _context.QuantitySheets.AddRangeAsync(newCatches);
+
+                // Remove original catches from source lot
+                _context.QuantitySheets.RemoveRange(catchesToTransfer);
+
+                // Save changes to persist the removal and addition
+                await _context.SaveChangesAsync();
+
+                // Recalculate percentages for both lots
+                await RecalculatePercentages(request.ProjectId, request.SourceLotNo);
+                await RecalculatePercentages(request.ProjectId, request.TargetLotNo);
+
+                // Save changes again after recalculating percentages
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                return Ok(new { 
+                    Message = "Catches transferred successfully",
+                    TransferredCatches = newCatches
+                });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                throw new Exception($"Failed to transfer catches: {ex.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Failed to transfer catches: {ex.Message}");
+        }
+    }
+
+    // Helper method to recalculate percentages for a lot
+    private async Task RecalculatePercentages(int projectId, string lotNo)
+    {
+        var sheetsInLot = await _context.QuantitySheets
+            .Where(s => s.ProjectId == projectId && s.LotNo == lotNo)
+            .ToListAsync();
+
+        double totalQuantityForLot = sheetsInLot.Sum(sheet => sheet.Quantity);
+
+        if (totalQuantityForLot > 0)
+        {
+            foreach (var sheet in sheetsInLot)
+            {
+                sheet.PercentageCatch = (sheet.Quantity / totalQuantityForLot) * 100;
+            }
+        }
+    }
+
 }

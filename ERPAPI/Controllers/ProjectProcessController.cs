@@ -3,6 +3,7 @@ using ERPAPI.Model;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace ERPAPI.Controllers
 {
@@ -68,7 +69,9 @@ namespace ERPAPI.Controllers
                                               installedFeatures = pp.FeaturesList, // Installed features from Process table (array of ints)
                                               status = p.Status, // Status from Process table
                                               weightage = p.Weightage, // Weightage from Process table
-                                              userId = pp.UserId
+                                              userId = pp.UserId,
+                                              sequence = pp.Sequence,
+
                                           })
                                           .ToListAsync();
 
