@@ -103,140 +103,294 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Transactions/percentages
-        [HttpGet("percentages")]
-        public async Task<ActionResult<Percentages>> GetPercentages(int ProjectId)
+        //   [HttpGet("percentages")]
+        //   public async Task<ActionResult<Percentages>> GetPercentages(int ProjectId)
+        //   {
+        //       var processes = await _context.ProjectProcesses.Where(p => p.ProjectId == ProjectId).ToListAsync();
+        //       var quantitySheets = await _context.QuantitySheets.Where(p => p.ProjectId == ProjectId).ToListAsync();
+        //       var transactions = await _context.Transaction.Where(p => p.ProjectId == ProjectId).ToListAsync();
+
+        //       var result = CalculatePercentages(processes, quantitySheets, transactions);
+        //       return Ok(result);
+        //   }
+
+
+
+        //   private Percentages CalculatePercentages(
+        //List<ProjectProcess> processes,
+        //List<QuantitySheet> quantitySheets,
+        //List<Transaction> transactions)
+        //   {
+        //       if (processes == null || quantitySheets == null || transactions == null)
+        //       {
+        //           throw new ArgumentNullException("One or more input lists are null.");
+        //       }
+
+        //       var completedProcesses = transactions.Where(t => t.StatusId == 3).ToList();
+        //       var partiallyCompletedProcesses = transactions.Where(t => t.StatusId == 2).ToList();
+
+        //       var sheetPercentages = new List<SheetPercentage>();
+        //       var lotPercentages = new Dictionary<string, double>();
+        //       var lotCatchPercentages = new Dictionary<string, double>();
+
+        //       // Group quantity sheets by LotNo
+        //       var sheetsGroupedByLotNo = quantitySheets.GroupBy(sheet => sheet.LotNo);
+
+        //       foreach (var group in sheetsGroupedByLotNo)
+        //       {
+        //           double lotTotalWeightage = 0;
+        //           double lotTotalCatchPercent = 0;
+        //           double totalLotPercent = 0; // For this specific lot
+
+        //           foreach (var sheet in group)
+        //           {
+
+        //               double completedProcessWeightage = 0;
+        //               double partiallyCompletedWeightage = 0;
+
+        //               // Analyze processes
+        //               foreach (var process in processes)
+        //               {
+        //                   var completedCount = completedProcesses.Count(t => t.QuantitysheetId == sheet.QuantitySheetId && t.ProcessId == process.ProcessId);
+        //                   var partiallyCount = partiallyCompletedProcesses.Count(t => t.QuantitysheetId == sheet.QuantitySheetId && t.ProcessId == process.ProcessId);
+
+        //                   if (completedCount > 0)
+        //                   {
+        //                       completedProcessWeightage += process.Weightage;
+        //                   }
+        //                   if (partiallyCount > 0)
+        //                   {
+        //                       partiallyCompletedWeightage += process.Weightage;
+        //                   }
+        //               }
+
+        //               var partiallyCompletedQty = partiallyCompletedProcesses
+        //                   .Where(t => t.QuantitysheetId == sheet.QuantitySheetId)
+        //                   .Sum(t => t.Quantity);
+
+        //               var totalWeightage = completedProcessWeightage +
+        //                   (partiallyCompletedWeightage * partiallyCompletedQty / Math.Max(sheet.Quantity, 1));
+
+        //               // Calculate Lot Percent
+        //               double lotPercent = sheet.PercentageCatch * totalWeightage / 100;
+        //               totalLotPercent += lotPercent; // Accumulate lot percent for this lot
+        //               lotTotalWeightage += totalWeightage; // Accumulate total weightage for the lot
+
+        //               // Calculate Catch Percent
+        //               double catchPercent = processes
+        //                   .Where(p => completedProcesses.Any(t => t.QuantitysheetId == sheet.QuantitySheetId && t.ProcessId == p.ProcessId))
+        //                   .Sum(p => p.Weightage);
+
+
+        //               foreach (var transaction in partiallyCompletedProcesses
+        //                   .Where(t => t.QuantitysheetId == sheet.QuantitySheetId))
+        //               {
+        //                   var processWeightage = processes.FirstOrDefault(p => p.ProcessId == transaction.ProcessId)?.Weightage ?? 0;
+
+        //                   if (processWeightage > 0)
+        //                   {
+        //                       catchPercent += (processWeightage * transaction.Quantity) / Math.Max(sheet.Quantity, 1);
+        //                   }
+        //               }
+
+        //               var totalProcessWeightage = processes.Sum(p => p.Weightage);
+        //               double catchPercentNormalized = totalProcessWeightage > 0 ? (catchPercent / totalProcessWeightage) * 100 : 0;
+        //               lotTotalCatchPercent += catchPercentNormalized; // Accumulate catch percent for the lot
+
+        //               sheetPercentages.Add(new SheetPercentage
+        //               {
+        //                   QuantitySheetId = sheet.QuantitySheetId,
+        //                   LotPercent = lotPercent,
+        //                   CatchPercent = catchPercentNormalized
+        //               });
+        //           }
+
+        //           // Store the total lot percentage for this specific lot
+        //           if (group.Key != null)
+        //           {
+        //               lotPercentages[group.Key] = totalLotPercent; // Store cumulative lot percent
+        //               lotCatchPercentages[group.Key] = lotTotalCatchPercent; // Store cumulative catch percent for the lot
+        //           }
+        //       }
+
+        //       // Return the final Percentages object with detailed lot percentages
+        //       return new Percentages
+        //       {
+        //           LotPercent = lotPercentages, // Return individual lot percentages
+        //           ProjectPercent = lotPercentages.Sum(l => l.Value), // Calculate total project percent from individual lot percentages
+        //           SheetPercentages = sheetPercentages
+        //       };
+        //   }
+
+
+        // This is the main endpoint where percentages are calculated for the project
+
+        [HttpGet("combined-percentages")]
+        public async Task<ActionResult> GetCombinedPercentages(int projectId)
         {
-            var processes = await _context.ProjectProcesses.Where(p => p.ProjectId == ProjectId).ToListAsync();
-            var quantitySheets = await _context.QuantitySheets.Where(p => p.ProjectId == ProjectId).ToListAsync();
-            var transactions = await _context.Transaction.Where(p => p.ProjectId == ProjectId).ToListAsync();
+            // Step 1: Retrieve ProjectProcess details for the specified ProjectId
+            var projectProcesses = await _context.ProjectProcesses
+                .Where(p => p.ProjectId == projectId)
+                .ToListAsync();
 
-            var result = CalculatePercentages(processes, quantitySheets, transactions);
-            return Ok(result);
-        }
+            // Step 2: Retrieve QuantitySheet details for the specified ProjectId
+            var quantitySheets = await _context.QuantitySheets
+                .Where(p => p.ProjectId == projectId)
+                .ToListAsync();
 
+            // Step 3: Retrieve Transaction records for the specified ProjectId
+            var transactions = await _context.Transaction
+                .Where(t => t.ProjectId == projectId)
+                .ToListAsync();
 
+            // Initialize dictionaries
+            var lots = new Dictionary<string, Dictionary<int, dynamic>>();
+            var totalLotPercentages = new Dictionary<string, double>();
+            var lotQuantities = new Dictionary<string, double>();
+            var lotWeightages = new Dictionary<string, double>();
+            var projectLotPercentages = new Dictionary<string, double>();
+            double projectTotalQuantity = 0;
 
-        private Percentages CalculatePercentages(
-     List<ProjectProcess> processes,
-     List<QuantitySheet> quantitySheets,
-     List<Transaction> transactions)
-        {
-            if (processes == null || quantitySheets == null || transactions == null)
+            foreach (var quantitySheet in quantitySheets)
             {
-                throw new ArgumentNullException("One or more input lists are null.");
-            }
+                var processIdWeightage = new Dictionary<int, double>();
+                double totalWeightageSum = 0;
 
-            var completedProcesses = transactions.Where(t => t.StatusId == 3).ToList();
-            var partiallyCompletedProcesses = transactions.Where(t => t.StatusId == 2).ToList();
-
-            var sheetPercentages = new List<SheetPercentage>();
-            var lotPercentages = new Dictionary<string, double>();
-            var lotCatchPercentages = new Dictionary<string, double>();
-
-            // Group quantity sheets by LotNo
-            var sheetsGroupedByLotNo = quantitySheets.GroupBy(sheet => sheet.LotNo);
-
-            foreach (var group in sheetsGroupedByLotNo)
-            {
-                double lotTotalWeightage = 0;
-                double lotTotalCatchPercent = 0;
-                double totalLotPercent = 0; // For this specific lot
-
-                foreach (var sheet in group)
+                // Find the weightage for each ProcessId in the QuantitySheet
+                foreach (var processId in quantitySheet.ProcessId)
                 {
-
-                    double completedProcessWeightage = 0;
-                    double partiallyCompletedWeightage = 0;
-
-                    // Analyze processes
-                    foreach (var process in processes)
+                    var process = projectProcesses.FirstOrDefault(p => p.ProcessId == processId);
+                    if (process != null)
                     {
-                        var completedCount = completedProcesses.Count(t => t.QuantitysheetId == sheet.QuantitySheetId && t.ProcessId == process.ProcessId);
-                        var partiallyCount = partiallyCompletedProcesses.Count(t => t.QuantitysheetId == sheet.QuantitySheetId && t.ProcessId == process.ProcessId);
-
-                        if (completedCount > 0)
-                        {
-                            completedProcessWeightage += process.Weightage;
-                        }
-                        if (partiallyCount > 0)
-                        {
-                            partiallyCompletedWeightage += process.Weightage;
-                        }
+                        processIdWeightage[processId] = Math.Round(process.Weightage, 2);
+                        totalWeightageSum += process.Weightage;
                     }
-
-                    var partiallyCompletedQty = partiallyCompletedProcesses
-                        .Where(t => t.QuantitysheetId == sheet.QuantitySheetId)
-                        .Sum(t => t.Quantity);
-
-                    var totalWeightage = completedProcessWeightage +
-                        (partiallyCompletedWeightage * partiallyCompletedQty / Math.Max(sheet.Quantity, 1));
-
-                    // Calculate Lot Percent
-                    double lotPercent = sheet.PercentageCatch * totalWeightage / 100;
-                    totalLotPercent += lotPercent; // Accumulate lot percent for this lot
-                    lotTotalWeightage += totalWeightage; // Accumulate total weightage for the lot
-
-                    // Calculate Catch Percent
-                    double catchPercent = processes
-                        .Where(p => completedProcesses.Any(t => t.QuantitysheetId == sheet.QuantitySheetId && t.ProcessId == p.ProcessId))
-                        .Sum(p => p.Weightage);
-
-
-                    foreach (var transaction in partiallyCompletedProcesses
-                        .Where(t => t.QuantitysheetId == sheet.QuantitySheetId))
-                    {
-                        var processWeightage = processes.FirstOrDefault(p => p.ProcessId == transaction.ProcessId)?.Weightage ?? 0;
-
-                        if (processWeightage > 0)
-                        {
-                            catchPercent += (processWeightage * transaction.Quantity) / Math.Max(sheet.Quantity, 1);
-                        }
-                    }
-
-                    var totalProcessWeightage = processes.Sum(p => p.Weightage);
-                    double catchPercentNormalized = totalProcessWeightage > 0 ? (catchPercent / totalProcessWeightage) * 100 : 0;
-                    lotTotalCatchPercent += catchPercentNormalized; // Accumulate catch percent for the lot
-
-                    sheetPercentages.Add(new SheetPercentage
-                    {
-                        QuantitySheetId = sheet.QuantitySheetId,
-                        LotPercent = lotPercent,
-                        CatchPercent = catchPercentNormalized
-                    });
                 }
 
-                // Store the total lot percentage for this specific lot
-                if (group.Key != null)
+                // Adjust weights if needed
+                if (totalWeightageSum < 100)
                 {
-                    lotPercentages[group.Key] = totalLotPercent; // Store cumulative lot percent
-                    lotCatchPercentages[group.Key] = lotTotalCatchPercent; // Store cumulative catch percent for the lot
+                    double deficit = 100 - totalWeightageSum;
+                    double adjustment = deficit / processIdWeightage.Count;
+
+                    foreach (var key in processIdWeightage.Keys.ToList())
+                    {
+                        processIdWeightage[key] = Math.Round(processIdWeightage[key] + adjustment, 2);
+                    }
+
+                    totalWeightageSum = processIdWeightage.Values.Sum();
                 }
+
+                // Calculate completed weightage for the current QuantitySheetId
+                double completedWeightageSum = 0;
+                foreach (var kvp in processIdWeightage)
+                {
+                    var processId = kvp.Key;
+                    var weightage = kvp.Value;
+
+                    // Check if the process is completed in the transaction records
+                    var completedProcess = transactions
+                        .Any(t => t.QuantitysheetId == quantitySheet.QuantitySheetId && t.ProcessId == processId && t.Status == 2);
+
+                    if (completedProcess)
+                    {
+                        completedWeightageSum += weightage;
+                    }
+                }
+
+                // Calculate the lot percentage using PercentageCatch
+                double lotPercentage = Math.Round(quantitySheet.PercentageCatch * (completedWeightageSum / 100), 2);
+
+                // Get the lot number (assuming it's a property in QuantitySheet)
+                var lotNumber = quantitySheet.LotNo;
+
+                // Initialize lot dictionary if it doesn't exist
+                if (!lots.ContainsKey(lotNumber))
+                {
+                    lots[lotNumber] = new Dictionary<int, dynamic>();
+                    totalLotPercentages[lotNumber] = 0;
+                    lotQuantities[lotNumber] = 0;
+                }
+
+                // Add the QuantitySheet data to the lot
+                lots[lotNumber][quantitySheet.QuantitySheetId] = new
+                {
+                    CompletedProcessPercentage = Math.Round(completedWeightageSum, 2),
+                    LotPercentage = lotPercentage,
+                    ProcessDetails = processIdWeightage // Including process details if needed
+                };
+
+                // Accumulate the lot percentage and quantity for the current lot
+                totalLotPercentages[lotNumber] = Math.Round(totalLotPercentages[lotNumber] + lotPercentage, 2);
+                lotQuantities[lotNumber] += quantitySheet.Quantity;
+
+                // Accumulate total project quantity
+                projectTotalQuantity += quantitySheet.Quantity;
             }
 
-            // Return the final Percentages object with detailed lot percentages
-            return new Percentages
+            // Calculate lot weightage based on total project quantity and project lot percentages
+            foreach (var lot in lotQuantities)
             {
-                LotPercent = lotPercentages, // Return individual lot percentages
-                ProjectPercent = lotPercentages.Sum(l => l.Value), // Calculate total project percent from individual lot percentages
-                SheetPercentages = sheetPercentages
-            };
+                var lotNumber = lot.Key;
+                var quantity = lot.Value;
+
+                // Calculate lot weightage
+                lotWeightages[lotNumber] = Math.Round((quantity / projectTotalQuantity) * 100, 2);
+
+                // Calculate project lot percentage (total lot percentage of one lot * lot weightage of one lot)
+                projectLotPercentages[lotNumber] = Math.Round(totalLotPercentages[lotNumber] * lotWeightages[lotNumber] / 100, 2);
+            }
+
+            // Calculate the sum of all project lot percentages
+            double totalProjectLotPercentage = Math.Round(projectLotPercentages.Values.Sum(), 2);
+
+            // Round the total project quantity
+            projectTotalQuantity = Math.Round(projectTotalQuantity, 2);
+
+            // Return the response with data organized by lot, including total lot percentages, quantities, and project lot percentages
+            return Ok(new
+            {
+                Lots = lots, // Contains lots with QuantitySheetId details for each lot
+                TotalLotPercentages = totalLotPercentages, // Sum of lot percentages for each lot
+                LotQuantities = lotQuantities, // Sum of quantity for each lot
+                LotWeightages = lotWeightages, // Weightage of each lot based on total project quantity
+                ProjectLotPercentages = projectLotPercentages, // Project lot percentage for each lot
+                TotalProjectLotPercentage = totalProjectLotPercentage, // Sum of all project lot percentages
+                ProjectTotalQuantity = projectTotalQuantity // Total quantity for the project
+            });
         }
 
-    }
+        private double NormalizePercentage(double currentPercentage)
+        {
+            double remainingPercent = 100 - currentPercentage;
+            return remainingPercent > 0 ? currentPercentage + remainingPercent * (currentPercentage / (100 - currentPercentage)) : currentPercentage;
+        }
 
+        private double CalculateTotalCatchQuantity(int projectId)
+        {
+            var catchQuantitySheets = _context.QuantitySheets
+                .Where(sheet => sheet.ProjectId == projectId)
+                .ToList();
 
+            return catchQuantitySheets.Sum(sheet => sheet.Quantity);
+        }
 
-    public class Percentages
-    {
-        public Dictionary<string, double> LotPercent { get; set; }
-        public List<SheetPercentage> SheetPercentages { get; set; }
-        public double ProjectPercent { get; set; }
-    }
+        // Inner classes for SheetPercentage and Percentages
+        public class SheetPercentage
+        {
+            public int QuantitySheetId { get; set; }
+            public double LotPercent { get; set; }
+            public double CatchPercent { get; set; }
+        }
 
-    public class SheetPercentage
-    {
-        public int QuantitySheetId { get; set; }
-        public double LotPercent { get; set; }
-        public double CatchPercent { get; set; }
+        public class Percentages
+        {
+            public Dictionary<string, double> LotPercent { get; set; }
+            public List<SheetPercentage> SheetPercentages { get; set; }
+            public double ProjectPercent { get; set; }
+            public double TotalCatchQuantity { get; set; }
+        }
+
     }
 }
+
