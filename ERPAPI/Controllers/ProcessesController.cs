@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
+using ERPAPI.Services;
+using ERPAPI.Service;
 
 namespace ERPAPI.Controllers
 {
@@ -15,78 +17,99 @@ namespace ERPAPI.Controllers
     public class ProcessesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ILoggerService _loggerService;
 
-        public ProcessesController(AppDbContext context)
+        public ProcessesController(AppDbContext context, ILoggerService loggerService)
         {
             _context = context;
+            _loggerService = loggerService;
         }
 
         // GET: api/Processes
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetProcesses()
         {
-            // Fetch all processes from the database
-            var processes = await _context.Processes.ToListAsync();
-
-            // Fetch all features and create a dictionary of their names
-            var features = await _context.Features.ToListAsync();
-            var featureDictionary = features.ToDictionary(f => f.FeatureId, f => f.Features);
-
-            // Map processes to include full names of installed features and new properties
-
-            var processesWithNames = processes.Select(process => new
+            try
             {
-                process.Id,
-                process.Name,
-                process.Weightage,    // Include new field Weightage
-                process.Status,
-                process.InstalledFeatures,
-                FeatureNames = process.InstalledFeatures
-                    .Select(featureId => featureDictionary.TryGetValue(featureId, out var featureName) ? featureName : "Unknown Feature")
-                    .ToList(),
-                process.ProcessIdInput,  // Include new field ProcessIdInput
-                process.ProcessType,     // Include new field ProcessType
-                process.RangeStart,      // Include new field RangeStart
-                process.RangeEnd         // Include new field RangeEnd
-            }).ToList();
+                var processes = await _context.Processes.ToListAsync();
+                var features = await _context.Features.ToListAsync();
+                var featureDictionary = features.ToDictionary(f => f.FeatureId, f => f.Features);
 
-            return Ok(processesWithNames);
+                var processesWithNames = processes.Select(process => new
+                {
+                    process.Id,
+                    process.Name,
+                    process.Weightage,
+                    process.Status,
+                    process.InstalledFeatures,
+                    FeatureNames = process.InstalledFeatures
+                        .Select(featureId => featureDictionary.TryGetValue(featureId, out var featureName) ? featureName : "Unknown Feature")
+                        .ToList(),
+                    process.ProcessIdInput,
+                    process.ProcessType,
+                    process.RangeStart,
+                    process.RangeEnd
+                }).ToList();
+
+                _loggerService.LogEvent("Fetched all processes with their details", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return Ok(processesWithNames);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching processes", ex.Message, nameof(ProcessesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // GET: api/Processes/process
         [HttpGet("process")]
         public IActionResult GetCatchesByProcess(int processid)
         {
-            // Fetch all QuantitySheets from the database
-            var catches = _context.QuantitySheets.ToList();
-
-            // Filter catches where the specified process ID is included in the ProcessId list
-            var filteredCatches = catches
-                .Where(q => q.ProcessId != null && q.ProcessId.Contains(processid))
-                .ToList();
-
-            // Check if there are no catches found
-            if (filteredCatches == null || !filteredCatches.Any())
+            try
             {
-                return NotFound($"No catches found for the process: {processid}");
+                var catches = _context.QuantitySheets.ToList();
+                var filteredCatches = catches
+                    .Where(q => q.ProcessId != null && q.ProcessId.Contains(processid))
+                    .ToList();
+
+                if (filteredCatches == null || !filteredCatches.Any())
+                {
+                    _loggerService.LogEvent($"No catches found for process: {processid}", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound($"No catches found for the process: {processid}");
+                }
+
+                _loggerService.LogEvent($"Fetched catches for process: {processid}", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return Ok(filteredCatches);
             }
-
-            return Ok(filteredCatches);
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching catches by process", ex.Message, nameof(ProcessesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
-
 
         // GET: api/Processes/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Process>> GetProcess(int id)
         {
-            var process = await _context.Processes.FindAsync(id);
-
-            if (process == null)
+            try
             {
-                return NotFound();
-            }
+                var process = await _context.Processes.FindAsync(id);
 
-            return process;
+                if (process == null)
+                {
+                    _loggerService.LogEvent($"Process with ID {id} not found", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound();
+                }
+
+                _loggerService.LogEvent($"Fetched process with ID {id}", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return process;
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching process", ex.Message, nameof(ProcessesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // PUT: api/Processes/5
@@ -103,17 +126,25 @@ namespace ERPAPI.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                _loggerService.LogEvent($"Updated process with ID {id}", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
                 if (!ProcessExists(id))
                 {
+                    _loggerService.LogEvent($"Process with ID {id} not found during update", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                     return NotFound();
                 }
                 else
                 {
+                    _loggerService.LogError("Concurrency error during process update", ex.Message, nameof(ProcessesController));
                     throw;
                 }
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error updating process", ex.Message, nameof(ProcessesController));
+                return StatusCode(500, "Internal server error");
             }
 
             return NoContent();
@@ -123,26 +154,45 @@ namespace ERPAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Process>> PostProcess(Process process)
         {
-            _context.Processes.Add(process);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.Processes.Add(process);
+                await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetProcess", new { id = process.Id }, process);
+                _loggerService.LogEvent("Created a new process", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return CreatedAtAction("GetProcess", new { id = process.Id }, process);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error creating process", ex.Message, nameof(ProcessesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // DELETE: api/Processes/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProcess(int id)
         {
-            var process = await _context.Processes.FindAsync(id);
-            if (process == null)
+            try
             {
-                return NotFound();
+                var process = await _context.Processes.FindAsync(id);
+                if (process == null)
+                {
+                    _loggerService.LogEvent($"Process with ID {id} not found during delete", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound();
+                }
+
+                _context.Processes.Remove(process);
+                await _context.SaveChangesAsync();
+
+                _loggerService.LogEvent($"Deleted process with ID {id}", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return NoContent();
             }
-
-            _context.Processes.Remove(process);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error deleting process", ex.Message, nameof(ProcessesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         private bool ProcessExists(int id)

@@ -3,11 +3,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ERPAPI.Model
 {
-    public class Process
+      public class Process
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public int Id { get; set; }
+        public int Id { get; set; }  // Auto-incrementing primary key
+
         public string Name { get; set; }
         public double Weightage { get; set; }
         public bool Status { get; set; }

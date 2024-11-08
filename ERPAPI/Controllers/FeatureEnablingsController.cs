@@ -1,8 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
@@ -23,7 +21,7 @@ namespace ERPAPI.Controllers
 
         // GET: api/FeatureEnablings
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<FeatureEnabling>>> GetFeatureEnabling()
+        public async Task<ActionResult<IEnumerable<FeatureEnabling>>> GetFeatureEnablings()
         {
             return await _context.FeatureEnabling.ToListAsync();
         }
@@ -43,11 +41,10 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/FeatureEnablings/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutFeatureEnabling(int id, FeatureEnabling featureEnabling)
         {
-            if (id != featureEnabling.ModuleId) // Update to use ModuleId instead of FeatureEnablingId
+            if (id != featureEnabling.ProcessId) // Match the 'Id' field
             {
                 return BadRequest();
             }
@@ -74,14 +71,14 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/FeatureEnablings
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<FeatureEnabling>> PostFeatureEnabling(FeatureEnabling featureEnabling)
         {
             _context.FeatureEnabling.Add(featureEnabling);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetFeatureEnabling", new { id = featureEnabling.ModuleId }, featureEnabling); // Use ModuleId for the route
+            // Adjust this line to match the correct route and object keys
+            return CreatedAtAction(nameof(GetFeatureEnabling), new { id = featureEnabling.ProcessId }, featureEnabling);
         }
 
         // DELETE: api/FeatureEnablings/5
@@ -102,7 +99,7 @@ namespace ERPAPI.Controllers
 
         private bool FeatureEnablingExists(int id)
         {
-            return _context.FeatureEnabling.Any(e => e.ModuleId == id); // Use ModuleId for existence check
+            return _context.FeatureEnabling.Any(e => e.ProcessId == id);
         }
     }
 }
