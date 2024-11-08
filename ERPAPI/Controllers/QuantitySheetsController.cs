@@ -40,7 +40,6 @@ public class QuantitySheetController : ControllerBase
             .FirstOrDefaultAsync();
 
         // If project type is Booklet, adjust quantities and duplicate entries
-        if (projectType == "Booklet")
         if (projectType == "Booklets")
         {
             var adjustedSheets = new List<QuantitySheet>();
@@ -61,8 +60,10 @@ public class QuantitySheetController : ControllerBase
                         Quantity = adjustedQuantity,
                         PercentageCatch = 0, // This will be recalculated below
                         ProjectId = sheet.ProjectId,
+
                         ExamDate = sheet.ExamDate,
                         ExamTime = sheet.ExamTime,
+
                         ProcessId = new List<int>() // Start with an empty list for the new catch
                     };
                     adjustedSheets.Add(newSheet);
@@ -164,7 +165,6 @@ public class QuantitySheetController : ControllerBase
 
         return Ok(uniqueLotNumbers);
     }
-
 
     [HttpGet("Columns")]
     public IActionResult GetColumnNames()
