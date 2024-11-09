@@ -1,3 +1,4 @@
+
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,12 +10,14 @@ using ERPAPI.Model;
 using ERPAPI.Services;
 using ERPAPI.Service;
 
+
 namespace ERPAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     public class CamerasController : ControllerBase
     {
+
         private readonly AppDbContext _context;
         private readonly ILoggerService _loggerService;
 
