@@ -163,8 +163,8 @@ namespace ERPAPI.Controllers
                     team.Status,
                     Users = team.UserIds.Select(id => new
                     {
-                        Id = id,
-                        Name = userMap.ContainsKey(id) ? userMap[id] : "Unknown"
+                        UserId = id,
+                        UserName = userMap.ContainsKey(id) ? userMap[id] : "Unknown"
                     }).ToList()
                 });
 
