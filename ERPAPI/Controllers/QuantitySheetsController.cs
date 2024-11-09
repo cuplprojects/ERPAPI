@@ -45,6 +45,7 @@ public class QuantitySheetController : ControllerBase
             .Select(t => t.Types)
             .FirstOrDefaultAsync();
 
+
         if (projectType == "Booklet" && project.NoOfSeries.HasValue)
         {
             var noOfSeries = project.NoOfSeries.Value;
@@ -179,7 +180,7 @@ public class QuantitySheetController : ControllerBase
             .Where(prop => prop.Name != "QuantitySheetId" &&
                            prop.Name != "PercentageCatch" &&
                            prop.Name != "ProjectId" &&
-                           prop.Name != "ProcessId" )
+                           prop.Name != "ProcessId")
             .Select(prop => prop.Name)
             .ToList();
 

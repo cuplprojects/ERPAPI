@@ -30,12 +30,14 @@ namespace ERPAPI.Data
 
         public DbSet<Role> Roles { get; set; }
 
-        public DbSet<Machine> Machine { get; set; } 
-         public DbSet<Zone> Zone { get; set; }
+        public DbSet<Machine> Machine { get; set; }
+        public DbSet<Zone> Zone { get; set; }
         public DbSet<EventLog> EventLogs { get; set; } // Assuming you have event logs
         public DbSet<ErrorLog> ErrorLogs { get; set; } // Assuming you have error logs
+
         public DbSet<Team> Teams { get; set; }
         public DbSet<CatchTeam> CatchTeams { get; set; }
+
 
 
 
