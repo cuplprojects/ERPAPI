@@ -131,6 +131,35 @@ namespace ERPAPI.Controllers
             return NoContent();
         }
 
+        [HttpPut("quantitysheet/{quantitysheetId}")]
+        public async Task<IActionResult> PutTransactionId(int quantitysheetId, Transaction transaction)
+        {
+            if (quantitysheetId != transaction.QuantitysheetId)
+            {
+                return BadRequest();
+            }
+
+            _context.Entry(transaction).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!TransactionExists(quantitysheetId))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
+        }
+
         [HttpPost]
         public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
         {
@@ -304,6 +333,37 @@ namespace ERPAPI.Controllers
             foreach (var project in projects)
             {
                 var projectId = project.ProjectId;
+
+        [HttpGet("alarms")]
+        public async Task<ActionResult<IEnumerable<object>>> GetAlarmsByProjectId(int projectId)
+        {
+            // Fetch alarms that belong to the specified projectId where AlarmId != 0 and not an empty string
+            var alarms = await _context.Transaction
+                .Where(a => a.ProjectId == projectId && a.AlarmId != "0" && !string.IsNullOrEmpty(a.AlarmId))
+                .ToListAsync();
+
+            if (alarms == null || !alarms.Any())
+            {
+                return NotFound(); // Return 404 if no alarms are found
+            }
+
+            var alarmData = alarms.Select(a => new
+            {
+                a.TransactionId,
+                a.AlarmId,
+                a.MachineId,
+                a.InterimQuantity,
+                a.TeamId,
+                a.ZoneId,
+                a.QuantitysheetId,
+                a.ProjectId,
+                a.LotNo,
+               
+            }).ToList();
+
+            return Ok(alarmData);
+        }
+
 
 
                 // Fetch relevant data for each project
