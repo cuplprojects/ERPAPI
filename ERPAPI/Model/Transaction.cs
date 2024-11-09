@@ -19,6 +19,7 @@ namespace ERPAPI.Model
         public int Status { get; set; }
         public string AlarmId { get; set; }
         public int LotNo { get; set; }
-        public int TeamId { get; set; }
+        public List<int> TeamId { get; set; }
+
     }
 }

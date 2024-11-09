@@ -40,6 +40,7 @@ public class QuantitySheetController : ControllerBase
             .FirstOrDefaultAsync();
 
         // If project type is Booklet, adjust quantities and duplicate entries
+
         var numberMatch = System.Text.RegularExpressions.Regex.Match(projectType, @"\d+");
         Console.WriteLine(numberMatch);
 
@@ -52,6 +53,7 @@ public class QuantitySheetController : ControllerBase
             iterations = int.Parse(numberMatch.Value);
         }
         else
+
         {
             // Default to 1 if no number is found
             iterations = 1;
@@ -77,8 +79,10 @@ public class QuantitySheetController : ControllerBase
                         PercentageCatch = 0, // This will be recalculated below
                         ProjectId = sheet.ProjectId,
 
+
                        ExamDate = sheet.ExamDate,
                        ExamTime = sheet.ExamTime,
+
 
                         ProcessId = new List<int>() // Start with an empty list for the new catch
                     };
@@ -189,7 +193,7 @@ public class QuantitySheetController : ControllerBase
             .Where(prop => prop.Name != "QuantitySheetId" &&
                            prop.Name != "PercentageCatch" &&
                            prop.Name != "ProjectId" &&
-                           prop.Name != "ProcessId" )
+                           prop.Name != "ProcessId")
             .Select(prop => prop.Name)
             .ToList();
 
