@@ -29,42 +29,29 @@ public class QuantitySheetController : ControllerBase
         }
 
         var projectId = newSheets.First().ProjectId;
-        var projectTypeId = await _context.Projects
-            .Where(p => p.ProjectId == projectId)
-            .Select(p => p.TypeId)
-            .FirstOrDefaultAsync();
+        var project = await _context.Projects
+       .Where(p => p.ProjectId == projectId)
+       .Select(p => new { p.TypeId, p.NoOfSeries })
+       .FirstOrDefaultAsync();
+        if (project == null)
+        {
+            return BadRequest("Project not found.");
+        }
 
+        var projectTypeId = project.TypeId;
         var projectType = await _context.Types
             .Where(t => t.TypeId == projectTypeId)
             .Select(t => t.Types)
             .FirstOrDefaultAsync();
-
-        // If project type is Booklet, adjust quantities and duplicate entries
-
-        var numberMatch = System.Text.RegularExpressions.Regex.Match(projectType, @"\d+");
-        Console.WriteLine(numberMatch);
-
-        int iterations;
-
-        // If a number is found, use that number for iterations, else default to 1
-        if (numberMatch.Success)
+        if(projectType == "Booklet" && project.NoOfSeries.HasValue)
         {
-            // Parse the number from the string
-            iterations = int.Parse(numberMatch.Value);
-        }
-        else
+            var noOfSeries = project.NoOfSeries.Value;
 
-        {
-            // Default to 1 if no number is found
-            iterations = 1;
-        }
-        Console.WriteLine(iterations);
-
-        var adjustedSheets = new List<QuantitySheet>();
+            var adjustedSheets = new List<QuantitySheet>();
             foreach (var sheet in newSheets)
             {
                 var adjustedQuantity = sheet.Quantity / 4;
-                for (int i = 0; i < iterations; i++)
+                for (int i = 0; i < noOfSeries; i++)
                 {
                     var newSheet = new QuantitySheet
                     {
@@ -80,8 +67,8 @@ public class QuantitySheetController : ControllerBase
                         ProjectId = sheet.ProjectId,
 
 
-                       ExamDate = sheet.ExamDate,
-                       ExamTime = sheet.ExamTime,
+                        ExamDate = sheet.ExamDate,
+                        ExamTime = sheet.ExamTime,
 
 
                         ProcessId = new List<int>() // Start with an empty list for the new catch
@@ -90,7 +77,7 @@ public class QuantitySheetController : ControllerBase
                 }
             }
             newSheets = adjustedSheets;
-        
+        }
 
         // Get existing sheets for the same project and lots
         var existingSheets = await _context.QuantitySheets
