@@ -16,6 +16,7 @@ namespace ERPAPI.Model
         public string? Description { get; set; }
         public int? NoOfSeries { get; set; }
         public string? SeriesName { get; set; }
+        public DateTime Date { get; set; }
 
     }
 
