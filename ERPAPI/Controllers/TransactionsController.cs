@@ -65,6 +65,91 @@ namespace ERPAPI.Controllers
             return Ok(transactionsWithAlarms);
         }
 
+
+        [HttpGet("GetProjectTransactionsData")]
+        public async Task<ActionResult<IEnumerable<object>>> GetProjectTransactionsData(int projectId, int processId)
+        {
+            // Fetch quantity sheet data
+            var quantitySheetData = await _context.QuantitySheets
+                .Where(q => q.ProjectId == projectId)
+                .ToListAsync();
+
+            // Fetch transaction data and parse alarm messages if needed
+            var transactions = await (from t in _context.Transaction
+                                      where t.ProjectId == projectId && t.ProcessId == processId
+                                      select new
+                                      {
+                                          t.TransactionId,
+                                          t.AlarmId,
+                                          t.ZoneId,
+                                          t.QuantitysheetId,
+                                          t.TeamId,
+                                          t.Remarks,
+                                          t.LotNo,
+                                          t.InterimQuantity,
+                                          t.ProcessId,
+                                          t.VoiceRecording,
+                                          t.Status,
+                                          t.MachineId
+                                      }).ToListAsync();
+
+            // Fetch alarm messages
+            var alarms = await _context.Alarm.ToListAsync();
+
+            // Map transactions with their alarm messages
+            var transactionsWithAlarms = transactions.Select(t =>
+            {
+                var parsedAlarmId = TryParseAlarmId(t.AlarmId);
+                var alarm = parsedAlarmId is int parsedId
+                    ? alarms.FirstOrDefault(a => a.AlarmId == parsedId)
+                    : null;
+
+                return new
+                {
+                    t.TransactionId,
+                    AlarmId = t.AlarmId,
+                    ZoneId = t.ZoneId,
+                    QuantitysheetId = t.QuantitysheetId,
+                    TeamId = t.TeamId,
+                    Remarks = t.Remarks,
+                    LotNo = t.LotNo,
+                    InterimQuantity = t.InterimQuantity,
+                    ProcessId = t.ProcessId,
+                    VoiceRecording = t.VoiceRecording,
+                    Status = t.Status,
+                    MachineId = t.MachineId,
+                    AlarmMessage = alarm != null ? alarm.Message : null // Handle null case for alarms
+                };
+            }).ToList();
+
+            // Combine QuantitySheet and Transaction data in a structured response
+            var responseData = quantitySheetData.Select(q => new
+            {
+                q.QuantitySheetId,
+                q.ProjectId,
+                q.LotNo,
+                q.CatchNo,
+                q.Paper,
+                q.ExamDate,
+                q.ExamTime,
+                q.Course,
+                q.Subject,
+                q.InnerEnvelope,
+                q.OuterEnvelope,
+                q.Quantity,
+                q.PercentageCatch,
+                ProcessIds = q.ProcessId,  // Assuming ProcessId is a list, map it directly
+                Transactions = transactionsWithAlarms
+         .Where(t => t.QuantitysheetId == q.QuantitySheetId)
+         .ToList()
+            });
+
+
+            return Ok(responseData);
+        }
+
+
+
         // Utility function to attempt parsing AlarmId and return an integer if possible, else return the original value
         private object TryParseAlarmId(object alarmId)
         {
