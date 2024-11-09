@@ -79,6 +79,27 @@ namespace ERPAPI.Controllers
 
 
 
+        //[HttpPost]
+        //public async Task<ActionResult<Project>> PostProject(Project project)
+        //{
+        //    // Check if project type is Booklets and series is not provided
+        //    var projectType = await _context.Types
+        //        .Where(t => t.TypeId == project.TypeId)
+        //        .Select(t => t.Types)
+        //        .FirstOrDefaultAsync();
+
+        //    if (projectType == "Booklets" && (!project.NoOfSeries.HasValue || string.IsNullOrEmpty(project.SeriesName)))
+        //    {
+        //        return BadRequest("NoOfSeries and SeriesName are required for Booklet type projects");
+        //    }
+
+        //    _context.Projects.Add(project);
+        //    await _context.SaveChangesAsync();
+
+        //    return CreatedAtAction("GetProject", new { id = project.ProjectId }, project);
+        //}
+
+
         [HttpPost]
         public async Task<ActionResult<Project>> PostProject(Project project)
         {
@@ -92,12 +113,15 @@ namespace ERPAPI.Controllers
             {
                 return BadRequest("NoOfSeries and SeriesName are required for Booklet type projects");
             }
+            // Set the Date to the current date
+            project.Date = DateTime.Now;
 
             _context.Projects.Add(project);
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("GetProject", new { id = project.ProjectId }, project);
         }
+
 
 
         [HttpPut("{id}")]
