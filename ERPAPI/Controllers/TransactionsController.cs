@@ -25,20 +25,30 @@ namespace ERPAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetTransaction(int projectId, int processId)
         {
-            // Fetch the data first (without trying to parse AlarmId)
+            // Fetch the transactions based on projectId and processId
             var transactions = await (from t in _context.Transaction
                                       where t.ProjectId == projectId && t.ProcessId == processId
-                                      select t).ToListAsync(); // Fetch data to memory
+                                      select t).ToListAsync();
 
-            // Now, you can perform the parsing on the client-side after data is fetched
-            var transactionsWithAlarms = transactions
+            if (transactions == null || !transactions.Any())
+            {
+                return NotFound(); // Return a 404 if no transactions are found
+            }
+
+            // Now, we will get the users based on the teamId in each transaction
+            var transactionsWithUsers = transactions
                 .Select(t =>
                 {
                     var parsedAlarmId = TryParseAlarmId(t.AlarmId); // Apply parsing here
-                                                                    // Check if parsedAlarmId is an integer (in case the parsing was successful)
                     var alarm = parsedAlarmId is int parsedId
                         ? _context.Alarm.FirstOrDefault(a => a.AlarmId == parsedId)
                         : null;
+
+                    // Fetch the user names based on teamId (which is an array of userId)
+                    var userNames = _context.Users
+                        .Where(u => t.TeamId.Contains(u.UserId)) // Match userId with the ids in TeamId
+                        .Select(u => u.FirstName + "" + u.LastName)
+                        .ToList();
 
                     return new
                     {
@@ -47,6 +57,7 @@ namespace ERPAPI.Controllers
                         t.ZoneId,
                         t.QuantitysheetId,
                         t.TeamId,
+                        TeamUserNames = userNames, // Add the list of usernames here
                         t.Remarks,
                         t.LotNo,
                         t.InterimQuantity,
@@ -58,13 +69,9 @@ namespace ERPAPI.Controllers
                     };
                 }).ToList(); // Apply the transformation in memory
 
-            if (transactionsWithAlarms == null || !transactionsWithAlarms.Any())
-            {
-                return NotFound(); // Return a 404 if no transactions are found
-            }
-
-            return Ok(transactionsWithAlarms);
+            return Ok(transactionsWithUsers); // Return the modified transactions with user names
         }
+
 
 
         [HttpGet("GetProjectTransactionsData")]
@@ -84,7 +91,7 @@ namespace ERPAPI.Controllers
                                           t.AlarmId,
                                           t.ZoneId,
                                           t.QuantitysheetId,
-                                          t.TeamId,
+                                          t.TeamId,  // Assuming TeamId is a list of userIds
                                           t.Remarks,
                                           t.LotNo,
                                           t.InterimQuantity,
@@ -97,13 +104,22 @@ namespace ERPAPI.Controllers
             // Fetch alarm messages
             var alarms = await _context.Alarm.ToListAsync();
 
-            // Map transactions with their alarm messages
+            // Fetch users for all team members in advance to minimize the number of queries
+            var allUsers = await _context.Users.ToListAsync();
+
+            // Map transactions with their alarm messages and usernames
             var transactionsWithAlarms = transactions.Select(t =>
             {
                 var parsedAlarmId = TryParseAlarmId(t.AlarmId);
                 var alarm = parsedAlarmId is int parsedId
                     ? alarms.FirstOrDefault(a => a.AlarmId == parsedId)
                     : null;
+
+                // Get the usernames for each userId in the TeamId array
+                var userNames = allUsers
+                    .Where(u => t.TeamId.Contains(u.UserId)) // Match userId with the ids in TeamId
+                    .Select(u => u.FirstName + " " + u.LastName)  // Concatenate FirstName and LastName
+                    .ToList();
 
                 return new
                 {
@@ -114,6 +130,7 @@ namespace ERPAPI.Controllers
                     TeamId = t.TeamId,
                     Remarks = t.Remarks,
                     LotNo = t.LotNo,
+                    TeamUserNames = userNames,  // Include the usernames
                     InterimQuantity = t.InterimQuantity,
                     ProcessId = t.ProcessId,
                     VoiceRecording = t.VoiceRecording,
@@ -141,10 +158,9 @@ namespace ERPAPI.Controllers
                 q.PercentageCatch,
                 ProcessIds = q.ProcessId,  // Assuming ProcessId is a list, map it directly
                 Transactions = transactionsWithAlarms
-         .Where(t => t.QuantitysheetId == q.QuantitySheetId)
-         .ToList()
+                    .Where(t => t.QuantitysheetId == q.QuantitySheetId) // Filter transactions by QuantitySheetId
+                    .ToList()
             });
-
 
             return Ok(responseData);
         }
