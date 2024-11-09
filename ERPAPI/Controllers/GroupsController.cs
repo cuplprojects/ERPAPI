@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
+using ERPAPI.Services;
+using ERPAPI.Service;
 
 namespace ERPAPI.Controllers
 {
@@ -15,35 +17,56 @@ namespace ERPAPI.Controllers
     public class GroupsController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ILoggerService _loggerService;
 
-        public GroupsController(AppDbContext context)
+        public GroupsController(AppDbContext context, ILoggerService loggerService)
         {
             _context = context;
+            _loggerService = loggerService;
         }
 
         // GET: api/Groups
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Group>>> GetGroups()
         {
-            return await _context.Groups.ToListAsync();
+            try
+            {
+                var groups = await _context.Groups.ToListAsync();
+                _loggerService.LogEvent("Fetched all groups", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return groups;
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching groups", ex.Message, nameof(GroupsController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // GET: api/Groups/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Group>> GetGroup(int id)
         {
-            var @group = await _context.Groups.FindAsync(id);
-
-            if (@group == null)
+            try
             {
-                return NotFound();
-            }
+                var group = await _context.Groups.FindAsync(id);
 
-            return @group;
+                if (group == null)
+                {
+                    _loggerService.LogEvent($"Group with ID {id} not found", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound();
+                }
+
+                _loggerService.LogEvent($"Fetched group with ID {id}", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return group;
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching group", ex.Message, nameof(GroupsController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // PUT: api/Groups/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutGroup(int id, Group @group)
         {
@@ -57,47 +80,73 @@ namespace ERPAPI.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                _loggerService.LogEvent($"Updated group with ID {id}", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
                 if (!GroupExists(id))
                 {
+                    _loggerService.LogEvent($"Group with ID {id} not found during update", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                     return NotFound();
                 }
                 else
                 {
+                    _loggerService.LogError("Concurrency error during group update", ex.Message, nameof(GroupsController));
                     throw;
                 }
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error updating group", ex.Message, nameof(GroupsController));
+                return StatusCode(500, "Internal server error");
             }
 
             return NoContent();
         }
 
         // POST: api/Groups
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Group>> PostGroup(Group @group)
         {
-            _context.Groups.Add(@group);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.Groups.Add(@group);
+                await _context.SaveChangesAsync();
+                _loggerService.LogEvent("Created a new group", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
 
-            return CreatedAtAction("GetGroup", new { id = @group.Id }, @group);
+                return CreatedAtAction("GetGroup", new { id = @group.Id }, @group);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error creating group", ex.Message, nameof(GroupsController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // DELETE: api/Groups/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteGroup(int id)
         {
-            var @group = await _context.Groups.FindAsync(id);
-            if (@group == null)
+            try
             {
-                return NotFound();
+                var group = await _context.Groups.FindAsync(id);
+                if (group == null)
+                {
+                    _loggerService.LogEvent($"Group with ID {id} not found during delete", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound();
+                }
+
+                _context.Groups.Remove(group);
+                await _context.SaveChangesAsync();
+                _loggerService.LogEvent($"Deleted group with ID {id}", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+
+                return NoContent();
             }
-
-            _context.Groups.Remove(@group);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error deleting group", ex.Message, nameof(GroupsController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         private bool GroupExists(int id)

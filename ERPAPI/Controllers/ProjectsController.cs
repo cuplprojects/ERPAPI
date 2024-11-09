@@ -113,7 +113,6 @@ namespace ERPAPI.Controllers
             {
                 return BadRequest("NoOfSeries and SeriesName are required for Booklet type projects");
             }
-
             // Set the Date to the current date
             project.Date = DateTime.Now;
 

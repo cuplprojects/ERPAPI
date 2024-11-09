@@ -2,11 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
+using ERPAPI.Services;
+using ERPAPI.Service;
 
 namespace ERPAPI.Controllers
 {
@@ -15,63 +16,78 @@ namespace ERPAPI.Controllers
     public class ZonesController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly ILoggerService _loggerService;
 
-        public ZonesController(AppDbContext context)
+        public ZonesController(AppDbContext context, ILoggerService loggerService)
         {
             _context = context;
+            _loggerService = loggerService;
         }
 
         // GET: api/Zones
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetZones()
         {
-            // Fetch all zones from the database
-            var zones = await _context.Zone.ToListAsync();
-
-            // Fetch all machines and create a dictionary of their names
-            var machines = await _context.Machine.ToListAsync();
-            var machineDictionary = machines.ToDictionary(m => m.MachineId, m => m.MachineName);
-
-            // Fetch all cameras and create a dictionary of their names
-            var cameras = await _context.Camera.ToListAsync();
-            var cameraDictionary = cameras.ToDictionary(c => c.CameraId, c => c.Name);
-
-            // Map zones to include full names of assigned machines and cameras
-            var zonesWithNames = zones.Select(zone => new
+            try
             {
-                zone.ZoneId,
-                zone.ZoneNo,
-                zone.ZoneDescription,
-                zone.CameraIds,
-                zone.MachineId,
-                MachineNames = zone.MachineId
-                    .Select(machineId => machineDictionary.TryGetValue(machineId, out var machineName) ? machineName : "Unknown Machine")
-                    .ToList(),
-                CameraNames = zone.CameraIds
-                    .Select(cameraId => cameraDictionary.TryGetValue(cameraId, out var cameraName) ? cameraName : "Unknown Camera")
-                    .ToList()
-            }).ToList();
+                var zones = await _context.Zone.ToListAsync();
+                var machines = await _context.Machine.ToListAsync();
+                var cameras = await _context.Camera.ToListAsync();
 
-            return Ok(zonesWithNames);
+                var machineDictionary = machines.ToDictionary(m => m.MachineId, m => m.MachineName);
+                var cameraDictionary = cameras.ToDictionary(c => c.CameraId, c => c.Name);
+
+                var zonesWithNames = zones.Select(zone => new
+                {
+                    zone.ZoneId,
+                    zone.ZoneNo,
+                    zone.ZoneDescription,
+                    zone.CameraIds,
+                    zone.MachineId,
+                    MachineNames = zone.MachineId
+                        .Select(machineId => machineDictionary.TryGetValue(machineId, out var machineName) ? machineName : "Unknown Machine")
+                        .ToList(),
+                    CameraNames = zone.CameraIds
+                        .Select(cameraId => cameraDictionary.TryGetValue(cameraId, out var cameraName) ? cameraName : "Unknown Camera")
+                        .ToList()
+                }).ToList();
+
+                _loggerService.LogEvent("Fetched all zones with related machines and cameras", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+
+                return Ok(zonesWithNames);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching zones", ex.Message, nameof(ZonesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
-
 
         // GET: api/Zones/5
         [HttpGet("{id}")]
         public async Task<ActionResult<Zone>> GetZone(int id)
         {
-            var zone = await _context.Zone.FindAsync(id);
-
-            if (zone == null)
+            try
             {
-                return NotFound();
-            }
+                var zone = await _context.Zone.FindAsync(id);
 
-            return zone;
+                if (zone == null)
+                {
+                    _loggerService.LogEvent($"Zone with ID {id} not found", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound();
+                }
+
+                _loggerService.LogEvent($"Fetched zone with ID {id}", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return zone;
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error fetching zone", ex.Message, nameof(ZonesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // PUT: api/Zones/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutZone(int id, Zone zone)
         {
@@ -85,47 +101,73 @@ namespace ERPAPI.Controllers
             try
             {
                 await _context.SaveChangesAsync();
+                _loggerService.LogEvent($"Updated zone with ID {id}", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
             }
-            catch (DbUpdateConcurrencyException)
+            catch (DbUpdateConcurrencyException ex)
             {
                 if (!ZoneExists(id))
                 {
+                    _loggerService.LogEvent($"Zone with ID {id} not found during update", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                     return NotFound();
                 }
                 else
                 {
+                    _loggerService.LogError("Concurrency error during zone update", ex.Message, nameof(ZonesController));
                     throw;
                 }
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error updating zone", ex.Message, nameof(ZonesController));
+                return StatusCode(500, "Internal server error");
             }
 
             return NoContent();
         }
 
         // POST: api/Zones
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<Zone>> PostZone(Zone zone)
         {
-            _context.Zone.Add(zone);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.Zone.Add(zone);
+                await _context.SaveChangesAsync();
+                _loggerService.LogEvent("Created a new zone", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
 
-            return CreatedAtAction("GetZone", new { id = zone.ZoneId }, zone);
+                return CreatedAtAction("GetZone", new { id = zone.ZoneId }, zone);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error creating zone", ex.Message, nameof(ZonesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         // DELETE: api/Zones/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteZone(int id)
         {
-            var zone = await _context.Zone.FindAsync(id);
-            if (zone == null)
+            try
             {
-                return NotFound();
+                var zone = await _context.Zone.FindAsync(id);
+                if (zone == null)
+                {
+                    _loggerService.LogEvent($"Zone with ID {id} not found during delete", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    return NotFound();
+                }
+
+                _context.Zone.Remove(zone);
+                await _context.SaveChangesAsync();
+                _loggerService.LogEvent($"Deleted zone with ID {id}", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+
+                return NoContent();
             }
-
-            _context.Zone.Remove(zone);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Error deleting zone", ex.Message, nameof(ZonesController));
+                return StatusCode(500, "Internal server error");
+            }
         }
 
         private bool ZoneExists(int id)

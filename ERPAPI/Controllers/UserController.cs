@@ -92,6 +92,23 @@ namespace ERPAPI.Controllers
             }
         }
 
+        // GET: api/User
+        [HttpGet("operator")]
+        public async Task<ActionResult<IEnumerable<User>>> GetOperators()
+        {
+            try
+            {
+                // Retrieve all users from the database
+                var users = await Task.FromResult(_context.Users.Where(r=>r.RoleId==6).ToList());
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Failed to retrieve operators", ex.Message, "UserController");
+                return StatusCode(500, "Failed to retrieve operators");
+            }
+        }
+
         [HttpGet("LoggedUser")]
         [Authorize] // Ensures the request is authenticated
         public async Task<ActionResult<User>> GetUserByJwt()

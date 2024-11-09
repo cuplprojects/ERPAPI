@@ -13,8 +13,9 @@ namespace ERPAPI.Model
 
         [Required]
         public string CatchNo { get; set; }
-        public string? Paper { get; set; }
 
+        public string? Paper {  get; set; }
+        
         public string ExamDate { get; set; }
 
         public string ExamTime { get; set; }
@@ -23,17 +24,12 @@ namespace ERPAPI.Model
         public string Subject { get; set; }
         public string? InnerEnvelope { get; set; }
         public string? OuterEnvelope { get; set; }
-
         public string? LotNo { get; set; }
-
         public double Quantity { get; set; }
-
         public double PercentageCatch { get; set; }
-
         public int ProjectId { get; set; }
+       public List<int> ProcessId { get; set; } 
 
-
-        public List<int> ProcessId { get; set; }
     }
 
 
