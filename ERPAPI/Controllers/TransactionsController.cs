@@ -88,21 +88,21 @@ namespace ERPAPI.Controllers
 
 
         // GET: api/Transactions/5
-        //[HttpGet("{id}")]
-        //public async Task<ActionResult<Transaction>> GetTransaction(int id)
-        //{
-        //    var transaction = await _context.Transaction.FindAsync(id);
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Transaction>> GetTransaction(int id)
+        {
+           var transaction = await _context.Transaction.FindAsync(id);
 
-        //    if (transaction == null)
-        //    {
-        //        return NotFound();
-        //    }
+            if (transaction == null)
+          {
+                return NotFound();
+           }
 
-        //    return transaction;
-        //}
+            return transaction;
+    }
 
-        // PUT: api/Transactions/5
-        [HttpPut("{id}")]
+    // PUT: api/Transactions/5
+    [HttpPut("{id}")]
         public async Task<IActionResult> PutTransaction(int id, Transaction transaction)
         {
             if (id != transaction.TransactionId)
@@ -198,129 +198,6 @@ namespace ERPAPI.Controllers
         }
 
 
-        // GET: api/Transactions/percentages
-        //   [HttpGet("percentages")]
-        //   public async Task<ActionResult<Percentages>> GetPercentages(int ProjectId)
-        //   {
-        //       var processes = await _context.ProjectProcesses.Where(p => p.ProjectId == ProjectId).ToListAsync();
-        //       var quantitySheets = await _context.QuantitySheets.Where(p => p.ProjectId == ProjectId).ToListAsync();
-        //       var transactions = await _context.Transaction.Where(p => p.ProjectId == ProjectId).ToListAsync();
-
-        //       var result = CalculatePercentages(processes, quantitySheets, transactions);
-        //       return Ok(result);
-        //   }
-
-
-
-        //   private Percentages CalculatePercentages(
-        //List<ProjectProcess> processes,
-        //List<QuantitySheet> quantitySheets,
-        //List<Transaction> transactions)
-        //   {
-        //       if (processes == null || quantitySheets == null || transactions == null)
-        //       {
-        //           throw new ArgumentNullException("One or more input lists are null.");
-        //       }
-
-        //       var completedProcesses = transactions.Where(t => t.StatusId == 3).ToList();
-        //       var partiallyCompletedProcesses = transactions.Where(t => t.StatusId == 2).ToList();
-
-        //       var sheetPercentages = new List<SheetPercentage>();
-        //       var lotPercentages = new Dictionary<string, double>();
-        //       var lotCatchPercentages = new Dictionary<string, double>();
-
-        //       // Group quantity sheets by LotNo
-        //       var sheetsGroupedByLotNo = quantitySheets.GroupBy(sheet => sheet.LotNo);
-
-        //       foreach (var group in sheetsGroupedByLotNo)
-        //       {
-        //           double lotTotalWeightage = 0;
-        //           double lotTotalCatchPercent = 0;
-        //           double totalLotPercent = 0; // For this specific lot
-
-        //           foreach (var sheet in group)
-        //           {
-
-        //               double completedProcessWeightage = 0;
-        //               double partiallyCompletedWeightage = 0;
-
-        //               // Analyze processes
-        //               foreach (var process in processes)
-        //               {
-        //                   var completedCount = completedProcesses.Count(t => t.QuantitysheetId == sheet.QuantitySheetId && t.ProcessId == process.ProcessId);
-        //                   var partiallyCount = partiallyCompletedProcesses.Count(t => t.QuantitysheetId == sheet.QuantitySheetId && t.ProcessId == process.ProcessId);
-
-        //                   if (completedCount > 0)
-        //                   {
-        //                       completedProcessWeightage += process.Weightage;
-        //                   }
-        //                   if (partiallyCount > 0)
-        //                   {
-        //                       partiallyCompletedWeightage += process.Weightage;
-        //                   }
-        //               }
-
-        //               var partiallyCompletedQty = partiallyCompletedProcesses
-        //                   .Where(t => t.QuantitysheetId == sheet.QuantitySheetId)
-        //                   .Sum(t => t.Quantity);
-
-        //               var totalWeightage = completedProcessWeightage +
-        //                   (partiallyCompletedWeightage * partiallyCompletedQty / Math.Max(sheet.Quantity, 1));
-
-        //               // Calculate Lot Percent
-        //               double lotPercent = sheet.PercentageCatch * totalWeightage / 100;
-        //               totalLotPercent += lotPercent; // Accumulate lot percent for this lot
-        //               lotTotalWeightage += totalWeightage; // Accumulate total weightage for the lot
-
-        //               // Calculate Catch Percent
-        //               double catchPercent = processes
-        //                   .Where(p => completedProcesses.Any(t => t.QuantitysheetId == sheet.QuantitySheetId && t.ProcessId == p.ProcessId))
-        //                   .Sum(p => p.Weightage);
-
-
-        //               foreach (var transaction in partiallyCompletedProcesses
-        //                   .Where(t => t.QuantitysheetId == sheet.QuantitySheetId))
-        //               {
-        //                   var processWeightage = processes.FirstOrDefault(p => p.ProcessId == transaction.ProcessId)?.Weightage ?? 0;
-
-        //                   if (processWeightage > 0)
-        //                   {
-        //                       catchPercent += (processWeightage * transaction.Quantity) / Math.Max(sheet.Quantity, 1);
-        //                   }
-        //               }
-
-        //               var totalProcessWeightage = processes.Sum(p => p.Weightage);
-        //               double catchPercentNormalized = totalProcessWeightage > 0 ? (catchPercent / totalProcessWeightage) * 100 : 0;
-        //               lotTotalCatchPercent += catchPercentNormalized; // Accumulate catch percent for the lot
-
-        //               sheetPercentages.Add(new SheetPercentage
-        //               {
-        //                   QuantitySheetId = sheet.QuantitySheetId,
-        //                   LotPercent = lotPercent,
-        //                   CatchPercent = catchPercentNormalized
-        //               });
-        //           }
-
-        //           // Store the total lot percentage for this specific lot
-        //           if (group.Key != null)
-        //           {
-        //               lotPercentages[group.Key] = totalLotPercent; // Store cumulative lot percent
-        //               lotCatchPercentages[group.Key] = lotTotalCatchPercent; // Store cumulative catch percent for the lot
-        //           }
-        //       }
-
-        //       // Return the final Percentages object with detailed lot percentages
-        //       return new Percentages
-        //       {
-        //           LotPercent = lotPercentages, // Return individual lot percentages
-        //           ProjectPercent = lotPercentages.Sum(l => l.Value), // Calculate total project percent from individual lot percentages
-        //           SheetPercentages = sheetPercentages
-        //       };
-        //   }
-
-
-        // This is the main endpoint where percentages are calculated for the project
-
 
 
 
@@ -333,38 +210,6 @@ namespace ERPAPI.Controllers
             foreach (var project in projects)
             {
                 var projectId = project.ProjectId;
-
-        [HttpGet("alarms")]
-        public async Task<ActionResult<IEnumerable<object>>> GetAlarmsByProjectId(int projectId)
-        {
-            // Fetch alarms that belong to the specified projectId where AlarmId != 0 and not an empty string
-            var alarms = await _context.Transaction
-                .Where(a => a.ProjectId == projectId && a.AlarmId != "0" && !string.IsNullOrEmpty(a.AlarmId))
-                .ToListAsync();
-
-            if (alarms == null || !alarms.Any())
-            {
-                return NotFound(); // Return 404 if no alarms are found
-            }
-
-            var alarmData = alarms.Select(a => new
-            {
-                a.TransactionId,
-                a.AlarmId,
-                a.MachineId,
-                a.InterimQuantity,
-                a.TeamId,
-                a.ZoneId,
-                a.QuantitysheetId,
-                a.ProjectId,
-                a.LotNo,
-               
-            }).ToList();
-
-            return Ok(alarmData);
-        }
-
-
 
                 // Fetch relevant data for each project
                 var projectProcesses = await _context.ProjectProcesses
@@ -461,6 +306,38 @@ namespace ERPAPI.Controllers
             }
 
             return Ok(projectCompletionPercentages);
+        }
+
+
+        [HttpGet("alarms")]
+
+        public async Task<ActionResult<IEnumerable<object>>> GetAlarmsByProjectId(int projectId)
+        {
+            // Fetch alarms that belong to the specified projectId where AlarmId != 0 and not an empty string
+            var alarms = await _context.Transaction
+                .Where(a => a.ProjectId == projectId && a.AlarmId != "0" && !string.IsNullOrEmpty(a.AlarmId))
+                .ToListAsync();
+
+            if (alarms == null || !alarms.Any())
+            {
+                return NotFound(); // Return 404 if no alarms are found
+            }
+
+            var alarmData = alarms.Select(a => new
+            {
+                a.TransactionId,
+                a.AlarmId,
+                a.MachineId,
+                a.InterimQuantity,
+                a.TeamId,
+                a.ZoneId,
+                a.QuantitysheetId,
+                a.ProjectId,
+                a.LotNo,
+
+            }).ToList();
+
+            return Ok(alarmData);
         }
 
         [HttpGet("combined-percentages")]
