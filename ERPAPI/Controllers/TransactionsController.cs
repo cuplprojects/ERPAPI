@@ -300,11 +300,37 @@ namespace ERPAPI.Controllers
             // Check if the process name matches one of the valid names
             if (validProcessNames.Contains(process.Name))
             {
-                // If it's a valid process type, create the transaction as usual
-                _context.Transaction.Add(transaction);
+                // Check if a transaction already exists for this QuantitysheetId, LotNo, and ProcessId
+                var existingTransaction = await _context.Transaction
+                    .FirstOrDefaultAsync(t => t.QuantitysheetId == transaction.QuantitysheetId &&
+                                              t.LotNo == transaction.LotNo &&
+                                              t.ProcessId == transaction.ProcessId);
+
+                if (existingTransaction != null)
+                {
+                    // If an existing transaction is found, update it
+                    existingTransaction.InterimQuantity = transaction.InterimQuantity;
+                    existingTransaction.Remarks = transaction.Remarks;
+                    existingTransaction.VoiceRecording = transaction.VoiceRecording;
+                    existingTransaction.ZoneId = transaction.ZoneId;
+                    existingTransaction.MachineId = transaction.MachineId;
+                    existingTransaction.Status = transaction.Status;
+                    existingTransaction.AlarmId = transaction.AlarmId;
+                    existingTransaction.TeamId = transaction.TeamId;
+
+                    // Update the existing transaction
+                    _context.Transaction.Update(existingTransaction);
+                }
+                else
+                {
+                    // If no existing transaction, create a new one
+                    _context.Transaction.Add(transaction);
+                }
+
+                // Save changes for the valid process transactions (either created or updated)
                 await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Transaction created successfully." });
+                return Ok(new { message = "Transaction created/updated successfully." });
             }
             else
             {
