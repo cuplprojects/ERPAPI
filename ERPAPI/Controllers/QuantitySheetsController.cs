@@ -186,13 +186,116 @@ public class QuantitySheetController : ControllerBase
 
         return Ok(columnNames);
     }
-
     [HttpGet("Catch")]
     public async Task<ActionResult<IEnumerable<object>>> GetCatches(int ProjectId, string lotNo)
     {
+        try
+        {
+            // Helper function to convert ISO 8601 string (with UTC 'Z' suffix) to Indian date format
+            string ConvertToIndianDate(string examDate)
+            {
+                try
+                {
+                    if (string.IsNullOrEmpty(examDate))
+                        return string.Empty;  // Return empty string if the date is invalid or null
 
-        return await _context.QuantitySheets.Where(r => r.ProjectId == ProjectId && r.LotNo == lotNo).ToListAsync();
+                    Console.WriteLine($"Parsing date: {examDate}");  // Log the date being parsed
+
+                    // Try parsing the ISO 8601 string (with UTC 'Z') to DateTime
+                    DateTime parsedDate;
+                    if (DateTime.TryParse(examDate, null, System.Globalization.DateTimeStyles.RoundtripKind, out parsedDate))
+                    {
+                        Console.WriteLine($"Parsed date successfully: {parsedDate}");  // Log the parsed date
+
+                        // Successfully parsed the date, convert it to Indian Standard Time (IST)
+                        TimeZoneInfo indiaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+                        DateTime indianTime = TimeZoneInfo.ConvertTimeFromUtc(parsedDate, indiaTimeZone);
+
+                        // Return the formatted date in Indian format (dd-MM-yyyy)
+                        return indianTime.ToString("dd-MM-yyyy");  // Format to Indian date string (dd-MM-yyyy)
+                    }
+                    else
+                    {
+                        // If parsing fails, log the error and return a default invalid date message
+                        Console.WriteLine($"Date parsing failed for: {examDate}");
+                        return "Invalid Date";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log or handle specific conversion errors
+                    Console.WriteLine($"Error in ConvertToIndianDate: {ex.Message}");
+                    return "Invalid Date";  // Return fallback date in case of error
+                }
+            }
+
+            // Get current lot data
+            var currentLotData = await _context.QuantitySheets
+                .Where(r => r.ProjectId == ProjectId && r.LotNo == lotNo)
+                .ToListAsync();
+
+            if (!currentLotData.Any())
+            {
+                return Ok(new List<object>()); // Return empty if no data for current lot
+            }
+
+            // Get previous lots' data for overlap check
+            var previousLotData = await _context.QuantitySheets
+                .Where(r => r.ProjectId == ProjectId && r.LotNo != lotNo)
+                .ToListAsync();
+
+            var result = new List<object>();
+
+            foreach (var current in currentLotData)
+            {
+                bool isExamDateOverlapped = false;
+
+                // Ensure examDate is in a correct format
+                string currentExamDate = ConvertToIndianDate(current.ExamDate ?? string.Empty);
+
+                // Check overlap with previous lot exam dates
+                foreach (var previous in previousLotData)
+                {
+                    string previousExamDate = ConvertToIndianDate(previous.ExamDate ?? string.Empty);
+
+                    // Check if the dates overlap (same day or within 1 day)
+                    if (currentExamDate == previousExamDate)
+                    {
+                        isExamDateOverlapped = true;
+                        break;
+                    }
+                }
+
+                result.Add(new
+                {
+                    current.QuantitySheetId,
+                    current.CatchNo,
+                    current.Paper,
+                    ExamDate = currentExamDate,
+                    current.ExamTime,
+                    current.Course,
+                    current.Subject,
+                    current.InnerEnvelope,
+                    current.OuterEnvelope,
+                    current.LotNo,
+                    current.Quantity,
+                    current.PercentageCatch,
+                    current.ProjectId,
+                    current.ProcessId,
+                    IsExamDateOverlapped = isExamDateOverlapped
+                });
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            // Log any unexpected errors
+            Console.WriteLine($"Error in GetCatches: {ex.Message}");
+            return StatusCode(500, "An unexpected error occurred");
+        }
     }
+
 
 
 
