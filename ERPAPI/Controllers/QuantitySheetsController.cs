@@ -287,8 +287,8 @@ public class QuantitySheetController : ControllerBase
         try
         {
             // Validate request
-            if (request == null || string.IsNullOrEmpty(request.SourceLotNo) || 
-                string.IsNullOrEmpty(request.TargetLotNo) || 
+            if (request == null || string.IsNullOrEmpty(request.SourceLotNo) ||
+                string.IsNullOrEmpty(request.TargetLotNo) ||
                 request.CatchIds == null || !request.CatchIds.Any())
             {
                 return BadRequest("Invalid transfer request");
@@ -299,11 +299,25 @@ public class QuantitySheetController : ControllerBase
                 return BadRequest("Source and target lots cannot be the same");
             }
 
-            // Get catches to transfer
+            // First, retrieve the ProjectId and CatchNo for the first provided CatchId to infer the project and catch number.
+            var initialCatch = await _context.QuantitySheets
+                .Where(qs => qs.QuantitySheetId == request.CatchIds.First() && qs.LotNo == request.SourceLotNo)
+                .Select(qs => new { qs.ProjectId, qs.CatchNo })
+                .FirstOrDefaultAsync();
+
+            if (initialCatch == null)
+            {
+                return NotFound("No valid catch found for the provided CatchIds in the source lot");
+            }
+
+            var projectId = initialCatch.ProjectId;
+            var catchNo = initialCatch.CatchNo;
+
+            // Retrieve all records with the same ProjectId and CatchNo in the source lot
             var catchesToTransfer = await _context.QuantitySheets
-                .Where(qs => qs.ProjectId == request.ProjectId && 
-                            qs.LotNo == request.SourceLotNo && 
-                            request.CatchIds.Contains(qs.QuantitySheetId))
+                .Where(qs => qs.ProjectId == projectId &&
+                             qs.CatchNo == catchNo &&
+                             qs.LotNo == request.SourceLotNo)
                 .ToListAsync();
 
             if (!catchesToTransfer.Any())
@@ -311,54 +325,37 @@ public class QuantitySheetController : ControllerBase
                 return NotFound("No catches found to transfer");
             }
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transactionScope = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Create new entries for target lot
-                var newCatches = catchesToTransfer.Select(catch_ => new QuantitySheet
+                // Update LotNo for all records in the source lot with matching ProjectId and CatchNo
+                foreach (var catch_ in catchesToTransfer)
                 {
-                    ProjectId = catch_.ProjectId,
-                    LotNo = request.TargetLotNo,
-                    CatchNo = catch_.CatchNo,
-                    Paper = catch_.Paper,
-                    Course = catch_.Course,
-                    Subject = catch_.Subject,
-                    InnerEnvelope = catch_.InnerEnvelope,
-                    OuterEnvelope = catch_.OuterEnvelope,
-                    Quantity = catch_.Quantity,
-                    ExamDate = catch_.ExamDate,
-                    ExamTime = catch_.ExamTime,
-                    ProcessId = new List<int>(catch_.ProcessId), // Create a new list with the same process IDs
-                    PercentageCatch = 0 // Will be recalculated
-                }).ToList();
+                    catch_.LotNo = request.TargetLotNo;
+                }
 
-                // Add new catches to target lot
-                await _context.QuantitySheets.AddRangeAsync(newCatches);
-
-                // Remove original catches from source lot
-                _context.QuantitySheets.RemoveRange(catchesToTransfer);
-
-                // Save changes to persist the removal and addition
+                // Save changes to persist the LotNo updates
                 await _context.SaveChangesAsync();
 
                 // Recalculate percentages for both lots
-                await RecalculatePercentages(request.ProjectId, request.SourceLotNo);
-                await RecalculatePercentages(request.ProjectId, request.TargetLotNo);
+                await RecalculatePercentages(projectId, request.SourceLotNo);
+                await RecalculatePercentages(projectId, request.TargetLotNo);
 
                 // Save changes again after recalculating percentages
                 await _context.SaveChangesAsync();
 
-                await transaction.CommitAsync();
+                await transactionScope.CommitAsync();
 
-                return Ok(new { 
+                return Ok(new
+                {
                     Message = "Catches transferred successfully",
-                    TransferredCatches = newCatches
+                    TransferredCatches = catchesToTransfer
                 });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                throw new Exception($"Failed to transfer catches: {ex.Message}");
+                await transactionScope.RollbackAsync();
+                return StatusCode(500, $"Failed to transfer catches: {ex.Message}");
             }
         }
         catch (Exception ex)

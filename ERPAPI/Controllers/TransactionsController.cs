@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
 using Microsoft.CodeAnalysis;
+using System.Diagnostics;
 
 
 namespace ERPAPI.Controllers
@@ -136,6 +137,7 @@ namespace ERPAPI.Controllers
                     VoiceRecording = t.VoiceRecording,
                     Status = t.Status,
                     MachineId = t.MachineId,
+                    ProcessIds = t.ProcessId,
                     AlarmMessage = alarm != null ? alarm.Message : null // Handle null case for alarms
                 };
             }).ToList();

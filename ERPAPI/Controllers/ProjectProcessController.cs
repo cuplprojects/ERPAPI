@@ -72,6 +72,7 @@ namespace ERPAPI.Controllers
                                               userId = pp.UserId,
                                               sequence = pp.Sequence,
 
+
                                           })
                                           .ToListAsync();
 
@@ -161,7 +162,8 @@ namespace ERPAPI.Controllers
                           pp.Weightage,
                           pp.Sequence,
                           pp.FeaturesList,
-                          pp.UserId
+                          pp.UserId,
+                         ProcessType= p.ProcessType
                       })
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
