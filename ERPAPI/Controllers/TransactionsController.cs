@@ -231,6 +231,7 @@ namespace ERPAPI.Controllers
 
             return NoContent();
         }
+    
 
         [HttpPut("quantitysheet/{quantitysheetId}")]
         public async Task<IActionResult> PutTransactionId(int quantitysheetId, Transaction transaction)
@@ -261,6 +262,21 @@ namespace ERPAPI.Controllers
             return NoContent();
         }
 
+        /* [HttpPost]
+         public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
+         {
+             if (transaction == null)
+             {
+                 return BadRequest("Invalid data.");
+             }
+
+             // Add a new transaction object
+             _context.Transaction.Add(transaction);
+             await _context.SaveChangesAsync();
+
+             return Ok(new { message = "Transaction created successfully." });
+         }*/
+
         [HttpPost]
         public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
         {
@@ -269,12 +285,104 @@ namespace ERPAPI.Controllers
                 return BadRequest("Invalid data.");
             }
 
-            // Add a new transaction object
-            _context.Transaction.Add(transaction);
-            await _context.SaveChangesAsync();
+            // Fetch the Process from the Process table using ProcessId
+            var process = await _context.Processes
+                .FirstOrDefaultAsync(p => p.Id == transaction.ProcessId);
 
-            return Ok(new { message = "Transaction created successfully." });
+            if (process == null)
+            {
+                return BadRequest("Invalid ProcessId.");
+            }
+
+            // List of process names to be handled in a standard way
+            var validProcessNames = new List<string> { "Digital Printing", "CTP", "Offset Printing", "Cutting" };
+
+            // Check if the process name matches one of the valid names
+            if (validProcessNames.Contains(process.Name))
+            {
+                // If it's a valid process type, create the transaction as usual
+                _context.Transaction.Add(transaction);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Transaction created successfully." });
+            }
+            else
+            {
+                // If it's not a valid process, fetch the CatchNumber using QuantitySheetId
+                var quantitySheet = await _context.QuantitySheets
+                    .FirstOrDefaultAsync(qs => qs.QuantitySheetId == transaction.QuantitysheetId);
+
+                if (quantitySheet == null)
+                {
+                    return BadRequest("QuantitySheet not found.");
+                }
+
+                string catchNumber = quantitySheet.CatchNo;
+
+                // Retrieve all QuantitySheetIds for the same CatchNumber, LotNo, and filtered by ProjectId
+                var quantitySheets = await _context.QuantitySheets
+                    .Where(qs => qs.CatchNo == catchNumber && qs.LotNo == transaction.LotNo.ToString() && qs.ProjectId == transaction.ProjectId)
+                    .ToListAsync();
+
+                if (quantitySheets == null || !quantitySheets.Any())
+                {
+                    return BadRequest("No matching QuantitySheets found.");
+                }
+
+                foreach (var sheet in quantitySheets)
+                {
+                    // Check if a transaction already exists for this QuantitysheetId, LotNo, and ProcessId
+                    var existingTransaction = await _context.Transaction
+                        .FirstOrDefaultAsync(t => t.QuantitysheetId == sheet.QuantitySheetId &&
+                                                  t.LotNo == transaction.LotNo &&
+                                                  t.ProcessId == transaction.ProcessId);
+
+                    if (existingTransaction != null)
+                    {
+                        // If an existing transaction is found, update it
+                        existingTransaction.InterimQuantity = transaction.InterimQuantity;
+                        existingTransaction.Remarks = transaction.Remarks;
+                        existingTransaction.VoiceRecording = transaction.VoiceRecording;
+                        existingTransaction.ZoneId = transaction.ZoneId;
+                        existingTransaction.MachineId = transaction.MachineId;
+                        existingTransaction.Status = transaction.Status;
+                        existingTransaction.AlarmId = transaction.AlarmId;
+                        existingTransaction.TeamId = transaction.TeamId;
+
+                        // You can add more fields here to update as needed
+
+                        _context.Transaction.Update(existingTransaction); // Mark as modified
+                    }
+                    else
+                    {
+                        // If no existing transaction, create a new one
+                        var newTransaction = new Transaction
+                        {
+                            InterimQuantity = transaction.InterimQuantity,
+                            Remarks = transaction.Remarks,
+                            VoiceRecording = transaction.VoiceRecording,
+                            ProjectId = transaction.ProjectId,
+                            QuantitysheetId = sheet.QuantitySheetId,
+                            ProcessId = transaction.ProcessId,
+                            ZoneId = transaction.ZoneId,
+                            MachineId = transaction.MachineId,
+                            Status = transaction.Status,
+                            AlarmId = transaction.AlarmId,
+                            LotNo = transaction.LotNo,
+                            TeamId = transaction.TeamId
+                        };
+
+                        _context.Transaction.Add(newTransaction);
+                    }
+                }
+
+                // Save changes for all updates and new transactions
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Transactions created/updated successfully." });
+            }
         }
+
 
 
 
