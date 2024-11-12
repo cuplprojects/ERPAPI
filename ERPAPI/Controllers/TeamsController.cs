@@ -209,12 +209,7 @@ namespace ERPAPI.Controllers
                 bool exists = existingTeams.Any(t =>
                     t.UserIds.OrderBy(id => id).SequenceEqual(normalizedUserIds));
 
-                if (exists)
-                {
-                    // Log conflict information
-                    Console.WriteLine($"Conflict: Team with process ID '{team.ProcessId}' and user IDs '{string.Join(", ", normalizedUserIds)}' already exists.");
-                    return Conflict(new { Message = "A team with the same process ID and user IDs already exists." });
-                }
+              
 
                 // If no existing team found, add the new team
                 _context.Teams.Add(team);
@@ -256,6 +251,7 @@ namespace ERPAPI.Controllers
                 existingTeam.TeamName = team.TeamName;
                 existingTeam.TeamId = team.TeamId;
                 existingTeam.ProcessId = team.ProcessId;
+                
                 existingTeam.Status = team.Status;
                 existingTeam.UserIds = team.UserIds; // Update user IDs
 
