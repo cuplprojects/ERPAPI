@@ -186,13 +186,116 @@ public class QuantitySheetController : ControllerBase
 
         return Ok(columnNames);
     }
-
     [HttpGet("Catch")]
     public async Task<ActionResult<IEnumerable<object>>> GetCatches(int ProjectId, string lotNo)
     {
+        try
+        {
+            // Helper function to convert ISO 8601 string (with UTC 'Z' suffix) to Indian date format
+            string ConvertToIndianDate(string examDate)
+            {
+                try
+                {
+                    if (string.IsNullOrEmpty(examDate))
+                        return string.Empty;  // Return empty string if the date is invalid or null
 
-        return await _context.QuantitySheets.Where(r => r.ProjectId == ProjectId && r.LotNo == lotNo).ToListAsync();
+                    Console.WriteLine($"Parsing date: {examDate}");  // Log the date being parsed
+
+                    // Try parsing the ISO 8601 string (with UTC 'Z') to DateTime
+                    DateTime parsedDate;
+                    if (DateTime.TryParse(examDate, null, System.Globalization.DateTimeStyles.RoundtripKind, out parsedDate))
+                    {
+                        Console.WriteLine($"Parsed date successfully: {parsedDate}");  // Log the parsed date
+
+                        // Successfully parsed the date, convert it to Indian Standard Time (IST)
+                        TimeZoneInfo indiaTimeZone = TimeZoneInfo.FindSystemTimeZoneById("India Standard Time");
+                        DateTime indianTime = TimeZoneInfo.ConvertTimeFromUtc(parsedDate, indiaTimeZone);
+
+                        // Return the formatted date in Indian format (dd-MM-yyyy)
+                        return indianTime.ToString("dd-MM-yyyy");  // Format to Indian date string (dd-MM-yyyy)
+                    }
+                    else
+                    {
+                        // If parsing fails, log the error and return a default invalid date message
+                        Console.WriteLine($"Date parsing failed for: {examDate}");
+                        return "Invalid Date";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log or handle specific conversion errors
+                    Console.WriteLine($"Error in ConvertToIndianDate: {ex.Message}");
+                    return "Invalid Date";  // Return fallback date in case of error
+                }
+            }
+
+            // Get current lot data
+            var currentLotData = await _context.QuantitySheets
+                .Where(r => r.ProjectId == ProjectId && r.LotNo == lotNo)
+                .ToListAsync();
+
+            if (!currentLotData.Any())
+            {
+                return Ok(new List<object>()); // Return empty if no data for current lot
+            }
+
+            // Get previous lots' data for overlap check
+            var previousLotData = await _context.QuantitySheets
+                .Where(r => r.ProjectId == ProjectId && r.LotNo != lotNo)
+                .ToListAsync();
+
+            var result = new List<object>();
+
+            foreach (var current in currentLotData)
+            {
+                bool isExamDateOverlapped = false;
+
+                // Ensure examDate is in a correct format
+                string currentExamDate = ConvertToIndianDate(current.ExamDate ?? string.Empty);
+
+                // Check overlap with previous lot exam dates
+                foreach (var previous in previousLotData)
+                {
+                    string previousExamDate = ConvertToIndianDate(previous.ExamDate ?? string.Empty);
+
+                    // Check if the dates overlap (same day or within 1 day)
+                    if (currentExamDate == previousExamDate)
+                    {
+                        isExamDateOverlapped = true;
+                        break;
+                    }
+                }
+
+                result.Add(new
+                {
+                    current.QuantitySheetId,
+                    current.CatchNo,
+                    current.Paper,
+                    ExamDate = currentExamDate,
+                    current.ExamTime,
+                    current.Course,
+                    current.Subject,
+                    current.InnerEnvelope,
+                    current.OuterEnvelope,
+                    current.LotNo,
+                    current.Quantity,
+                    current.PercentageCatch,
+                    current.ProjectId,
+                    current.ProcessId,
+                    IsExamDateOverlapped = isExamDateOverlapped
+                });
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            // Log any unexpected errors
+            Console.WriteLine($"Error in GetCatches: {ex.Message}");
+            return StatusCode(500, "An unexpected error occurred");
+        }
     }
+
 
 
 
@@ -287,8 +390,8 @@ public class QuantitySheetController : ControllerBase
         try
         {
             // Validate request
-            if (request == null || string.IsNullOrEmpty(request.SourceLotNo) || 
-                string.IsNullOrEmpty(request.TargetLotNo) || 
+            if (request == null || string.IsNullOrEmpty(request.SourceLotNo) ||
+                string.IsNullOrEmpty(request.TargetLotNo) ||
                 request.CatchIds == null || !request.CatchIds.Any())
             {
                 return BadRequest("Invalid transfer request");
@@ -299,11 +402,25 @@ public class QuantitySheetController : ControllerBase
                 return BadRequest("Source and target lots cannot be the same");
             }
 
-            // Get catches to transfer
+            // First, retrieve the ProjectId and CatchNo for the first provided CatchId to infer the project and catch number.
+            var initialCatch = await _context.QuantitySheets
+                .Where(qs => qs.QuantitySheetId == request.CatchIds.First() && qs.LotNo == request.SourceLotNo)
+                .Select(qs => new { qs.ProjectId, qs.CatchNo })
+                .FirstOrDefaultAsync();
+
+            if (initialCatch == null)
+            {
+                return NotFound("No valid catch found for the provided CatchIds in the source lot");
+            }
+
+            var projectId = initialCatch.ProjectId;
+            var catchNo = initialCatch.CatchNo;
+
+            // Retrieve all records with the same ProjectId and CatchNo in the source lot
             var catchesToTransfer = await _context.QuantitySheets
-                .Where(qs => qs.ProjectId == request.ProjectId && 
-                            qs.LotNo == request.SourceLotNo && 
-                            request.CatchIds.Contains(qs.QuantitySheetId))
+                .Where(qs => qs.ProjectId == projectId &&
+                             qs.CatchNo == catchNo &&
+                             qs.LotNo == request.SourceLotNo)
                 .ToListAsync();
 
             if (!catchesToTransfer.Any())
@@ -311,54 +428,37 @@ public class QuantitySheetController : ControllerBase
                 return NotFound("No catches found to transfer");
             }
 
-            using var transaction = await _context.Database.BeginTransactionAsync();
+            using var transactionScope = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Create new entries for target lot
-                var newCatches = catchesToTransfer.Select(catch_ => new QuantitySheet
+                // Update LotNo for all records in the source lot with matching ProjectId and CatchNo
+                foreach (var catch_ in catchesToTransfer)
                 {
-                    ProjectId = catch_.ProjectId,
-                    LotNo = request.TargetLotNo,
-                    CatchNo = catch_.CatchNo,
-                    Paper = catch_.Paper,
-                    Course = catch_.Course,
-                    Subject = catch_.Subject,
-                    InnerEnvelope = catch_.InnerEnvelope,
-                    OuterEnvelope = catch_.OuterEnvelope,
-                    Quantity = catch_.Quantity,
-                    ExamDate = catch_.ExamDate,
-                    ExamTime = catch_.ExamTime,
-                    ProcessId = new List<int>(catch_.ProcessId), // Create a new list with the same process IDs
-                    PercentageCatch = 0 // Will be recalculated
-                }).ToList();
+                    catch_.LotNo = request.TargetLotNo;
+                }
 
-                // Add new catches to target lot
-                await _context.QuantitySheets.AddRangeAsync(newCatches);
-
-                // Remove original catches from source lot
-                _context.QuantitySheets.RemoveRange(catchesToTransfer);
-
-                // Save changes to persist the removal and addition
+                // Save changes to persist the LotNo updates
                 await _context.SaveChangesAsync();
 
                 // Recalculate percentages for both lots
-                await RecalculatePercentages(request.ProjectId, request.SourceLotNo);
-                await RecalculatePercentages(request.ProjectId, request.TargetLotNo);
+                await RecalculatePercentages(projectId, request.SourceLotNo);
+                await RecalculatePercentages(projectId, request.TargetLotNo);
 
                 // Save changes again after recalculating percentages
                 await _context.SaveChangesAsync();
 
-                await transaction.CommitAsync();
+                await transactionScope.CommitAsync();
 
-                return Ok(new { 
+                return Ok(new
+                {
                     Message = "Catches transferred successfully",
-                    TransferredCatches = newCatches
+                    TransferredCatches = catchesToTransfer
                 });
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
-                throw new Exception($"Failed to transfer catches: {ex.Message}");
+                await transactionScope.RollbackAsync();
+                return StatusCode(500, $"Failed to transfer catches: {ex.Message}");
             }
         }
         catch (Exception ex)

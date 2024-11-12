@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
 using Microsoft.CodeAnalysis;
+using System.Diagnostics;
 
 
 namespace ERPAPI.Controllers
@@ -25,20 +26,30 @@ namespace ERPAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetTransaction(int projectId, int processId)
         {
-            // Fetch the data first (without trying to parse AlarmId)
+            // Fetch the transactions based on projectId and processId
             var transactions = await (from t in _context.Transaction
                                       where t.ProjectId == projectId && t.ProcessId == processId
-                                      select t).ToListAsync(); // Fetch data to memory
+                                      select t).ToListAsync();
 
-            // Now, you can perform the parsing on the client-side after data is fetched
-            var transactionsWithAlarms = transactions
+            if (transactions == null || !transactions.Any())
+            {
+                return NotFound(); // Return a 404 if no transactions are found
+            }
+
+            // Now, we will get the users based on the teamId in each transaction
+            var transactionsWithUsers = transactions
                 .Select(t =>
                 {
                     var parsedAlarmId = TryParseAlarmId(t.AlarmId); // Apply parsing here
-                                                                    // Check if parsedAlarmId is an integer (in case the parsing was successful)
                     var alarm = parsedAlarmId is int parsedId
                         ? _context.Alarm.FirstOrDefault(a => a.AlarmId == parsedId)
                         : null;
+
+                    // Fetch the user names based on teamId (which is an array of userId)
+                    var userNames = _context.Users
+                        .Where(u => t.TeamId.Contains(u.UserId)) // Match userId with the ids in TeamId
+                        .Select(u => u.FirstName + "" + u.LastName)
+                        .ToList();
 
                     return new
                     {
@@ -47,6 +58,7 @@ namespace ERPAPI.Controllers
                         t.ZoneId,
                         t.QuantitysheetId,
                         t.TeamId,
+                        TeamUserNames = userNames, // Add the list of usernames here
                         t.Remarks,
                         t.LotNo,
                         t.InterimQuantity,
@@ -58,13 +70,9 @@ namespace ERPAPI.Controllers
                     };
                 }).ToList(); // Apply the transformation in memory
 
-            if (transactionsWithAlarms == null || !transactionsWithAlarms.Any())
-            {
-                return NotFound(); // Return a 404 if no transactions are found
-            }
-
-            return Ok(transactionsWithAlarms);
+            return Ok(transactionsWithUsers); // Return the modified transactions with user names
         }
+
 
 
         [HttpGet("GetProjectTransactionsData")]
@@ -84,7 +92,7 @@ namespace ERPAPI.Controllers
                                           t.AlarmId,
                                           t.ZoneId,
                                           t.QuantitysheetId,
-                                          t.TeamId,
+                                          t.TeamId,  // Assuming TeamId is a list of userIds
                                           t.Remarks,
                                           t.LotNo,
                                           t.InterimQuantity,
@@ -97,13 +105,22 @@ namespace ERPAPI.Controllers
             // Fetch alarm messages
             var alarms = await _context.Alarm.ToListAsync();
 
-            // Map transactions with their alarm messages
+            // Fetch users for all team members in advance to minimize the number of queries
+            var allUsers = await _context.Users.ToListAsync();
+
+            // Map transactions with their alarm messages and usernames
             var transactionsWithAlarms = transactions.Select(t =>
             {
                 var parsedAlarmId = TryParseAlarmId(t.AlarmId);
                 var alarm = parsedAlarmId is int parsedId
                     ? alarms.FirstOrDefault(a => a.AlarmId == parsedId)
                     : null;
+
+                // Get the usernames for each userId in the TeamId array
+                var userNames = allUsers
+                    .Where(u => t.TeamId.Contains(u.UserId)) // Match userId with the ids in TeamId
+                    .Select(u => u.FirstName + " " + u.LastName)  // Concatenate FirstName and LastName
+                    .ToList();
 
                 return new
                 {
@@ -114,11 +131,13 @@ namespace ERPAPI.Controllers
                     TeamId = t.TeamId,
                     Remarks = t.Remarks,
                     LotNo = t.LotNo,
+                    TeamUserNames = userNames,  // Include the usernames
                     InterimQuantity = t.InterimQuantity,
                     ProcessId = t.ProcessId,
                     VoiceRecording = t.VoiceRecording,
                     Status = t.Status,
                     MachineId = t.MachineId,
+                    ProcessIds = t.ProcessId,
                     AlarmMessage = alarm != null ? alarm.Message : null // Handle null case for alarms
                 };
             }).ToList();
@@ -141,10 +160,9 @@ namespace ERPAPI.Controllers
                 q.PercentageCatch,
                 ProcessIds = q.ProcessId,  // Assuming ProcessId is a list, map it directly
                 Transactions = transactionsWithAlarms
-         .Where(t => t.QuantitysheetId == q.QuantitySheetId)
-         .ToList()
+                    .Where(t => t.QuantitysheetId == q.QuantitySheetId) // Filter transactions by QuantitySheetId
+                    .ToList()
             });
-
 
             return Ok(responseData);
         }
@@ -215,6 +233,7 @@ namespace ERPAPI.Controllers
 
             return NoContent();
         }
+    
 
         [HttpPut("quantitysheet/{quantitysheetId}")]
         public async Task<IActionResult> PutTransactionId(int quantitysheetId, Transaction transaction)
@@ -245,6 +264,21 @@ namespace ERPAPI.Controllers
             return NoContent();
         }
 
+        /* [HttpPost]
+         public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
+         {
+             if (transaction == null)
+             {
+                 return BadRequest("Invalid data.");
+             }
+
+             // Add a new transaction object
+             _context.Transaction.Add(transaction);
+             await _context.SaveChangesAsync();
+
+             return Ok(new { message = "Transaction created successfully." });
+         }*/
+
         [HttpPost]
         public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
         {
@@ -253,12 +287,130 @@ namespace ERPAPI.Controllers
                 return BadRequest("Invalid data.");
             }
 
-            // Add a new transaction object
-            _context.Transaction.Add(transaction);
-            await _context.SaveChangesAsync();
+            // Fetch the Process from the Process table using ProcessId
+            var process = await _context.Processes
+                .FirstOrDefaultAsync(p => p.Id == transaction.ProcessId);
 
-            return Ok(new { message = "Transaction created successfully." });
+            if (process == null)
+            {
+                return BadRequest("Invalid ProcessId.");
+            }
+
+            // List of process names to be handled in a standard way
+            var validProcessNames = new List<string> { "Digital Printing", "CTP", "Offset Printing", "Cutting" };
+
+            // Check if the process name matches one of the valid names
+            if (validProcessNames.Contains(process.Name))
+            {
+                // Check if a transaction already exists for this QuantitysheetId, LotNo, and ProcessId
+                var existingTransaction = await _context.Transaction
+                    .FirstOrDefaultAsync(t => t.QuantitysheetId == transaction.QuantitysheetId &&
+                                              t.LotNo == transaction.LotNo &&
+                                              t.ProcessId == transaction.ProcessId);
+
+                if (existingTransaction != null)
+                {
+                    // If an existing transaction is found, update it
+                    existingTransaction.InterimQuantity = transaction.InterimQuantity;
+                    existingTransaction.Remarks = transaction.Remarks;
+                    existingTransaction.VoiceRecording = transaction.VoiceRecording;
+                    existingTransaction.ZoneId = transaction.ZoneId;
+                    existingTransaction.MachineId = transaction.MachineId;
+                    existingTransaction.Status = transaction.Status;
+                    existingTransaction.AlarmId = transaction.AlarmId;
+                    existingTransaction.TeamId = transaction.TeamId;
+
+                    // Update the existing transaction
+                    _context.Transaction.Update(existingTransaction);
+                }
+                else
+                {
+                    // If no existing transaction, create a new one
+                    _context.Transaction.Add(transaction);
+                }
+
+                // Save changes for the valid process transactions (either created or updated)
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Transaction created/updated successfully." });
+            }
+            else
+            {
+                // If it's not a valid process, fetch the CatchNumber using QuantitySheetId
+                var quantitySheet = await _context.QuantitySheets
+                    .FirstOrDefaultAsync(qs => qs.QuantitySheetId == transaction.QuantitysheetId);
+
+                if (quantitySheet == null)
+                {
+                    return BadRequest("QuantitySheet not found.");
+                }
+
+                string catchNumber = quantitySheet.CatchNo;
+
+                // Retrieve all QuantitySheetIds for the same CatchNumber, LotNo, and filtered by ProjectId
+                var quantitySheets = await _context.QuantitySheets
+                    .Where(qs => qs.CatchNo == catchNumber && qs.LotNo == transaction.LotNo.ToString() && qs.ProjectId == transaction.ProjectId)
+                    .ToListAsync();
+
+                if (quantitySheets == null || !quantitySheets.Any())
+                {
+                    return BadRequest("No matching QuantitySheets found.");
+                }
+
+                foreach (var sheet in quantitySheets)
+                {
+                    // Check if a transaction already exists for this QuantitysheetId, LotNo, and ProcessId
+                    var existingTransaction = await _context.Transaction
+                        .FirstOrDefaultAsync(t => t.QuantitysheetId == sheet.QuantitySheetId &&
+                                                  t.LotNo == transaction.LotNo &&
+                                                  t.ProcessId == transaction.ProcessId);
+
+                    if (existingTransaction != null)
+                    {
+                        // If an existing transaction is found, update it
+                        existingTransaction.InterimQuantity = transaction.InterimQuantity;
+                        existingTransaction.Remarks = transaction.Remarks;
+                        existingTransaction.VoiceRecording = transaction.VoiceRecording;
+                        existingTransaction.ZoneId = transaction.ZoneId;
+                        existingTransaction.MachineId = transaction.MachineId;
+                        existingTransaction.Status = transaction.Status;
+                        existingTransaction.AlarmId = transaction.AlarmId;
+                        existingTransaction.TeamId = transaction.TeamId;
+
+                        // You can add more fields here to update as needed
+
+                        _context.Transaction.Update(existingTransaction); // Mark as modified
+                    }
+                    else
+                    {
+                        // If no existing transaction, create a new one
+                        var newTransaction = new Transaction
+                        {
+                            InterimQuantity = transaction.InterimQuantity,
+                            Remarks = transaction.Remarks,
+                            VoiceRecording = transaction.VoiceRecording,
+                            ProjectId = transaction.ProjectId,
+                            QuantitysheetId = sheet.QuantitySheetId,
+                            ProcessId = transaction.ProcessId,
+                            ZoneId = transaction.ZoneId,
+                            MachineId = transaction.MachineId,
+                            Status = transaction.Status,
+                            AlarmId = transaction.AlarmId,
+                            LotNo = transaction.LotNo,
+                            TeamId = transaction.TeamId
+                        };
+
+                        _context.Transaction.Add(newTransaction);
+                    }
+                }
+
+                // Save changes for all updates and new transactions
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Transactions created/updated successfully." });
+            }
         }
+
 
 
 
@@ -283,128 +435,7 @@ namespace ERPAPI.Controllers
         }
 
 
-        // GET: api/Transactions/percentages
-        //   [HttpGet("percentages")]
-        //   public async Task<ActionResult<Percentages>> GetPercentages(int ProjectId)
-        //   {
-        //       var processes = await _context.ProjectProcesses.Where(p => p.ProjectId == ProjectId).ToListAsync();
-        //       var quantitySheets = await _context.QuantitySheets.Where(p => p.ProjectId == ProjectId).ToListAsync();
-        //       var transactions = await _context.Transaction.Where(p => p.ProjectId == ProjectId).ToListAsync();
-
-        //       var result = CalculatePercentages(processes, quantitySheets, transactions);
-        //       return Ok(result);
-        //   }
-
-
-
-        //   private Percentages CalculatePercentages(
-        //List<ProjectProcess> processes,
-        //List<QuantitySheet> quantitySheets,
-        //List<Transaction> transactions)
-        //   {
-        //       if (processes == null || quantitySheets == null || transactions == null)
-        //       {
-        //           throw new ArgumentNullException("One or more input lists are null.");
-        //       }
-
-        //       var completedProcesses = transactions.Where(t => t.StatusId == 3).ToList();
-        //       var partiallyCompletedProcesses = transactions.Where(t => t.StatusId == 2).ToList();
-
-        //       var sheetPercentages = new List<SheetPercentage>();
-        //       var lotPercentages = new Dictionary<string, double>();
-        //       var lotCatchPercentages = new Dictionary<string, double>();
-
-        //       // Group quantity sheets by LotNo
-        //       var sheetsGroupedByLotNo = quantitySheets.GroupBy(sheet => sheet.LotNo);
-
-        //       foreach (var group in sheetsGroupedByLotNo)
-        //       {
-        //           double lotTotalWeightage = 0;
-        //           double lotTotalCatchPercent = 0;
-        //           double totalLotPercent = 0; // For this specific lot
-
-        //           foreach (var sheet in group)
-        //           {
-
-        //               double completedProcessWeightage = 0;
-        //               double partiallyCompletedWeightage = 0;
-
-        //               // Analyze processes
-        //               foreach (var process in processes)
-        //               {
-        //                   var completedCount = completedProcesses.Count(t => t.QuantitysheetId == sheet.QuantitySheetId && t.ProcessId == process.ProcessId);
-        //                   var partiallyCount = partiallyCompletedProcesses.Count(t => t.QuantitysheetId == sheet.QuantitySheetId && t.ProcessId == process.ProcessId);
-
-        //                   if (completedCount > 0)
-        //                   {
-        //                       completedProcessWeightage += process.Weightage;
-        //                   }
-        //                   if (partiallyCount > 0)
-        //                   {
-        //                       partiallyCompletedWeightage += process.Weightage;
-        //                   }
-        //               }
-
-        //               var partiallyCompletedQty = partiallyCompletedProcesses
-        //                   .Where(t => t.QuantitysheetId == sheet.QuantitySheetId)
-        //                   .Sum(t => t.Quantity);
-
-        //               var totalWeightage = completedProcessWeightage +
-        //                   (partiallyCompletedWeightage * partiallyCompletedQty / Math.Max(sheet.Quantity, 1));
-
-        //               // Calculate Lot Percent
-        //               double lotPercent = sheet.PercentageCatch * totalWeightage / 100;
-        //               totalLotPercent += lotPercent; // Accumulate lot percent for this lot
-        //               lotTotalWeightage += totalWeightage; // Accumulate total weightage for the lot
-
-        //               // Calculate Catch Percent
-        //               double catchPercent = processes
-        //                   .Where(p => completedProcesses.Any(t => t.QuantitysheetId == sheet.QuantitySheetId && t.ProcessId == p.ProcessId))
-        //                   .Sum(p => p.Weightage);
-
-
-        //               foreach (var transaction in partiallyCompletedProcesses
-        //                   .Where(t => t.QuantitysheetId == sheet.QuantitySheetId))
-        //               {
-        //                   var processWeightage = processes.FirstOrDefault(p => p.ProcessId == transaction.ProcessId)?.Weightage ?? 0;
-
-        //                   if (processWeightage > 0)
-        //                   {
-        //                       catchPercent += (processWeightage * transaction.Quantity) / Math.Max(sheet.Quantity, 1);
-        //                   }
-        //               }
-
-        //               var totalProcessWeightage = processes.Sum(p => p.Weightage);
-        //               double catchPercentNormalized = totalProcessWeightage > 0 ? (catchPercent / totalProcessWeightage) * 100 : 0;
-        //               lotTotalCatchPercent += catchPercentNormalized; // Accumulate catch percent for the lot
-
-        //               sheetPercentages.Add(new SheetPercentage
-        //               {
-        //                   QuantitySheetId = sheet.QuantitySheetId,
-        //                   LotPercent = lotPercent,
-        //                   CatchPercent = catchPercentNormalized
-        //               });
-        //           }
-
-        //           // Store the total lot percentage for this specific lot
-        //           if (group.Key != null)
-        //           {
-        //               lotPercentages[group.Key] = totalLotPercent; // Store cumulative lot percent
-        //               lotCatchPercentages[group.Key] = lotTotalCatchPercent; // Store cumulative catch percent for the lot
-        //           }
-        //       }
-
-        //       // Return the final Percentages object with detailed lot percentages
-        //       return new Percentages
-        //       {
-        //           LotPercent = lotPercentages, // Return individual lot percentages
-        //           ProjectPercent = lotPercentages.Sum(l => l.Value), // Calculate total project percent from individual lot percentages
-        //           SheetPercentages = sheetPercentages
-        //       };
-        //   }
-
-
-        // This is the main endpoint where percentages are calculated for the project
+      
 
 
 
@@ -518,32 +549,42 @@ namespace ERPAPI.Controllers
         [HttpGet("alarms")]
         public async Task<ActionResult<IEnumerable<object>>> GetAlarmsByProjectId(int projectId)
         {
-            // Fetch alarms that belong to the specified projectId where AlarmId != 0 and not an empty string
-            var alarms = await _context.Transaction
-                .Where(a => a.ProjectId == projectId && a.AlarmId != "0" && !string.IsNullOrEmpty(a.AlarmId))
-                .ToListAsync();
+            // Fetch alarms that belong to the specified projectId where AlarmId != "0" and not an empty string
+            var alarms = await (from t in _context.Transaction
+                                join q in _context.QuantitySheets on t.QuantitysheetId equals q.QuantitySheetId into qtyJoin
+                                from q in qtyJoin.DefaultIfEmpty() // Left join to handle cases where there's no matching Quantity
+                                join p in _context.Processes on t.ProcessId equals p.Id into processjoin
+                                from p in processjoin.DefaultIfEmpty()
+                                join a in _context.Alarm on t.AlarmId equals a.AlarmId.ToString() into alarmJoin
+                                from a in alarmJoin.DefaultIfEmpty() // Left join to handle cases where there's no matching Alarm
+                                where t.ProjectId == projectId && t.AlarmId != "0" && !string.IsNullOrEmpty(t.AlarmId)
+                                select new
+                                {
+                                    t.TransactionId,
+                                    t.AlarmId,
+                                    t.MachineId,
+                                    t.InterimQuantity,
+                                    t.TeamId,
+                                    t.ZoneId,
+                                    t.ProcessId,
+                                    t.QuantitysheetId,
+                                    t.ProjectId,
+                                    t.LotNo,
+                                    Process = p!=null ? p.Name : null,
+                                    CatchNumber = q != null ? q.CatchNo : null, // Handle null if no matching Quantity
+                                    AlarmMessage = a != null ? a.Message : null // Handle null if no matching Alarm
+                                }).ToListAsync();
 
             if (alarms == null || !alarms.Any())
             {
                 return NotFound(); // Return 404 if no alarms are found
             }
 
-            var alarmData = alarms.Select(a => new
-            {
-                a.TransactionId,
-                a.AlarmId,
-                a.MachineId,
-                a.InterimQuantity,
-                a.TeamId,
-                a.ZoneId,
-                a.QuantitysheetId,
-                a.ProjectId,
-                a.LotNo,
-
-            }).ToList();
-
-            return Ok(alarmData);
+            return Ok(alarms);
         }
+
+
+
 
         [HttpGet("combined-percentages")]
         public async Task<ActionResult> GetCombinedPercentages(int projectId)

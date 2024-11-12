@@ -61,6 +61,8 @@ namespace ERPAPI.Controllers
                     team.TeamName,
                     team.CreatedDate,
                     team.Status,
+                    team.CreatedBy,
+                    team.ProcessId,
                     Users = team.UserIds.Select(id => new
                     {
                         Id = id,
@@ -109,6 +111,7 @@ namespace ERPAPI.Controllers
                     team.TeamId,
                     team.TeamName,
                     team.CreatedDate,
+                    team.ProcessId,
                     team.Status,
                     Users = users
                 };
@@ -161,6 +164,7 @@ namespace ERPAPI.Controllers
                     team.TeamName,
                     team.CreatedDate,
                     team.Status,
+                    team.ProcessId,
                     Users = team.UserIds.Select(id => new
                     {
                         UserId = id,
@@ -205,12 +209,7 @@ namespace ERPAPI.Controllers
                 bool exists = existingTeams.Any(t =>
                     t.UserIds.OrderBy(id => id).SequenceEqual(normalizedUserIds));
 
-                if (exists)
-                {
-                    // Log conflict information
-                    Console.WriteLine($"Conflict: Team with process ID '{team.ProcessId}' and user IDs '{string.Join(", ", normalizedUserIds)}' already exists.");
-                    return Conflict(new { Message = "A team with the same process ID and user IDs already exists." });
-                }
+              
 
                 // If no existing team found, add the new team
                 _context.Teams.Add(team);
@@ -249,6 +248,7 @@ namespace ERPAPI.Controllers
                     return NotFound(new { Message = "Team not found" });
                 }
 
+
                 // Capture old values before updating
                 var oldTeam = new
                 {
@@ -259,6 +259,11 @@ namespace ERPAPI.Controllers
 
                 // Update the existing team with new values
                 existingTeam.TeamName = team.TeamName;
+
+               
+                existingTeam.TeamId = team.TeamId;
+                existingTeam.ProcessId = team.ProcessId;
+
                 existingTeam.Status = team.Status;
                 existingTeam.UserIds = team.UserIds;
 
