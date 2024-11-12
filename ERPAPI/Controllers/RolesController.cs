@@ -32,7 +32,6 @@ namespace ERPAPI.Controllers
             try
             {
                 var roles = await _context.Roles.ToListAsync();
-                _loggerService.LogEvent("Fetched all roles", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return Ok(roles);
             }
             catch (Exception ex)
@@ -49,19 +48,16 @@ namespace ERPAPI.Controllers
             try
             {
                 var role = await _context.Roles.FindAsync(id);
-
                 if (role == null)
                 {
                     _loggerService.LogEvent($"Role with ID {id} not found", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                     return NotFound();
                 }
-
-                _loggerService.LogEvent($"Fetched role with ID {id}", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return role;
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching role", ex.Message, nameof(RolesController));
+                _loggerService.LogError("Error fetching role by ID", ex.Message, nameof(RolesController));
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -75,12 +71,24 @@ namespace ERPAPI.Controllers
                 return BadRequest();
             }
 
+            // Fetch existing entity to capture old values
+            var existingRole = await _context.Roles.AsNoTracking().FirstOrDefaultAsync(r => r.RoleId == id);
+            if (existingRole == null)
+            {
+                _loggerService.LogEvent($"Role with ID {id} not found during update", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return NotFound();
+            }
+
+            // Capture old and new values for logging
+            string oldValue = Newtonsoft.Json.JsonConvert.SerializeObject(existingRole);
+            string newValue = Newtonsoft.Json.JsonConvert.SerializeObject(role);
+
             _context.Entry(role).State = EntityState.Modified;
 
             try
             {
                 await _context.SaveChangesAsync();
-                _loggerService.LogEvent($"Updated role with ID {id}", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                _loggerService.LogEvent($"Updated role with ID {id}", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, oldValue, newValue);
             }
             catch (DbUpdateConcurrencyException ex)
             {

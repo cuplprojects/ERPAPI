@@ -28,10 +28,10 @@ namespace ERPAPI.Controllers
         // Helper method to retrieve the UserId from claims
         private int GetUserId()
         {
-            // Retrieve the UserId from the authenticated user's claims
-            if (int.TryParse(User?.FindFirst("UserId")?.Value, out int userId))
+            // Ensure the UserId is retrieved from the authenticated user's claims
+            if (int.TryParse(User.Identity?.Name, out int UserId))
             {
-                return userId;
+                return UserId;
             }
             return 0; // Return 0 or a default ID if not available
         }
@@ -41,7 +41,6 @@ namespace ERPAPI.Controllers
         public async Task<ActionResult<IEnumerable<SecurityQuestion>>> GetSecurityQuestions()
         {
             int userId = GetUserId();
-            _loggerService.LogEvent("Retrieve all security questions", "Information", userId);
 
             var securityQuestions = await _context.SecurityQuestions.ToListAsync();
             return Ok(securityQuestions);
@@ -52,12 +51,10 @@ namespace ERPAPI.Controllers
         public async Task<ActionResult<SecurityQuestion>> GetSecurityQuestion(int id)
         {
             int userId = GetUserId();
-            _loggerService.LogEvent($"Retrieve security question with ID {id}", "Information", userId);
 
             var securityQuestion = await _context.SecurityQuestions.FindAsync(id);
             if (securityQuestion == null)
             {
-                _loggerService.LogEvent($"Security question with ID {id} not found", "Error", userId);
                 return NotFound();
             }
 
@@ -73,8 +70,17 @@ namespace ERPAPI.Controllers
                 return BadRequest();
             }
 
-            int userId = GetUserId();
-            _loggerService.LogEvent($"Update security question with ID {id}", "Update", userId);
+            // Fetch the existing question to capture old values
+            var existingQuestion = await _context.SecurityQuestions.AsNoTracking().FirstOrDefaultAsync(q => q.QuestionId == id);
+            if (existingQuestion == null)
+            {
+                return NotFound();
+            }
+
+            
+
+            int UserId = GetUserId();
+            _loggerService.LogEvent($"Update security question with ID {id}", "Update", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
 
             _context.Entry(securityQuestion).State = EntityState.Modified;
 
@@ -101,8 +107,8 @@ namespace ERPAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<SecurityQuestion>> PostSecurityQuestion(SecurityQuestion securityQuestion)
         {
-            int userId = GetUserId();
-            _loggerService.LogEvent("Create new security question", "Create", userId);
+           
+            _loggerService.LogEvent("Create new security question", "Create", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
 
             _context.SecurityQuestions.Add(securityQuestion);
             await _context.SaveChangesAsync();
@@ -114,13 +120,13 @@ namespace ERPAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteSecurityQuestion(int id)
         {
-            int userId = GetUserId();
-            _loggerService.LogEvent($"Delete security question with ID {id}", "Delete", userId);
+            int UserId = GetUserId();
+            _loggerService.LogEvent($"Delete security question with ID {id}", "Delete", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
 
             var securityQuestion = await _context.SecurityQuestions.FindAsync(id);
             if (securityQuestion == null)
             {
-                _loggerService.LogEvent($"Security question with ID {id} not found", "Error", userId);
+                _loggerService.LogEvent($"Security question with ID {id} not found", "Error", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return NotFound();
             }
 

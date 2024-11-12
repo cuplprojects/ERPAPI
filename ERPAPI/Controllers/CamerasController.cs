@@ -1,5 +1,4 @@
-
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -7,9 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
-using ERPAPI.Services;
 using ERPAPI.Service;
-
 
 namespace ERPAPI.Controllers
 {
@@ -17,7 +14,6 @@ namespace ERPAPI.Controllers
     [ApiController]
     public class CamerasController : ControllerBase
     {
-
         private readonly AppDbContext _context;
         private readonly ILoggerService _loggerService;
 
@@ -34,7 +30,6 @@ namespace ERPAPI.Controllers
             try
             {
                 var cameras = await _context.Camera.ToListAsync();
-                _loggerService.LogEvent("Fetched all cameras", "Cameras", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return cameras;
             }
             catch (Exception ex)
@@ -58,12 +53,11 @@ namespace ERPAPI.Controllers
                     return NotFound();
                 }
 
-                _loggerService.LogEvent($"Fetched camera with ID {id}", "Cameras", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return camera;
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching camera", ex.Message, nameof(CamerasController));
+                _loggerService.LogError("Error fetching camera by ID", ex.Message, nameof(CamerasController));
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -77,12 +71,24 @@ namespace ERPAPI.Controllers
                 return BadRequest();
             }
 
+            // Fetch existing entity to capture old values
+            var existingCamera = await _context.Camera.AsNoTracking().FirstOrDefaultAsync(c => c.CameraId == id);
+            if (existingCamera == null)
+            {
+                _loggerService.LogEvent($"Camera with ID {id} not found during update", "Cameras", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return NotFound();
+            }
+
+            // Capture old and new values for logging
+            string oldValue = Newtonsoft.Json.JsonConvert.SerializeObject(existingCamera);
+            string newValue = Newtonsoft.Json.JsonConvert.SerializeObject(camera);
+
             _context.Entry(camera).State = EntityState.Modified;
 
             try
             {
                 await _context.SaveChangesAsync();
-                _loggerService.LogEvent($"Updated camera with ID {id}", "Cameras", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                _loggerService.LogEvent($"Updated camera with ID {id}", "Cameras", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, oldValue, newValue);
             }
             catch (DbUpdateConcurrencyException ex)
             {

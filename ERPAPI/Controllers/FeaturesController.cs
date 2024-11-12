@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
-using ERPAPI.Services;
 using ERPAPI.Service;
 
 namespace ERPAPI.Controllers
@@ -31,7 +30,6 @@ namespace ERPAPI.Controllers
             try
             {
                 var features = await _context.Features.ToListAsync();
-                _loggerService.LogEvent("Fetched all features", "Features", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return features;
             }
             catch (Exception ex)
@@ -55,12 +53,11 @@ namespace ERPAPI.Controllers
                     return NotFound();
                 }
 
-                _loggerService.LogEvent($"Fetched feature with ID {id}", "Features", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return feature;
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching feature", ex.Message, nameof(FeaturesController));
+                _loggerService.LogError("Error fetching feature by ID", ex.Message, nameof(FeaturesController));
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -74,12 +71,24 @@ namespace ERPAPI.Controllers
                 return BadRequest();
             }
 
+            // Fetch existing entity to capture old values
+            var existingFeature = await _context.Features.AsNoTracking().FirstOrDefaultAsync(f => f.FeatureId == id);
+            if (existingFeature == null)
+            {
+                _loggerService.LogEvent($"Feature with ID {id} not found during update", "Features", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return NotFound();
+            }
+
+            // Capture old and new values for logging
+            string oldValue = Newtonsoft.Json.JsonConvert.SerializeObject(existingFeature);
+            string newValue = Newtonsoft.Json.JsonConvert.SerializeObject(feature);
+
             _context.Entry(feature).State = EntityState.Modified;
 
             try
             {
                 await _context.SaveChangesAsync();
-                _loggerService.LogEvent($"Updated feature with ID {id}", "Features", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                _loggerService.LogEvent($"Updated feature with ID {id}", "Features", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, oldValue, newValue);
             }
             catch (DbUpdateConcurrencyException ex)
             {

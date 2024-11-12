@@ -51,7 +51,6 @@ namespace ERPAPI.Controllers
                     process.RangeEnd
                 }).ToList();
 
-                _loggerService.LogEvent("Fetched all processes with their details", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return Ok(processesWithNames);
             }
             catch (Exception ex)
@@ -74,11 +73,10 @@ namespace ERPAPI.Controllers
 
                 if (filteredCatches == null || !filteredCatches.Any())
                 {
-                    _loggerService.LogEvent($"No catches found for process: {processid}", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    _loggerService.LogEvent($"No catches found for process ID: {processid}", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                     return NotFound($"No catches found for the process: {processid}");
                 }
 
-                _loggerService.LogEvent($"Fetched catches for process: {processid}", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return Ok(filteredCatches);
             }
             catch (Exception ex)
@@ -95,19 +93,16 @@ namespace ERPAPI.Controllers
             try
             {
                 var process = await _context.Processes.FindAsync(id);
-
                 if (process == null)
                 {
                     _loggerService.LogEvent($"Process with ID {id} not found", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                     return NotFound();
                 }
-
-                _loggerService.LogEvent($"Fetched process with ID {id}", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return process;
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching process", ex.Message, nameof(ProcessesController));
+                _loggerService.LogError("Error fetching process by ID", ex.Message, nameof(ProcessesController));
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -121,12 +116,24 @@ namespace ERPAPI.Controllers
                 return BadRequest();
             }
 
+            // Fetch existing entity to capture old values
+            var existingProcess = await _context.Processes.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id);
+            if (existingProcess == null)
+            {
+                _loggerService.LogEvent($"Process with ID {id} not found during update", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return NotFound();
+            }
+
+            // Capture old and new values for logging
+            string oldValue = Newtonsoft.Json.JsonConvert.SerializeObject(existingProcess);
+            string newValue = Newtonsoft.Json.JsonConvert.SerializeObject(process);
+
             _context.Entry(process).State = EntityState.Modified;
 
             try
             {
                 await _context.SaveChangesAsync();
-                _loggerService.LogEvent($"Updated process with ID {id}", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                _loggerService.LogEvent($"Updated process with ID {id}", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, oldValue, newValue);
             }
             catch (DbUpdateConcurrencyException ex)
             {

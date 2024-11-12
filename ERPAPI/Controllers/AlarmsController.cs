@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
-using ERPAPI.Services;
 using ERPAPI.Service;
 
 namespace ERPAPI.Controllers
@@ -31,7 +30,6 @@ namespace ERPAPI.Controllers
             try
             {
                 var alarms = await _context.Alarm.ToListAsync();
-                _loggerService.LogEvent("Fetched all alarms", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return alarms;
             }
             catch (Exception ex)
@@ -55,12 +53,11 @@ namespace ERPAPI.Controllers
                     return NotFound();
                 }
 
-                _loggerService.LogEvent($"Fetched alarm with ID {id}", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return alarm;
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching alarm", ex.Message, nameof(AlarmsController));
+                _loggerService.LogError("Error fetching alarm by ID", ex.Message, nameof(AlarmsController));
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -74,12 +71,24 @@ namespace ERPAPI.Controllers
                 return BadRequest();
             }
 
+            // Fetch the existing entity before updating to capture old values
+            var existingAlarm = await _context.Alarm.AsNoTracking().FirstOrDefaultAsync(a => a.AlarmId == id);
+            if (existingAlarm == null)
+            {
+                _loggerService.LogEvent($"Alarm with ID {id} not found during update", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return NotFound();
+            }
+
+            // Capture the old and new values for logging
+            string oldValue = Newtonsoft.Json.JsonConvert.SerializeObject(existingAlarm);
+            string newValue = Newtonsoft.Json.JsonConvert.SerializeObject(alarm);
+
             _context.Entry(alarm).State = EntityState.Modified;
 
             try
             {
                 await _context.SaveChangesAsync();
-                _loggerService.LogEvent($"Updated alarm with ID {id}", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                _loggerService.LogEvent($"Updated alarm with ID {id}", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, oldValue, newValue);
             }
             catch (DbUpdateConcurrencyException ex)
             {
