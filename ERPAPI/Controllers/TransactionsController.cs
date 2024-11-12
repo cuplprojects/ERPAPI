@@ -264,21 +264,6 @@ namespace ERPAPI.Controllers
             return NoContent();
         }
 
-        /* [HttpPost]
-         public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
-         {
-             if (transaction == null)
-             {
-                 return BadRequest("Invalid data.");
-             }
-
-             // Add a new transaction object
-             _context.Transaction.Add(transaction);
-             await _context.SaveChangesAsync();
-
-             return Ok(new { message = "Transaction created successfully." });
-         }*/
-
         [HttpPost]
         public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
         {
@@ -433,11 +418,6 @@ namespace ERPAPI.Controllers
         {
             return _context.Transaction.Any(e => e.TransactionId == id);
         }
-
-
-      
-
-
 
 
         [HttpGet("all-project-completion-percentages")]
