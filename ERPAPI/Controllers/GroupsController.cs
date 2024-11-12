@@ -32,7 +32,6 @@ namespace ERPAPI.Controllers
             try
             {
                 var groups = await _context.Groups.ToListAsync();
-                _loggerService.LogEvent("Fetched all groups", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return groups;
             }
             catch (Exception ex)
@@ -56,12 +55,11 @@ namespace ERPAPI.Controllers
                     return NotFound();
                 }
 
-                _loggerService.LogEvent($"Fetched group with ID {id}", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return group;
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching group", ex.Message, nameof(GroupsController));
+                _loggerService.LogError("Error fetching group by ID", ex.Message, nameof(GroupsController));
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -75,12 +73,24 @@ namespace ERPAPI.Controllers
                 return BadRequest();
             }
 
+            // Fetch existing entity to capture old values
+            var existingGroup = await _context.Groups.AsNoTracking().FirstOrDefaultAsync(g => g.Id == id);
+            if (existingGroup == null)
+            {
+                _loggerService.LogEvent($"Group with ID {id} not found during update", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return NotFound();
+            }
+
+            // Capture old and new values for logging
+            string oldValue = Newtonsoft.Json.JsonConvert.SerializeObject(existingGroup);
+            string newValue = Newtonsoft.Json.JsonConvert.SerializeObject(@group);
+
             _context.Entry(@group).State = EntityState.Modified;
 
             try
             {
                 await _context.SaveChangesAsync();
-                _loggerService.LogEvent($"Updated group with ID {id}", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                _loggerService.LogEvent($"Updated group with ID {id}", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, oldValue, newValue);
             }
             catch (DbUpdateConcurrencyException ex)
             {

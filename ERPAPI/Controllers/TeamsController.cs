@@ -232,8 +232,8 @@ namespace ERPAPI.Controllers
 
         // PUT: api/Teams/5
         [HttpPut("{id}")]
+        
         public async Task<IActionResult> UpdateTeam(int id, Team team)
-
         {
             if (id != team.TeamId)
             {
@@ -248,27 +248,59 @@ namespace ERPAPI.Controllers
                     return NotFound(new { Message = "Team not found" });
                 }
 
+
+                // Capture old values before updating
+                var oldTeam = new
+                {
+                    existingTeam.TeamName,
+                    existingTeam.Status,
+                    UserIds = string.Join(", ", existingTeam.UserIds)
+                };
+
+                // Update the existing team with new values
                 existingTeam.TeamName = team.TeamName;
+
+               
                 existingTeam.TeamId = team.TeamId;
                 existingTeam.ProcessId = team.ProcessId;
-                
+
                 existingTeam.Status = team.Status;
-                existingTeam.UserIds = team.UserIds; // Update user IDs
+                existingTeam.UserIds = team.UserIds;
 
                 await _context.SaveChangesAsync();
-                _loggerService.LogEvent("Team updated", "Teams", id);
+
+                // Log the update with old and new values
+                var newTeam = new
+                {
+                    team.TeamName,
+                    team.Status,
+                    UserIds = string.Join(", ", team.UserIds)
+                };
+                _loggerService.LogEvent(
+                    "Team updated",
+                    "Teams",
+                    id,
+                    oldValue: System.Text.Json.JsonSerializer.Serialize(oldTeam),
+                    newValue: System.Text.Json.JsonSerializer.Serialize(newTeam)
+                );
 
                 return Ok(new { Message = "Team updated successfully" });
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Failed to update team", ex.Message, "TeamsController");
+                _loggerService.LogError(
+                    "Failed to update team",
+                    ex.Message,
+                    "TeamsController"
+                  
+                );
                 return StatusCode(500, "Failed to update team");
             }
         }
 
         // DELETE: api/Teams/5
         [HttpDelete("{id}")]
+     
         public async Task<IActionResult> DeleteTeam(int id)
         {
             try
@@ -279,16 +311,35 @@ namespace ERPAPI.Controllers
                     return NotFound(new { Message = "Team not found" });
                 }
 
+                // Capture details of the team to log before deleting
+                var oldTeam = new
+                {
+                    team.TeamId,
+                    team.TeamName,
+                    team.Status,
+                    UserIds = string.Join(", ", team.UserIds)
+                };
+
                 _context.Teams.Remove(team);
                 await _context.SaveChangesAsync();
 
-                _loggerService.LogEvent("Team deleted", "Teams", id);
+                // Log the deletion with the old value
+                _loggerService.LogEvent(
+                    "Team deleted",
+                    "Teams",
+                    id,
+                    oldValue: System.Text.Json.JsonSerializer.Serialize(oldTeam)
+                );
 
                 return Ok(new { Message = "Team deleted successfully" });
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Failed to delete team", ex.Message, "TeamsController");
+                _loggerService.LogError(
+                    "Failed to delete team",
+                    ex.Message,
+                    "TeamsController"
+                );
                 return StatusCode(500, "Failed to delete team");
             }
         }

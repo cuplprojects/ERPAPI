@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
-using ERPAPI.Services;
 using ERPAPI.Service;
 
 namespace ERPAPI.Controllers
@@ -52,8 +51,6 @@ namespace ERPAPI.Controllers
                         .ToList()
                 }).ToList();
 
-                _loggerService.LogEvent("Fetched all zones with related machines and cameras", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
-
                 return Ok(zonesWithNames);
             }
             catch (Exception ex)
@@ -77,12 +74,11 @@ namespace ERPAPI.Controllers
                     return NotFound();
                 }
 
-                _loggerService.LogEvent($"Fetched zone with ID {id}", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return zone;
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching zone", ex.Message, nameof(ZonesController));
+                _loggerService.LogError("Error fetching zone by ID", ex.Message, nameof(ZonesController));
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -96,12 +92,23 @@ namespace ERPAPI.Controllers
                 return BadRequest();
             }
 
+            var existingZone = await _context.Zone.AsNoTracking().FirstOrDefaultAsync(z => z.ZoneId == id);
+            if (existingZone == null)
+            {
+                _loggerService.LogEvent($"Zone with ID {id} not found during update", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return NotFound();
+            }
+
+            // Capture the old and new values for logging
+            string oldValue = Newtonsoft.Json.JsonConvert.SerializeObject(existingZone);
+            string newValue = Newtonsoft.Json.JsonConvert.SerializeObject(zone);
+
             _context.Entry(zone).State = EntityState.Modified;
 
             try
             {
                 await _context.SaveChangesAsync();
-                _loggerService.LogEvent($"Updated zone with ID {id}", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                _loggerService.LogEvent($"Updated zone with ID {id}", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, oldValue, newValue);
             }
             catch (DbUpdateConcurrencyException ex)
             {

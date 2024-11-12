@@ -27,7 +27,7 @@ namespace ERPAPI.Controllers
 
         // GET: api/Machines
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Machine>>> GetMachines()
+        public async Task<ActionResult<IEnumerable<object>>> GetMachines()
         {
             try
             {
@@ -41,8 +41,6 @@ namespace ERPAPI.Controllers
                                                        m.ProcessId,
                                                        ProcessName = p.Name
                                                    }).ToListAsync();
-
-                _loggerService.LogEvent("Fetched all machines with processes", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return Ok(machinesWithProcesses);
             }
             catch (Exception ex)
@@ -59,19 +57,16 @@ namespace ERPAPI.Controllers
             try
             {
                 var machine = await _context.Machine.FindAsync(id);
-
                 if (machine == null)
                 {
                     _loggerService.LogEvent($"Machine with ID {id} not found", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                     return NotFound();
                 }
-
-                _loggerService.LogEvent($"Fetched machine with ID {id}", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return machine;
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching machine", ex.Message, nameof(MachinesController));
+                _loggerService.LogError("Error fetching machine by ID", ex.Message, nameof(MachinesController));
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -85,12 +80,24 @@ namespace ERPAPI.Controllers
                 return BadRequest();
             }
 
+            // Fetch existing entity to capture old values
+            var existingMachine = await _context.Machine.AsNoTracking().FirstOrDefaultAsync(m => m.MachineId == id);
+            if (existingMachine == null)
+            {
+                _loggerService.LogEvent($"Machine with ID {id} not found during update", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                return NotFound();
+            }
+
+            // Capture old and new values for logging
+            string oldValue = Newtonsoft.Json.JsonConvert.SerializeObject(existingMachine);
+            string newValue = Newtonsoft.Json.JsonConvert.SerializeObject(machine);
+
             _context.Entry(machine).State = EntityState.Modified;
 
             try
             {
                 await _context.SaveChangesAsync();
-                _loggerService.LogEvent($"Updated machine with ID {id}", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                _loggerService.LogEvent($"Updated machine with ID {id}", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, oldValue, newValue);
             }
             catch (DbUpdateConcurrencyException ex)
             {
@@ -122,7 +129,6 @@ namespace ERPAPI.Controllers
             {
                 _context.Machine.Add(machine);
                 await _context.SaveChangesAsync();
-
                 _loggerService.LogEvent("Created a new machine", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
 
                 return CreatedAtAction("GetMachine", new { id = machine.MachineId }, machine);
@@ -149,7 +155,6 @@ namespace ERPAPI.Controllers
 
                 _context.Machine.Remove(machine);
                 await _context.SaveChangesAsync();
-
                 _loggerService.LogEvent($"Deleted machine with ID {id}", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
 
                 return NoContent();
