@@ -28,6 +28,7 @@ namespace ERPAPI.Model
         public double Quantity { get; set; }
         public double PercentageCatch { get; set; }
         public int ProjectId { get; set; }
+        public string? Status { get; set; }
        public List<int> ProcessId { get; set; } 
 
     }

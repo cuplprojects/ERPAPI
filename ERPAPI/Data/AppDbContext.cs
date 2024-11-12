@@ -37,6 +37,7 @@ namespace ERPAPI.Data
 
         public DbSet<Team> Teams { get; set; }
         public DbSet<CatchTeam> CatchTeams { get; set; }
+        public DbSet<Dispatch> Dispatch { get; set; }
 
 
 
