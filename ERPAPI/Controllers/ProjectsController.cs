@@ -247,34 +247,86 @@ namespace ERPAPI.Controllers
             return Ok(activeProjects);
         }
 
+
+
         [HttpGet("GetDistinctProjectsForUser/{userId}")]
         public async Task<ActionResult<IEnumerable<Project>>> GetDistinctProjectsForUser(int userId)
         {
-            // Fetch all project processes that contain the userId in the UserId list
-            var projectProcesses = await _context.ProjectProcesses
-                .AsNoTracking() // Optional: For read-only operations
-                .ToListAsync();
-
-            // Filter for processes where the UserId list contains the userId
-            var userAssignedProcesses = projectProcesses
-                .Where(pp => pp.UserId.Contains(userId)) // Client-side filtering
-                .Select(pp => pp.ProjectId) // Select the project IDs
-                .Distinct() // Ensure distinct project IDs
-                .ToList();
-
-            // If no project IDs are found, return 404
-            if (!userAssignedProcesses.Any())
+            // Fetch the user to check their RoleId
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
             {
-                return NotFound("No projects found for this user.");
+                return NotFound("User not found.");
             }
 
-            // Now fetch the project details for the distinct project IDs
-            var projects = await _context.Projects
-                .Where(p => userAssignedProcesses.Contains(p.ProjectId)) // Filter projects by distinct IDs
-                .ToListAsync();
+            // Check the RoleId and act accordingly
+            if (user.RoleId == 1 || user.RoleId == 2 || user.RoleId == 3 || user.RoleId == 4)
+            {
+                // Get all active projects if the RoleId is 1, 2, 3, or 4
+                var activeProjects = await _context.Projects
+                    .Where(p => p.Status == true) // Assuming "Status" indicates active projects
+                    .ToListAsync();
 
-            return Ok(projects);
+                return Ok(activeProjects);
+            }
+            else
+            {
+                // Fetch all project processes that contain the userId in the UserId list
+                var projectProcesses = await _context.ProjectProcesses
+                    .AsNoTracking()
+                    .ToListAsync();
+
+                // Filter for processes where the UserId list contains the userId
+                var userAssignedProcesses = projectProcesses
+                    .Where(pp => pp.UserId.Contains(userId)) // Client-side filtering
+                    .Select(pp => pp.ProjectId) // Select the project IDs
+                    .Distinct() // Ensure distinct project IDs
+                    .ToList();
+
+                // If no project IDs are found, return 404
+                if (!userAssignedProcesses.Any())
+                {
+                    return NotFound("No projects found for this user.");
+                }
+
+                // Fetch the project details for the distinct project IDs
+                var projects = await _context.Projects
+                    .Where(p => userAssignedProcesses.Contains(p.ProjectId))
+                    .ToListAsync();
+
+                return Ok(projects);
+            }
         }
+
+
+        //[HttpGet("GetDistinctProjectsForUser/{userId}")]
+        //public async Task<ActionResult<IEnumerable<Project>>> GetDistinctProjectsForUser(int userId)
+        //{
+        //    // Fetch all project processes that contain the userId in the UserId list
+        //    var projectProcesses = await _context.ProjectProcesses
+        //        .AsNoTracking() // Optional: For read-only operations
+        //        .ToListAsync();
+
+        //    // Filter for processes where the UserId list contains the userId
+        //    var userAssignedProcesses = projectProcesses
+        //        .Where(pp => pp.UserId.Contains(userId)) // Client-side filtering
+        //        .Select(pp => pp.ProjectId) // Select the project IDs
+        //        .Distinct() // Ensure distinct project IDs
+        //        .ToList();
+
+        //    // If no project IDs are found, return 404
+        //    if (!userAssignedProcesses.Any())
+        //    {
+        //        return NotFound("No projects found for this user.");
+        //    }
+
+        //    // Now fetch the project details for the distinct project IDs
+        //    var projects = await _context.Projects
+        //        .Where(p => userAssignedProcesses.Contains(p.ProjectId)) // Filter projects by distinct IDs
+        //        .ToListAsync();
+
+        //    return Ok(projects);
+        //}
 
 
 
