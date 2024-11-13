@@ -32,9 +32,9 @@ namespace ERPAPI.Controllers
                 var alarms = await _context.Alarm.ToListAsync();
                 return alarms;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Error fetching alarms", ex.Message, nameof(AlarmsController));
+              
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -49,15 +49,14 @@ namespace ERPAPI.Controllers
 
                 if (alarm == null)
                 {
-                    _loggerService.LogEvent($"Alarm with ID {id} not found", "Alarms", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                  
                     return NotFound();
                 }
 
                 return alarm;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Error fetching alarm by ID", ex.Message, nameof(AlarmsController));
                 return StatusCode(500, "Internal server error");
             }
         }

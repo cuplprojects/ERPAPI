@@ -36,7 +36,7 @@ namespace ERPAPI.Controllers
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching groups", ex.Message, nameof(GroupsController));
+               
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -51,15 +51,15 @@ namespace ERPAPI.Controllers
 
                 if (group == null)
                 {
-                    _loggerService.LogEvent($"Group with ID {id} not found", "Groups", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                
                     return NotFound();
                 }
 
                 return group;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Error fetching group by ID", ex.Message, nameof(GroupsController));
+             
                 return StatusCode(500, "Internal server error");
             }
         }

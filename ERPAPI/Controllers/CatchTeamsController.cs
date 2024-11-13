@@ -29,7 +29,7 @@ namespace ERPAPI.Controllers
                 var catchTeams = await _context.CatchTeams.ToListAsync();
                 return Ok(catchTeams);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Log error here
                 return StatusCode(500, "Failed to retrieve catch teams");
@@ -51,7 +51,7 @@ namespace ERPAPI.Controllers
 
                 return Ok(catchTeam);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Log error here
                 return StatusCode(500, "Failed to retrieve catch team");
@@ -94,7 +94,7 @@ namespace ERPAPI.Controllers
                 await _context.SaveChangesAsync();
                 return CreatedAtAction(nameof(GetCatchTeams), catchTeams);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Log error here
                 return StatusCode(500, "Failed to create or update catch teams");
@@ -156,7 +156,7 @@ namespace ERPAPI.Controllers
 
                 return NoContent();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Log error here
                 return StatusCode(500, "Failed to delete catch team");
@@ -191,7 +191,7 @@ namespace ERPAPI.Controllers
                 await _context.SaveChangesAsync();
                 return NoContent(); // Return a 204 No Content status on success
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Log error here
                 return StatusCode(500, "Failed to update catch teams");

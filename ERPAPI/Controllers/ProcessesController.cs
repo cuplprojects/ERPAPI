@@ -53,9 +53,9 @@ namespace ERPAPI.Controllers
 
                 return Ok(processesWithNames);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Error fetching processes", ex.Message, nameof(ProcessesController));
+                
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -73,7 +73,7 @@ namespace ERPAPI.Controllers
 
                 if (filteredCatches == null || !filteredCatches.Any())
                 {
-                    _loggerService.LogEvent($"No catches found for process ID: {processid}", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    
                     return NotFound($"No catches found for the process: {processid}");
                 }
 
@@ -81,7 +81,7 @@ namespace ERPAPI.Controllers
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching catches by process", ex.Message, nameof(ProcessesController));
+              
                 return StatusCode(500, "Internal server error");
             }
         }

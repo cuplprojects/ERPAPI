@@ -43,9 +43,9 @@ namespace ERPAPI.Controllers
                                                    }).ToListAsync();
                 return Ok(machinesWithProcesses);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Error fetching machines", ex.Message, nameof(MachinesController));
+              
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -59,14 +59,14 @@ namespace ERPAPI.Controllers
                 var machine = await _context.Machine.FindAsync(id);
                 if (machine == null)
                 {
-                    _loggerService.LogEvent($"Machine with ID {id} not found", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                  
                     return NotFound();
                 }
                 return machine;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Error fetching machine by ID", ex.Message, nameof(MachinesController));
+               
                 return StatusCode(500, "Internal server error");
             }
         }
