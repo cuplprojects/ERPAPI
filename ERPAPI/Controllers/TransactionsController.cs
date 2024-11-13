@@ -74,7 +74,6 @@ namespace ERPAPI.Controllers
         }
 
 
-
         [HttpGet("GetProjectTransactionsData")]
         public async Task<ActionResult<IEnumerable<object>>> GetProjectTransactionsData(int projectId, int processId)
         {
@@ -166,8 +165,6 @@ namespace ERPAPI.Controllers
 
             return Ok(responseData);
         }
-
-
 
         // Utility function to attempt parsing AlarmId and return an integer if possible, else return the original value
         private object TryParseAlarmId(object alarmId)
