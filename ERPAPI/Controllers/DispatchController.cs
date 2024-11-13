@@ -130,6 +130,52 @@ namespace ERPAPI.Controllers
             }
         }
 
+        // GET: api/Dispatch/project/{projectId}/lot/{lotNo}
+        [HttpGet("project/{projectId}")]
+        public async Task<ActionResult<IEnumerable<object>>> GetDispatchByProject(int projectId)
+        {
+            try
+            {
+                // Fetch the dispatch records based on projectId and lotNo
+                var dispatches = await _context.Dispatch
+                    .Where(d => d.ProjectId == projectId)
+                    .ToListAsync();
+
+                // If no dispatch records found, return NotFound
+                if (dispatches == null || !dispatches.Any())
+                {
+
+                    return NotFound();
+                }
+
+                // Select relevant details to return
+                var dispatchesWithDetails = dispatches.Select(dispatch => new
+                {
+                    dispatch.Id,
+                    dispatch.ProcessId,
+                    dispatch.ProjectId,
+                    dispatch.LotNo,
+                    dispatch.BoxCount,
+                    dispatch.MessengerName,
+                    dispatch.MessengerMobile,
+                    dispatch.DispatchMode,
+                    dispatch.VehicleNumber,
+                    dispatch.DriverName,
+                    dispatch.DriverMobile,
+                    dispatch.CreatedAt,
+                    dispatch.UpdatedAt,
+                    dispatch.Status
+                }).ToList();
+
+
+                return Ok(dispatchesWithDetails);
+            }
+            catch (Exception)
+            {
+
+                return StatusCode(500, "Internal server error");
+            }
+        }
 
         // PUT: api/Dispatch/5
         [HttpPut("{id}")]
