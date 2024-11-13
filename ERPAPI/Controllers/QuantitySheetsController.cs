@@ -180,7 +180,8 @@ public class QuantitySheetController : ControllerBase
             .Where(prop => prop.Name != "QuantitySheetId" &&
                            prop.Name != "PercentageCatch" &&
                            prop.Name != "ProjectId" &&
-                           prop.Name != "ProcessId")
+                           prop.Name != "ProcessId" &&
+                           prop.Name != "Status")
             .Select(prop => prop.Name)
             .ToList();
 
