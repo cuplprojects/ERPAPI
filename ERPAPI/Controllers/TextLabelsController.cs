@@ -71,6 +71,37 @@ namespace ERPAPI.Controllers
             }
         }
 
+        // GET: api/TextLabels/translations/{language}
+        [HttpGet("translations/{language}")]
+        public async Task<ActionResult<Dictionary<string, object>>> GetTranslations(string language)
+        {
+            if (language != "en" && language != "hi")
+            {
+                _loggerService.LogError("Invalid language", $"Invalid language '{language}' requested", "TextLabelsController");
+                return BadRequest("Invalid language. Supported languages are 'en' and 'hi'.");
+            }
+
+            try
+            {
+                var textLabels = await _context.TextLabel.ToListAsync();
+                var translations = textLabels.ToDictionary(
+                    label => label.LabelKey,
+                    label => new
+                    {
+                        id = label.TextLabelId,
+                        text = language == "en" ? label.EnglishLabel : label.HindiLabel
+                    });
+
+                return Ok(translations);
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError(ex.Message, "Failed to retrieve translations", "TextLabelsController");
+                return StatusCode(500, "Failed to retrieve translations");
+            }
+        }
+
+
         // PUT: api/TextLabels/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTextLabel(int id, TextLabel textLabel)
