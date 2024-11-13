@@ -55,7 +55,7 @@ namespace ERPAPI.Controllers
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching zones", ex.Message, nameof(ZonesController));
+           
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -70,7 +70,7 @@ namespace ERPAPI.Controllers
 
                 if (zone == null)
                 {
-                    _loggerService.LogEvent($"Zone with ID {id} not found", "Zones", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                   
                     return NotFound();
                 }
 
@@ -78,7 +78,7 @@ namespace ERPAPI.Controllers
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching zone by ID", ex.Message, nameof(ZonesController));
+               
                 return StatusCode(500, "Internal server error");
             }
         }

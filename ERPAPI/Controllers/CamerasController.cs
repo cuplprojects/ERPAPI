@@ -32,9 +32,9 @@ namespace ERPAPI.Controllers
                 var cameras = await _context.Camera.ToListAsync();
                 return cameras;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Error fetching cameras", ex.Message, nameof(CamerasController));
+                
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -49,15 +49,15 @@ namespace ERPAPI.Controllers
 
                 if (camera == null)
                 {
-                    _loggerService.LogEvent($"Camera with ID {id} not found", "Cameras", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                   
                     return NotFound();
                 }
 
                 return camera;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Error fetching camera by ID", ex.Message, nameof(CamerasController));
+               
                 return StatusCode(500, "Internal server error");
             }
         }

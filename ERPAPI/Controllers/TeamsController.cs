@@ -73,9 +73,9 @@ namespace ERPAPI.Controllers
 
                 return Ok(updatedTeams);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Failed to retrieve teams", ex.Message, "TeamsController");
+                
                 return StatusCode(500, "Failed to retrieve teams");
             }
         }
@@ -121,7 +121,7 @@ namespace ERPAPI.Controllers
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Failed to retrieve team", ex.Message, "TeamsController");
+               
                 return StatusCode(500, "Failed to retrieve team");
             }
         }

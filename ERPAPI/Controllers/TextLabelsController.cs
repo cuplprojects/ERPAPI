@@ -77,7 +77,7 @@ namespace ERPAPI.Controllers
         {
             if (language != "en" && language != "hi")
             {
-                _loggerService.LogError("Invalid language", $"Invalid language '{language}' requested", "TextLabelsController");
+               
                 return BadRequest("Invalid language. Supported languages are 'en' and 'hi'.");
             }
 
@@ -96,7 +96,7 @@ namespace ERPAPI.Controllers
             }
             catch (Exception ex)
             {
-                _loggerService.LogError(ex.Message, "Failed to retrieve translations", "TextLabelsController");
+               
                 return StatusCode(500, "Failed to retrieve translations");
             }
         }

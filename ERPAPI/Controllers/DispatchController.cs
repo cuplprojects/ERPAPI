@@ -49,12 +49,12 @@ namespace ERPAPI.Controllers
                     dispatch.Status
                 }).ToList();
 
-                _loggerService.LogEvent("Fetched all dispatch records", "Dispatch", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+              
                 return Ok(dispatchesWithDetails);
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching dispatch records", ex.Message, nameof(DispatchController));
+       
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -69,16 +69,16 @@ namespace ERPAPI.Controllers
 
                 if (dispatch == null)
                 {
-                    _loggerService.LogEvent($"Dispatch with ID {id} not found", "Dispatch", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                   
                     return NotFound();
                 }
 
-                _loggerService.LogEvent($"Fetched dispatch with ID {id}", "Dispatch", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+              
                 return Ok(dispatch);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Error fetching dispatch", ex.Message, nameof(DispatchController));
+              
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -97,7 +97,7 @@ namespace ERPAPI.Controllers
                 // If no dispatch records found, return NotFound
                 if (dispatches == null || !dispatches.Any())
                 {
-                    _loggerService.LogEvent($"No dispatch records found for ProjectId: {projectId}, LotNo: {lotNo}", "Dispatch", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    
                     return NotFound();
                 }
 
@@ -120,12 +120,12 @@ namespace ERPAPI.Controllers
                     dispatch.Status
                 }).ToList();
 
-                _loggerService.LogEvent($"Fetched dispatch records for ProjectId: {projectId}, LotNo: {lotNo}", "Dispatch", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+              
                 return Ok(dispatchesWithDetails);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Error fetching dispatch records by Project and Lot", ex.Message, nameof(DispatchController));
+            
                 return StatusCode(500, "Internal server error");
             }
         }

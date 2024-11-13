@@ -34,9 +34,9 @@ namespace ERPAPI.Controllers
                 var roles = await _context.Roles.ToListAsync();
                 return Ok(roles);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Error fetching roles", ex.Message, nameof(RolesController));
+           
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -50,14 +50,14 @@ namespace ERPAPI.Controllers
                 var role = await _context.Roles.FindAsync(id);
                 if (role == null)
                 {
-                    _loggerService.LogEvent($"Role with ID {id} not found", "Roles", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                  
                     return NotFound();
                 }
                 return role;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _loggerService.LogError("Error fetching role by ID", ex.Message, nameof(RolesController));
+               
                 return StatusCode(500, "Internal server error");
             }
         }

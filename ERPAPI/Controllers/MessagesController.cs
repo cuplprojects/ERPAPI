@@ -62,7 +62,7 @@ namespace ERPAPI.Controllers
                
                 return message;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
               
                 return StatusCode(500, "Internal server error");

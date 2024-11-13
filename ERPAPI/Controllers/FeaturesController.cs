@@ -34,7 +34,7 @@ namespace ERPAPI.Controllers
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching features", ex.Message, nameof(FeaturesController));
+                
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -49,7 +49,7 @@ namespace ERPAPI.Controllers
 
                 if (feature == null)
                 {
-                    _loggerService.LogEvent($"Feature with ID {id} not found", "Features", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                 
                     return NotFound();
                 }
 
@@ -57,7 +57,7 @@ namespace ERPAPI.Controllers
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Error fetching feature by ID", ex.Message, nameof(FeaturesController));
+             
                 return StatusCode(500, "Internal server error");
             }
         }
