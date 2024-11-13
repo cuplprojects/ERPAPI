@@ -265,136 +265,138 @@ namespace ERPAPI.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
-        {
-            if (transaction == null)
-            {
-                return BadRequest("Invalid data.");
-            }
+ public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
+ {
+     if (transaction == null)
+     {
+         return BadRequest("Invalid data.");
+     }
 
-            // Fetch the Process from the Process table using ProcessId
-            var process = await _context.Processes
-                .FirstOrDefaultAsync(p => p.Id == transaction.ProcessId);
+     // Fetch the Process from the Process table using ProcessId
+     var process = await _context.Processes
+         .FirstOrDefaultAsync(p => p.Id == transaction.ProcessId);
 
-            if (process == null)
-            {
-                return BadRequest("Invalid ProcessId.");
-            }
+     if (process == null)
+     {
+         return BadRequest("Invalid ProcessId.");
+     }
 
-            // List of process names to be handled in a standard way
-            var validProcessNames = new List<string> { "Digital Printing", "CTP", "Offset Printing", "Cutting" };
+     // List of process names to be handled in a standard way
+     var validProcessNames = new List<string> { "Digital Printing", "CTP", "Offset Printing", "Cutting" };
 
-            // Check if the process name matches one of the valid names
-            if (validProcessNames.Contains(process.Name))
-            {
-                // Check if a transaction already exists for this QuantitysheetId, LotNo, and ProcessId
-                var existingTransaction = await _context.Transaction
-                    .FirstOrDefaultAsync(t => t.QuantitysheetId == transaction.QuantitysheetId &&
-                                              t.LotNo == transaction.LotNo &&
-                                              t.ProcessId == transaction.ProcessId);
+     // Check if the process name matches one of the valid names
+     if (validProcessNames.Contains(process.Name))
+     {
+         // Check if a transaction already exists for this QuantitysheetId, LotNo, and ProcessId
+         var existingTransaction = await _context.Transaction
+             .FirstOrDefaultAsync(t => t.QuantitysheetId == transaction.QuantitysheetId &&
+                                       t.LotNo == transaction.LotNo &&
+                                       t.ProcessId == transaction.ProcessId);
 
-                if (existingTransaction != null)
-                {
-                    // If an existing transaction is found, update it
-                    existingTransaction.InterimQuantity = transaction.InterimQuantity;
-                    existingTransaction.Remarks = transaction.Remarks;
-                    existingTransaction.VoiceRecording = transaction.VoiceRecording;
-                    existingTransaction.ZoneId = transaction.ZoneId;
-                    existingTransaction.MachineId = transaction.MachineId;
-                    existingTransaction.Status = transaction.Status;
-                    existingTransaction.AlarmId = transaction.AlarmId;
-                    existingTransaction.TeamId = transaction.TeamId;
+         if (existingTransaction != null)
+         {
+             // If an existing transaction is found, update it
+             existingTransaction.InterimQuantity = transaction.InterimQuantity;
+             existingTransaction.Remarks = transaction.Remarks;
+             existingTransaction.VoiceRecording = transaction.VoiceRecording;
+             existingTransaction.ZoneId = transaction.ZoneId;
+             existingTransaction.MachineId = transaction.MachineId;
+             existingTransaction.Status = transaction.Status;
+             existingTransaction.AlarmId = transaction.AlarmId;
+             existingTransaction.TeamId = transaction.TeamId;
 
-                    // Update the existing transaction
-                    _context.Transaction.Update(existingTransaction);
-                }
-                else
-                {
-                    // If no existing transaction, create a new one
-                    _context.Transaction.Add(transaction);
-                }
+             // Update the existing transaction
+             _context.Transaction.Update(existingTransaction);
+         }
+         else
+         {
+             // If no existing transaction, create a new one
+             _context.Transaction.Add(transaction);
+         }
 
-                // Save changes for the valid process transactions (either created or updated)
-                await _context.SaveChangesAsync();
+         // Save changes for the valid process transactions (either created or updated)
+         await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Transaction created/updated successfully." });
-            }
-            else
-            {
-                // If it's not a valid process, fetch the CatchNumber using QuantitySheetId
-                var quantitySheet = await _context.QuantitySheets
-                    .FirstOrDefaultAsync(qs => qs.QuantitySheetId == transaction.QuantitysheetId);
+         return Ok(new { message = "Transaction created/updated successfully." });
+     }
+     else
+     {
+         // If it's not a valid process, fetch the CatchNumber using QuantitySheetId
+         var quantitySheet = await _context.QuantitySheets
+             .FirstOrDefaultAsync(qs => qs.QuantitySheetId == transaction.QuantitysheetId);
 
-                if (quantitySheet == null)
-                {
-                    return BadRequest("QuantitySheet not found.");
-                }
+         if (quantitySheet == null)
+         {
+             return BadRequest("QuantitySheet not found.");
+         }
 
-                string catchNumber = quantitySheet.CatchNo;
+         string catchNumber = quantitySheet.CatchNo;
 
-                // Retrieve all QuantitySheetIds for the same CatchNumber, LotNo, and filtered by ProjectId
-                var quantitySheets = await _context.QuantitySheets
-                    .Where(qs => qs.CatchNo == catchNumber && qs.LotNo == transaction.LotNo.ToString() && qs.ProjectId == transaction.ProjectId)
-                    .ToListAsync();
+         // Retrieve all QuantitySheetIds for the same CatchNumber, LotNo, and filtered by ProjectId
+         var quantitySheets = await _context.QuantitySheets
+             .Where(qs => qs.CatchNo == catchNumber && qs.LotNo == transaction.LotNo.ToString() && qs.ProjectId == transaction.ProjectId)
+             .ToListAsync();
 
-                if (quantitySheets == null || !quantitySheets.Any())
-                {
-                    return BadRequest("No matching QuantitySheets found.");
-                }
+         if (quantitySheets == null || !quantitySheets.Any())
+         {
+             return BadRequest("No matching QuantitySheets found.");
+         }
 
-                foreach (var sheet in quantitySheets)
-                {
-                    // Check if a transaction already exists for this QuantitysheetId, LotNo, and ProcessId
-                    var existingTransaction = await _context.Transaction
-                        .FirstOrDefaultAsync(t => t.QuantitysheetId == sheet.QuantitySheetId &&
-                                                  t.LotNo == transaction.LotNo &&
-                                                  t.ProcessId == transaction.ProcessId);
+         foreach (var sheet in quantitySheets)
+         {
+             // Check if a transaction already exists for this QuantitysheetId, LotNo, and ProcessId
+             var existingTransaction = await _context.Transaction
+                 .FirstOrDefaultAsync(t => t.QuantitysheetId == sheet.QuantitySheetId &&
+                                           t.LotNo == transaction.LotNo &&
+                                           t.ProcessId == transaction.ProcessId);
 
-                    if (existingTransaction != null)
-                    {
-                        // If an existing transaction is found, update it
-                        existingTransaction.InterimQuantity = transaction.InterimQuantity;
-                        existingTransaction.Remarks = transaction.Remarks;
-                        existingTransaction.VoiceRecording = transaction.VoiceRecording;
-                        existingTransaction.ZoneId = transaction.ZoneId;
-                        existingTransaction.MachineId = transaction.MachineId;
-                        existingTransaction.Status = transaction.Status;
-                        existingTransaction.AlarmId = transaction.AlarmId;
-                        existingTransaction.TeamId = transaction.TeamId;
+             if (existingTransaction != null)
+             {
+                 // If an existing transaction is found, update it
+                 existingTransaction.InterimQuantity = transaction.InterimQuantity;
+                 existingTransaction.Remarks = transaction.Remarks;
+                 existingTransaction.VoiceRecording = transaction.VoiceRecording;
+                 existingTransaction.ZoneId = transaction.ZoneId;
+                 existingTransaction.MachineId = transaction.MachineId;
+                 existingTransaction.Status = transaction.Status;
+                 existingTransaction.AlarmId = transaction.AlarmId;
+                 existingTransaction.TeamId = transaction.TeamId;
 
-                        // You can add more fields here to update as needed
+                 // You can add more fields here to update as needed
 
-                        _context.Transaction.Update(existingTransaction); // Mark as modified
-                    }
-                    else
-                    {
-                        // If no existing transaction, create a new one
-                        var newTransaction = new Transaction
-                        {
-                            InterimQuantity = transaction.InterimQuantity,
-                            Remarks = transaction.Remarks,
-                            VoiceRecording = transaction.VoiceRecording,
-                            ProjectId = transaction.ProjectId,
-                            QuantitysheetId = sheet.QuantitySheetId,
-                            ProcessId = transaction.ProcessId,
-                            ZoneId = transaction.ZoneId,
-                            MachineId = transaction.MachineId,
-                            Status = transaction.Status,
-                            AlarmId = transaction.AlarmId,
-                            LotNo = transaction.LotNo,
-                            TeamId = transaction.TeamId
-                        };
+                 _context.Transaction.Update(existingTransaction); // Mark as modified
+             }
+             else
+             {
+                 // If no existing transaction, create a new one
+                 var newTransaction = new Transaction
+                 {
+                     InterimQuantity = transaction.InterimQuantity,
+                     Remarks = transaction.Remarks,
+                     VoiceRecording = transaction.VoiceRecording,
+                     ProjectId = transaction.ProjectId,
+                     QuantitysheetId = sheet.QuantitySheetId,
+                     ProcessId = transaction.ProcessId,
+                     ZoneId = transaction.ZoneId,
+                     MachineId = transaction.MachineId,
+                     Status = transaction.Status,
+                     AlarmId = transaction.AlarmId,
+                     LotNo = transaction.LotNo,
+                     TeamId = transaction.TeamId
+                 };
 
-                        _context.Transaction.Add(newTransaction);
-                    }
-                }
+                 _context.Transaction.Add(newTransaction);
+             }
+         }
 
-                // Save changes for all updates and new transactions
-                await _context.SaveChangesAsync();
+         // Save changes for all updates and new transactions
+         await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Transactions created/updated successfully." });
-            }
-        }
+         return Ok(new { message = "Transactions created/updated successfully." });
+     }
+ }
+
+
 
 
 
