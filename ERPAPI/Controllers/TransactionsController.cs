@@ -107,6 +107,10 @@ namespace ERPAPI.Controllers
             // Fetch users for all team members in advance to minimize the number of queries
             var allUsers = await _context.Users.ToListAsync();
 
+            var allZone = await _context.Zone.ToListAsync();
+
+            var allMachine = await _context.Machine.ToListAsync();
+
             // Map transactions with their alarm messages and usernames
             var transactionsWithAlarms = transactions.Select(t =>
             {
@@ -121,11 +125,21 @@ namespace ERPAPI.Controllers
                     .Select(u => u.FirstName + " " + u.LastName)  // Concatenate FirstName and LastName
                     .ToList();
 
+                var zone = allZone.FirstOrDefault(z => z.ZoneId == t.ZoneId);
+                var zoneNo = zone != null ? zone.ZoneNo : null;
+
+
+                var machine = allMachine.FirstOrDefault(z => z.MachineId == t.MachineId);
+                var machinename = machine != null ? machine.MachineName : null;
+
+
                 return new
                 {
                     t.TransactionId,
                     AlarmId = t.AlarmId,
                     ZoneId = t.ZoneId,
+                    zoneNo = zoneNo,
+                    machinename = machinename,
                     QuantitysheetId = t.QuantitysheetId,
                     TeamId = t.TeamId,
                     Remarks = t.Remarks,
