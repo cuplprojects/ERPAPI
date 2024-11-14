@@ -163,7 +163,9 @@ namespace ERPAPI.Controllers
                           pp.Sequence,
                           pp.FeaturesList,
                           pp.UserId,
-                         ProcessType= p.ProcessType
+                         ProcessType= p.ProcessType,
+                         p.RangeStart,
+                         p.RangeEnd,
                       })
                 .AsNoTracking()
                 .FirstOrDefaultAsync();
