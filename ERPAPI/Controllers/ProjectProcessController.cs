@@ -71,7 +71,7 @@ namespace ERPAPI.Controllers
                                               weightage = p.Weightage, // Weightage from Process table
                                               userId = pp.UserId,
                                               sequence = pp.Sequence,
-
+                                              thresholdQty = pp.ThresholdQty,
 
                                           })
                                           .ToListAsync();
@@ -166,6 +166,7 @@ namespace ERPAPI.Controllers
                          ProcessType= p.ProcessType,
                          p.RangeStart,
                          p.RangeEnd,
+                         pp.ThresholdQty,
                       })
                 .AsNoTracking()
                 .FirstOrDefaultAsync();

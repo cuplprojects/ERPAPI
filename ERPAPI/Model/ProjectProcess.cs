@@ -14,6 +14,7 @@ namespace ERPAPI.Model
         public int Sequence {  get; set; }
         public List<int> FeaturesList { get; set; }
         public List<int> UserId { get; set; } = new List<int>();
+        public int? ThresholdQty { get; set; }
 
     }
 }
