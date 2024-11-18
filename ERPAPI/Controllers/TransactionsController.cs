@@ -79,7 +79,6 @@ namespace ERPAPI.Controllers
         }
 
 
-
         [HttpGet("GetProjectTransactionsData")]
         public async Task<ActionResult<IEnumerable<object>>> GetProjectTransactionsData(int projectId, int processId)
         {
@@ -113,6 +112,10 @@ namespace ERPAPI.Controllers
             // Fetch users for all team members in advance to minimize the number of queries
             var allUsers = await _context.Users.ToListAsync();
 
+            var allZone = await _context.Zone.ToListAsync();
+
+            var allMachine = await _context.Machine.ToListAsync();
+
             // Map transactions with their alarm messages and usernames
             var transactionsWithAlarms = transactions.Select(t =>
             {
@@ -127,11 +130,21 @@ namespace ERPAPI.Controllers
                     .Select(u => u.FirstName + " " + u.LastName)  // Concatenate FirstName and LastName
                     .ToList();
 
+                var zone = allZone.FirstOrDefault(z => z.ZoneId == t.ZoneId);
+                var zoneNo = zone != null ? zone.ZoneNo : null;
+
+
+                var machine = allMachine.FirstOrDefault(z => z.MachineId == t.MachineId);
+                var machinename = machine != null ? machine.MachineName : null;
+
+
                 return new
                 {
                     t.TransactionId,
                     AlarmId = t.AlarmId,
                     ZoneId = t.ZoneId,
+                    zoneNo = zoneNo,
+                    machinename = machinename,
                     QuantitysheetId = t.QuantitysheetId,
                     TeamId = t.TeamId,
                     Remarks = t.Remarks,
@@ -171,8 +184,6 @@ namespace ERPAPI.Controllers
 
             return Ok(responseData);
         }
-
-
 
         // Utility function to attempt parsing AlarmId and return an integer if possible, else return the original value
         private object TryParseAlarmId(object alarmId)
@@ -745,7 +756,95 @@ namespace ERPAPI.Controllers
             public double TotalCatchQuantity { get; set; }
         }
 
+        [HttpGet("process-lot-percentages")]
+        public async Task<ActionResult> GetProcessLotPercentages(int projectId)
+        {
+            var processes = await _context.ProjectProcesses
+                .Where(p => p.ProjectId == projectId)
+                .ToListAsync();
+
+            var quantitySheets = await _context.QuantitySheets
+                .Where(qs => qs.ProjectId == projectId)
+                .ToListAsync();
+
+            var transactions = await _context.Transaction
+                .Where(t => t.ProjectId == projectId)
+                .ToListAsync();
+
+            var processesList = new List<object>();
+            var totalProjectSheets = 0;
+            var totalProjectCompletedSheets = 0;
+
+            foreach (var process in processes)
+            {
+                var uniqueLots = quantitySheets.Select(qs => qs.LotNo).Distinct();
+                var lotsList = new List<object>();
+                var totalProcessSheets = 0;
+                var totalProcessCompletedSheets = 0;
+
+                foreach (var lotNo in uniqueLots)
+                {
+                    var lotQuantitySheets = quantitySheets.Where(qs => qs.LotNo == lotNo).ToList();
+                    var completedSheets = lotQuantitySheets.Count(qs => 
+                        transactions.Any(t => 
+                            t.QuantitysheetId == qs.QuantitySheetId && 
+                            t.ProcessId == process.ProcessId && 
+                            t.Status == 2
+                        )
+                    );
+
+                    var totalSheets = lotQuantitySheets.Count;
+                    var percentage = totalSheets > 0 
+                        ? Math.Round((double)completedSheets / totalSheets * 100, 2)
+                        : 0;
+
+                    totalProcessSheets += totalSheets;
+                    totalProcessCompletedSheets += completedSheets;
+
+                    lotsList.Add(new
+                    {
+                        lotNumber = lotNo,
+                        percentage = percentage,
+                        totalSheets = totalSheets,
+                        completedSheets = completedSheets
+                    });
+                }
+
+                totalProjectSheets += totalProcessSheets;
+                totalProjectCompletedSheets += totalProcessCompletedSheets;
+
+                var overallPercentage = totalProcessSheets > 0
+                    ? Math.Round((double)totalProcessCompletedSheets / totalProcessSheets * 100, 2)
+                    : 0;
+
+                processesList.Add(new
+                {
+                    processId = process.ProcessId,
+                    statistics = new
+                    {
+                        totalLots = lotsList.Count,
+                        totalSheets = totalProcessSheets,
+                        completedSheets = totalProcessCompletedSheets,
+                        overallPercentage = overallPercentage
+                    },
+                    lots = lotsList
+                });
+            }
+
+            var overallProjectPercentage = totalProjectSheets > 0
+                ? Math.Round((double)totalProjectCompletedSheets / totalProjectSheets * 100, 2)
+                : 0;
+
+            var result = new
+            {
+                totalProcesses = processes.Count,
+                overallProjectPercentage = overallProjectPercentage,
+                processes = processesList
+            };
+
+            return Ok(result);
+        }
+
     }
 }
-
 

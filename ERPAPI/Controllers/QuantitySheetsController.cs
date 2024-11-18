@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Linq;
+using System.Globalization;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -344,6 +345,7 @@ public class QuantitySheetController : ControllerBase
         public required string SourceLotNo { get; set; }
         public required string TargetLotNo { get; set; }
         public required List<int> CatchIds { get; set; }
+        public string? NewExamDate { get; set; }  // Optional exam date in dd-MM-yyyy format
     }
 
     [HttpPut("transfer-catches")]
@@ -393,10 +395,23 @@ public class QuantitySheetController : ControllerBase
             using var transactionScope = await _context.Database.BeginTransactionAsync();
             try
             {
-                // Update LotNo for all records in the source lot with matching ProjectId and CatchNo
                 foreach (var catch_ in catchesToTransfer)
                 {
                     catch_.LotNo = request.TargetLotNo;
+                    
+                    // Update exam date if provided
+                    if (!string.IsNullOrEmpty(request.NewExamDate))
+                    {
+                        if (DateTime.TryParseExact(request.NewExamDate, "dd-MM-yyyy", 
+                            CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
+                        {
+                            catch_.ExamDate = parsedDate.ToString("yyyy-MM-dd"); // Store in database format
+                        }
+                        else
+                        {
+                            return BadRequest("Invalid exam date format. Please use dd-MM-yyyy");
+                        }
+                    }
                 }
 
                 // Save changes to persist the LotNo updates
@@ -445,6 +460,65 @@ public class QuantitySheetController : ControllerBase
                 sheet.PercentageCatch = (sheet.Quantity / totalQuantityForLot) * 100;
             }
         }
+    }
+    // Get Exam Dates for a given project and lot
+    [HttpGet("exam-dates")]
+    public async Task<ActionResult<IEnumerable<string>>> GetExamDates(int projectId, string lotNo)
+    {
+        var examDates = await _context.QuantitySheets
+            .Where(qs => qs.ProjectId == projectId && qs.LotNo == lotNo)
+            .Select(qs => qs.ExamDate)
+            .Distinct()
+            .ToListAsync();
+
+        if (!examDates.Any())
+        {
+            return NotFound($"No exam dates found for project {projectId} and lot {lotNo}");
+        }
+
+        // Convert dates to Indian format
+        var formattedDates = examDates
+            .Where(date => !string.IsNullOrEmpty(date))
+            .Select(date => DateTime.TryParse(date, out var parsedDate) 
+                ? parsedDate.ToString("dd-MM-yyyy") 
+                : date)
+            .ToList();
+
+        return Ok(formattedDates);
+    }
+
+    // Get Lot Data for a given project and lot
+    [HttpGet("lot-data")]
+    public async Task<ActionResult<IEnumerable<QuantitySheet>>> GetLotData(int projectId, string lotNo)
+    {
+        var lotData = await _context.QuantitySheets
+            .Where(qs => qs.ProjectId == projectId && qs.LotNo == lotNo)
+            .ToListAsync();
+
+        if (!lotData.Any())
+        {
+            return NotFound($"No data found for project {projectId} and lot {lotNo}");
+        }
+
+        return Ok(lotData);
+    }
+
+    // Get Catch Data for a given project, lot, and catch
+    [HttpGet("catch-data")]
+    public async Task<ActionResult<IEnumerable<QuantitySheet>>> GetCatchData(int projectId, string lotNo, string catchNo)
+    {
+        var catchData = await _context.QuantitySheets
+            .Where(qs => qs.ProjectId == projectId 
+                      && qs.LotNo == lotNo 
+                      && qs.CatchNo == catchNo)
+            .ToListAsync();
+
+        if (!catchData.Any())
+        {
+            return NotFound($"No data found for project {projectId}, lot {lotNo}, catch {catchNo}");
+        }
+
+        return Ok(catchData);
     }
 
 }
