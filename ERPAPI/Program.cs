@@ -21,6 +21,11 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(builder.Configuration.GetConnectionString("DefaultConnection"),
     new MySqlServerVersion(new Version(8, 0, 23))));
 builder.Services.AddScoped<ILoggerService, LoggerService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<IProjectProcessService, ProjectProcessService>();
+builder.Services.AddScoped<IQuantitySheetService, QuantitySheetService>();
+builder.Services.AddScoped<ITransactionService, TransactionService>();
+builder.Services.AddScoped<IProjectCompletionService, ProjectCompletionService>();
 
 
 builder.Services.AddControllers();

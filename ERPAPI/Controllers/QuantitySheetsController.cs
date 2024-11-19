@@ -44,7 +44,7 @@ public class QuantitySheetController : ControllerBase
             .Where(t => t.TypeId == projectTypeId)
             .Select(t => t.Types)
             .FirstOrDefaultAsync();
-        if(projectType == "Booklet" && project.NoOfSeries.HasValue)
+        if (projectType == "Booklet" && project.NoOfSeries.HasValue)
         {
             var noOfSeries = project.NoOfSeries.Value;
 
@@ -131,6 +131,131 @@ public class QuantitySheetController : ControllerBase
 
         return Ok(processedNewSheets);
     }
+
+
+    [HttpGet("calculate-date-range")]
+    public async Task<IActionResult> CalculateDateRange([FromQuery] string selectedLot, [FromQuery] int projectId)
+    {
+        // Validate input parameters
+        if (string.IsNullOrEmpty(selectedLot))
+        {
+            return BadRequest("Selected lot is required.");
+        }
+
+        try
+        {
+            // Fetch the unique list of lots for the given project
+            var lots = await _context.QuantitySheets
+                .Where(l => l.ProjectId == projectId)
+                .Select(l => l.LotNo)
+                .Distinct()
+                .ToListAsync();
+
+            // Validate that there are lots available for the given project
+            if (lots == null || !lots.Any())
+            {
+                return NotFound("No lots found for the specified project.");
+            }
+
+            // Sort the lots to ensure they're in order
+            var sortedLots = lots.Select(lot => lot.Trim()).OrderBy(lot => lot).ToList();
+
+            // Ensure the selected lot is valid
+            if (!sortedLots.Contains(selectedLot))
+            {
+                return NotFound("Selected lot not found in the available lots.");
+            }
+
+            int selectedLotIndex = sortedLots.IndexOf(selectedLot);
+            bool isFirstLot = selectedLotIndex == 0;
+            bool isLastLot = selectedLotIndex == sortedLots.Count - 1;
+
+            DateTime? startDate = null;
+            DateTime? endDate = null;
+
+            // Fetch dates for the previous and next lots
+            List<DateTime> previousLotDates = null;
+            List<DateTime> nextLotDates = null;
+
+            // Fetch dates for previous lot if not the first lot
+            if (!isFirstLot)
+            {
+                previousLotDates = await _context.QuantitySheets
+                    .Where(l => l.ProjectId == projectId && l.LotNo == sortedLots[selectedLotIndex - 1])
+                    .Select(l => DateTime.Parse(l.ExamDate))  // Parse ExamDate to DateTime
+                    .ToListAsync();
+            }
+
+            // Fetch dates for next lot if not the last lot
+            if (!isLastLot)
+            {
+                nextLotDates = await _context.QuantitySheets
+                    .Where(l => l.ProjectId == projectId && l.LotNo == sortedLots[selectedLotIndex + 1])
+                    .Select(l => DateTime.Parse(l.ExamDate))  // Parse ExamDate to DateTime
+                    .ToListAsync();
+            }
+
+            // Logic based on the position of the selected lot
+            if (isFirstLot)
+            {
+                // If first lot, startDate is today and endDate is the min date of the next lot
+                startDate = DateTime.Today;
+                if (nextLotDates != null && nextLotDates.Any())
+                {
+                    endDate = nextLotDates.Min().AddDays(-1);  // endDate is one day before the minimum date of the next lot
+                }
+            }
+            else if (isLastLot)
+            {
+                // If last lot, startDate is the max date of the previous lot, and endDate can be any date after startDate
+                if (previousLotDates != null && previousLotDates.Any())
+                {
+                    startDate = previousLotDates.Max();
+                }
+
+                // Set endDate to a date after startDate (e.g., 3 months after startDate)
+                if (startDate.HasValue)
+                {
+                    endDate = startDate.Value.AddMonths(3);
+                }
+            }
+            else
+            {
+                // If the selected lot is somewhere in between, startDate is the max date of the previous lot, and endDate is the min date of the next lot
+                if (previousLotDates != null && previousLotDates.Any())
+                {
+                    startDate = previousLotDates.Max();
+                }
+
+                if (nextLotDates != null && nextLotDates.Any())
+                {
+                    endDate = nextLotDates.Min().AddDays(-1);  // endDate is one day before the minimum date of the next lot
+                }
+            }
+
+            // If no valid date range, return an error
+            if (!startDate.HasValue || !endDate.HasValue)
+            {
+                return BadRequest("Unable to calculate a valid date range.");
+            }
+
+            // Return the calculated date range
+            return Ok(new
+            {
+                startDate = startDate.Value.ToString("yyyy-MM-dd"),
+                endDate = endDate.Value.ToString("yyyy-MM-dd"),
+                isFirstLot,
+                isLastLot
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Internal server error: {ex.Message}");
+        }
+    }
+
+
+
 
 
     [HttpPut("{id}")]
