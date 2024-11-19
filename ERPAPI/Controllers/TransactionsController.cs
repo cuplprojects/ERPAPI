@@ -215,6 +215,19 @@ namespace ERPAPI.Controllers
             return transaction;
         }
 
+        [HttpGet("{byProjectId}")]
+        public async Task<ActionResult<Transaction>> GetTransactionByProjectId(int projectId)
+        {
+            var transaction = await _context.Transaction.FindAsync(projectId);
+
+            if (transaction == null)
+            {
+                return NotFound();
+            }
+
+            return transaction;
+        }
+
         // PUT: api/Transactions/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTransaction(int id, Transaction transaction)
@@ -839,6 +852,22 @@ namespace ERPAPI.Controllers
             };
 
             return Ok(result);
+        }
+
+        [HttpGet("exists/{projectId}")]
+        public async Task<ActionResult<bool>> TransactionExistsByProject(int projectId)
+        {
+            try
+            {
+                bool exists = await _context.Transaction
+                    .AnyAsync(t => t.ProjectId == projectId);
+
+                return Ok(exists);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
     }
