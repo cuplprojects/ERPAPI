@@ -22,5 +22,6 @@ namespace ERPGenericFunctions.Model
         // Security Answers
         public string? SecurityAnswer1 { get; set; }
         public string? SecurityAnswer2 { get; set; }
+        public int ScreenLockPin { get; set; } = 123;
     }
 }

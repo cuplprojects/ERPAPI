@@ -420,6 +420,8 @@ namespace ERPAPI.Controllers
             }
         }
 
+
+
         // DELETE: api/User/delete/{id}
         [HttpDelete("delete/{id}")]
         public IActionResult DeleteUser(int id)
@@ -457,6 +459,78 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, new { Message = "Failed to delete user" });
             }
         }
+
+        [HttpPut("ChangeScreenLockPin")]
+        public async Task<IActionResult> ChangeScreenLockPin([FromBody] ChangePinRequest request)
+        {
+            try
+            {
+                // Ensure the request body is not null and PINs are valid
+                if (request == null || request.OldPin <= 0 || request.NewPin <= 0)
+                {
+                    return BadRequest(new { Message = "Both Old PIN and New PIN are required and must be positive numbers." });
+                }
+
+                // Ensure the user making the request is authenticated
+                var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+                {
+                    return Unauthorized(new { Message = "User not authenticated." });
+                }
+
+                // Find the user in the database
+                var userAuth = await _context.UserAuths.FirstOrDefaultAsync(u => u.UserId == userId);
+                if (userAuth == null)
+                {
+                    return NotFound(new { Message = "User not found." });
+                }
+
+                // Validate the Old PIN
+                if (userAuth.ScreenLockPin != request.OldPin)
+                {
+                    return BadRequest(new { Message = "Incorrect Old PIN." });
+                }
+
+                // Validate the New PIN
+                var newPinLength = request.NewPin.ToString().Length;
+                if (newPinLength < 4 || newPinLength > 6)
+                {
+                    return BadRequest(new { Message = "New PIN must be between 4 and 6 digits." });
+                }
+
+                // Ensure the new PIN is different from the old PIN
+                if (request.OldPin == request.NewPin)
+                {
+                    return BadRequest(new { Message = "New PIN cannot be the same as the Old PIN." });
+                }
+
+                // Update the user record with the new PIN
+                userAuth.ScreenLockPin = request.NewPin;
+                _context.UserAuths.Update(userAuth);
+                await _context.SaveChangesAsync();
+
+                // Log the event (for security auditing purposes)
+                _loggerService.LogEvent("Screen lock PIN changed", "User", userId);
+
+                return Ok(new { Message = "Screen lock PIN updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Failed to change screen lock PIN", ex.Message, "UserController");
+                return StatusCode(500, new { Message = "Internal server error", Details = ex.Message });
+            }
+        }
+
+        public class ChangePinRequest
+        {
+            public int OldPin { get; set; }
+            public int NewPin { get; set; }
+        }
+
+
+
+
+
 
     }
 }
