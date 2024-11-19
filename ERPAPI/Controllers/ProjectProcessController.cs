@@ -410,14 +410,17 @@ namespace ERPAPI.Controllers
                 return NotFound("Process not found.");
             }
 
-            // Update the installed features
+            // Update the installed features and threshold quantity
             existingProcess.FeaturesList = request.FeaturesList;
+            existingProcess.ThresholdQty = request.ThresholdQty; // Ensure the entity has this property
 
             _context.ProjectProcesses.Update(existingProcess);
             await _context.SaveChangesAsync();
 
             return Ok("Process features updated successfully!");
         }
+
+
         [HttpPost("UpdateProcessSequence")]
         public async Task<IActionResult> UpdateProcessSequence([FromBody] List<UpdateSequenceDto> sequenceUpdates)
         {
@@ -495,6 +498,7 @@ namespace ERPAPI.Controllers
             public int ProjectId { get; set; }
             public int ProcessId { get; set; }
             public List<int> FeaturesList { get; set; }
+            public int ThresholdQty { get; set; } // Include thresholdQty
         }
         public class UpdateSequenceDto
         {
