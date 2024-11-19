@@ -1,6 +1,6 @@
 ﻿using ERPAPI.Data;
 using ERPAPI.Model;
-using System.Collections.Generic;
+using Microsoft.EntityFrameworkCore;
 using System.Linq;
 
 namespace ERPAPI.Service
@@ -44,12 +44,25 @@ namespace ERPAPI.Service
 
             Console.WriteLine("Identified ProcessIds - CTP: " + ctpProcessId + ", Offset: " + offsetPrintingProcessId + ", Digital: " + digitalPrintingProcessId);
 
-            // Determine which processes to include in ProcessId
-            if (catchData.Quantity > 80)
-            {
-                Console.WriteLine("Quantity is greater than 80, adding CTP and Offset Printing.");
+            // Fetch the project to get the quantity threshold
+            var project = _context.Projects
+                .Where(p => p.ProjectId == catchData.ProjectId)
+                .FirstOrDefault();
 
-                // Include CTP and Offset Printing if the quantity is greater than 80
+            if (project == null)
+            {
+                Console.WriteLine($"Project not found for ProjectId {catchData.ProjectId}");
+                return;
+            }
+
+            var quantityThreshold = project.QuantityThreshold;
+
+            // Determine which processes to include in ProcessId based on the threshold
+            if (catchData.Quantity > quantityThreshold)
+            {
+                Console.WriteLine($"Quantity is greater than threshold ({quantityThreshold}), adding CTP and Offset Printing.");
+
+                // Include CTP and Offset Printing if the quantity is greater than the threshold
                 if (ctpProcessId.HasValue)
                 {
                     catchData.ProcessId.Add(ctpProcessId.Value);
@@ -64,9 +77,9 @@ namespace ERPAPI.Service
             }
             else
             {
-                Console.WriteLine("Quantity is 80 or less, adding Digital Printing.");
+                Console.WriteLine($"Quantity is less than or equal to threshold ({quantityThreshold}), adding Digital Printing.");
 
-                // If the quantity is 80 or less, include only Digital Printing
+                // If the quantity is less than or equal to the threshold, include only Digital Printing
                 if (digitalPrintingProcessId.HasValue)
                 {
                     catchData.ProcessId.Add(digitalPrintingProcessId.Value);
@@ -89,6 +102,5 @@ namespace ERPAPI.Service
 
             Console.WriteLine("Final ProcessId for catchData: " + Newtonsoft.Json.JsonConvert.SerializeObject(catchData.ProcessId));
         }
-
     }
 }

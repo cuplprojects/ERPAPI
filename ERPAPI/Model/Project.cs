@@ -16,6 +16,7 @@ namespace ERPAPI.Model
         public int? NoOfSeries { get; set; }
         public string? SeriesName { get; set; }
         public DateTime Date { get; set; }
+        public int? QuantityThreshold { get; set; } = 0;
 
 
     }
