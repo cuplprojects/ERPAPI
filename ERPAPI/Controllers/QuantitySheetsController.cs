@@ -826,4 +826,24 @@ public class QuantitySheetController : ControllerBase
         return Ok(catchData);
     }
 
+    [HttpDelete("DeleteByProjectId/{projectId}")]
+    public async Task<IActionResult> DeleteByProjectId(int projectId)
+    {
+        // Find all quantity sheets for the given projectId
+        var sheetsToDelete = await _context.QuantitySheets
+            .Where(s => s.ProjectId == projectId)
+            .ToListAsync();
+
+        if (sheetsToDelete == null || !sheetsToDelete.Any())
+        {
+            return NotFound($"No quantity sheets found for Project ID: {projectId}");
+        }
+
+        // Remove the sheets from the context
+        _context.QuantitySheets.RemoveRange(sheetsToDelete);
+        await _context.SaveChangesAsync();
+
+        return NoContent(); // Return 204 No Content on successful deletion
+    }
+
 }
