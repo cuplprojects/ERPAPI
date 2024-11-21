@@ -460,6 +460,55 @@ namespace ERPAPI.Controllers
             }
         }
 
+        [HttpPost("UnlockScreenByPin")]
+        public async Task<IActionResult> UnlockScreenByPin([FromBody] PinUnlockRequest request)
+        {
+            try
+            {
+                // Validate the request
+                if (request == null || request.Pin <= 0)
+                {
+                    return BadRequest(new { Message = "PIN is required and must be a positive number." });
+                }
+
+                // Retrieve the user from the token
+                var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name);
+                if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+                {
+                    return BadRequest(new { Message = "Invalid User Token." });
+                }
+
+                // Find the user in the database
+                var userAuth = await _context.UserAuths.FirstOrDefaultAsync(u => u.UserId == userId);
+                if (userAuth == null)
+                {
+                    return NotFound(new { Message = "User not found." });
+                }
+
+                // Validate the PIN
+                if (userAuth.ScreenLockPin != request.Pin)
+                {
+                    return BadRequest(new { Message = "Incorrect PIN." });
+                }
+
+                // Unlock the screen (custom logic if needed)
+                _loggerService.LogEvent("Screen unlocked by PIN", "User", userId);
+
+                return Ok(new { Message = "Screen unlocked successfully." });
+            }
+            catch (Exception ex)
+            {
+                _loggerService.LogError("Failed to unlock screen by PIN", ex.Message, "UserController");
+                return StatusCode(500, new { Message = "Internal server error", Details = ex.Message });
+            }
+        }
+
+        public class PinUnlockRequest
+        {
+            public int Pin { get; set; }
+        }
+
+
         [HttpPut("ChangeScreenLockPin")]
         public async Task<IActionResult> ChangeScreenLockPin([FromBody] ChangePinRequest request)
         {
@@ -471,13 +520,12 @@ namespace ERPAPI.Controllers
                     return BadRequest(new { Message = "Both Old PIN and New PIN are required and must be positive numbers." });
                 }
 
-                // Ensure the user making the request is authenticated
-                var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+                var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name);
                 if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
                 {
-                    return Unauthorized(new { Message = "User not authenticated." });
+                    return BadRequest("Invalid token");
                 }
-
+               
                 // Find the user in the database
                 var userAuth = await _context.UserAuths.FirstOrDefaultAsync(u => u.UserId == userId);
                 if (userAuth == null)
@@ -493,9 +541,9 @@ namespace ERPAPI.Controllers
 
                 // Validate the New PIN
                 var newPinLength = request.NewPin.ToString().Length;
-                if (newPinLength < 4 || newPinLength > 6)
+                if (newPinLength < 3 || newPinLength > 5)
                 {
-                    return BadRequest(new { Message = "New PIN must be between 4 and 6 digits." });
+                    return BadRequest(new { Message = "New PIN must be between 3 and 5 digits." });
                 }
 
                 // Ensure the new PIN is different from the old PIN
