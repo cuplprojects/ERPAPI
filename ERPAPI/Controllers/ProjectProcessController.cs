@@ -333,44 +333,62 @@ namespace ERPAPI.Controllers
 
 
         [HttpPut("UpdateProcesses")]
-        public async Task<IActionResult> UpdateProcesses([FromBody] UpdateProcessRequest request)
+        public async Task<IActionResult> UpdateProcesses([FromBody] ProjectProcess process)
         {
-            if (request == null || request.ProjectProcesses == null || !request.ProjectProcesses.Any())
+            // Validate that the request data is not null
+            if (process == null)
             {
                 return BadRequest("Invalid request data.");
             }
 
-            foreach (var process in request.ProjectProcesses)
+            // Validate that the ProjectId and ProcessId are provided and are valid
+            if (process.ProjectId == 0 || process.ProcessId == 0)
             {
-                // Check if the process exists for the given projectId
-                var existingProcess = await _context.ProjectProcesses
-                    .FirstOrDefaultAsync(p => p.ProjectId == process.ProjectId && p.ProcessId == process.ProcessId);
-
-                if (existingProcess != null)
-                {
-                    // Update existing process features
-                    existingProcess.FeaturesList = process.FeaturesList;
-                    _context.ProjectProcesses.Update(existingProcess);
-                }
-                else
-                {
-                    // Add new process if it does not exist
-                    var newProcess = new ProjectProcess
-                    {
-                        ProjectId = process.ProjectId,
-                        ProcessId = process.ProcessId,
-                        FeaturesList = process.FeaturesList,
-                        Weightage = process.Weightage,
-                        Sequence = process.Sequence,
-                        UserId = process.UserId // Assuming UserId is part of the process
-                    };
-                    await _context.ProjectProcesses.AddAsync(newProcess);
-                }
+                return BadRequest("ProjectId and ProcessId must be valid.");
             }
 
+            // Check if the process exists for the given projectId and processId
+            var existingProcess = await _context.ProjectProcesses
+                .FirstOrDefaultAsync(p => p.ProjectId == process.ProjectId && p.ProcessId == process.ProcessId);
+
+            if (existingProcess != null)
+            {
+                // Update the existing process with the new data
+                existingProcess.FeaturesList = process.FeaturesList ?? new List<int>(); // Ensure FeaturesList is not null
+                existingProcess.Weightage = process.Weightage;
+                existingProcess.Sequence = process.Sequence;
+                existingProcess.UserId = process.UserId;
+
+                // Explicitly check and update ThresholdQty (nullable)
+                existingProcess.ThresholdQty = process.ThresholdQty.HasValue ? process.ThresholdQty.Value : (int?)null;
+
+                // Save the updated process in the database
+                _context.ProjectProcesses.Update(existingProcess);
+            }
+            else
+            {
+                // If the process doesn't exist, create a new process entry
+                var newProcess = new ProjectProcess
+                {
+                    ProjectId = process.ProjectId,
+                    ProcessId = process.ProcessId,
+                    FeaturesList = process.FeaturesList ?? new List<int>(), // Ensure FeaturesList is not null
+                    Weightage = process.Weightage,
+                    Sequence = process.Sequence,
+                    UserId = process.UserId, // Assuming UserId is part of the process
+                    ThresholdQty = process.ThresholdQty.HasValue ? process.ThresholdQty.Value : (int?)null // Nullable, so it can be null
+                };
+
+                // Add the new process to the database
+                await _context.ProjectProcesses.AddAsync(newProcess);
+            }
+
+            // Commit the changes to the database
             await _context.SaveChangesAsync();
-            return Ok("Processes updated successfully!");
+
+            return Ok("Process updated successfully!");
         }
+
 
         [HttpPost("DeleteProcessesFromProject")]
         public async Task<IActionResult> DeleteProcessesFromProject([FromBody] DeleteRequest request)
@@ -481,6 +499,7 @@ namespace ERPAPI.Controllers
             public int Sequence { get; set; }
             public List<int> FeaturesList { get; set; }
             public List<int> UserId { get; set; } = new List<int>();
+            public int? ThresholdQty { get; set; }
 
         }
 
@@ -498,7 +517,7 @@ namespace ERPAPI.Controllers
             public int ProjectId { get; set; }
             public int ProcessId { get; set; }
             public List<int> FeaturesList { get; set; }
-            public int ThresholdQty { get; set; } // Include thresholdQty
+            public int? ThresholdQty { get; set; } // Include thresholdQty
         }
         public class UpdateSequenceDto
         {
