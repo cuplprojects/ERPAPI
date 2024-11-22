@@ -31,7 +31,7 @@ namespace ERPAPI.Controllers
         {
             try
             {
-                var groups = await _context.Groups.ToListAsync();
+                var groups = await _context.Groups.OrderByDescending(g=>g.Id).ToListAsync();
                 return groups;
             }
             catch (Exception ex)
