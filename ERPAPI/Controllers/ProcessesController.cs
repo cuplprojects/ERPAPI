@@ -45,7 +45,7 @@ namespace ERPAPI.Controllers
                     FeatureNames = process.InstalledFeatures
                         .Select(featureId => featureDictionary.TryGetValue(featureId, out var featureName) ? featureName : "Unknown Feature")
                         .ToList(),
-                    process.ProcessIdInput,
+                 
                     process.ProcessType,
                     process.RangeStart,
                     process.RangeEnd
