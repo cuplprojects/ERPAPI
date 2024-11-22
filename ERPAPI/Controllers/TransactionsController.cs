@@ -219,7 +219,7 @@ namespace ERPAPI.Controllers
 
             return transaction;
         }
-
+/*
         [HttpGet("{byProjectId}")]
         public async Task<ActionResult<Transaction>> GetTransactionByProjectId(int projectId)
         {
@@ -232,7 +232,7 @@ namespace ERPAPI.Controllers
 
             return transaction;
         }
-
+*/
         // PUT: api/Transactions/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTransaction(int id, Transaction transaction)
