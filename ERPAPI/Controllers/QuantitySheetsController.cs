@@ -680,9 +680,17 @@ public class QuantitySheetController : ControllerBase
                 return BadRequest("Source and target lots cannot be the same");
             }
 
-            // First, retrieve the ProjectId and CatchNo for the first provided CatchId to infer the project and catch number.
+            // Convert Source and Target LotNo to integers for comparison
+            if (!int.TryParse(request.SourceLotNo, out int sourceLotNo) ||
+                !int.TryParse(request.TargetLotNo, out int targetLotNo))
+            {
+                return BadRequest("Lot numbers must be valid integers");
+            }
+
+            // Retrieve the ProjectId and CatchNo for the first CatchId
             var initialCatch = await _context.QuantitySheets
-                .Where(qs => qs.QuantitySheetId == request.CatchIds.First() && qs.LotNo == request.SourceLotNo)
+                .Where(qs => qs.QuantitySheetId == request.CatchIds.First() &&
+                             Convert.ToInt32(qs.LotNo) == sourceLotNo)
                 .Select(qs => new { qs.ProjectId, qs.CatchNo })
                 .FirstOrDefaultAsync();
 
@@ -698,7 +706,7 @@ public class QuantitySheetController : ControllerBase
             var catchesToTransfer = await _context.QuantitySheets
                 .Where(qs => qs.ProjectId == projectId &&
                              qs.CatchNo == catchNo &&
-                             qs.LotNo == request.SourceLotNo)
+                             Convert.ToInt32(qs.LotNo) == sourceLotNo)
                 .ToListAsync();
 
             if (!catchesToTransfer.Any())
@@ -711,12 +719,12 @@ public class QuantitySheetController : ControllerBase
             {
                 foreach (var catch_ in catchesToTransfer)
                 {
-                    catch_.LotNo = request.TargetLotNo;
-                    
+                    catch_.LotNo = Convert.ToString(targetLotNo); // Update LotNo to TargetLotNo
+
                     // Update exam date if provided
                     if (!string.IsNullOrEmpty(request.NewExamDate))
                     {
-                        if (DateTime.TryParseExact(request.NewExamDate, "dd-MM-yyyy", 
+                        if (DateTime.TryParseExact(request.NewExamDate, "dd-MM-yyyy",
                             CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
                         {
                             catch_.ExamDate = parsedDate.ToString("yyyy-MM-dd"); // Store in database format
@@ -728,12 +736,27 @@ public class QuantitySheetController : ControllerBase
                     }
                 }
 
-                // Save changes to persist the LotNo updates
+                // Save changes to persist the LotNo updates in QuantitySheets
+                await _context.SaveChangesAsync();
+
+                // Update the LotNo in the Transaction table for the transferred QuantitySheets
+                var quantitySheetIds = catchesToTransfer.Select(ct => ct.QuantitySheetId).ToList();
+                var transactionsToUpdate = await _context.Transaction
+                    .Where(t => quantitySheetIds.Contains(t.QuantitysheetId) &&
+                                t.LotNo == sourceLotNo)
+                    .ToListAsync();
+
+                foreach (var transaction in transactionsToUpdate)
+                {
+                    transaction.LotNo = targetLotNo; // Update LotNo
+                }
+
+                // Save changes to persist the LotNo updates in Transactions
                 await _context.SaveChangesAsync();
 
                 // Recalculate percentages for both lots
-                await RecalculatePercentages(projectId, request.SourceLotNo);
-                await RecalculatePercentages(projectId, request.TargetLotNo);
+                await RecalculatePercentages(projectId, sourceLotNo.ToString());
+                await RecalculatePercentages(projectId, targetLotNo.ToString());
 
                 // Save changes again after recalculating percentages
                 await _context.SaveChangesAsync();
@@ -743,7 +766,8 @@ public class QuantitySheetController : ControllerBase
                 return Ok(new
                 {
                     Message = "Catches transferred successfully",
-                    TransferredCatches = catchesToTransfer
+                    TransferredCatches = catchesToTransfer,
+                    UpdatedTransactions = transactionsToUpdate
                 });
             }
             catch (Exception ex)
