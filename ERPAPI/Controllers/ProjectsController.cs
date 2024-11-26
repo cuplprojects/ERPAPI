@@ -45,7 +45,7 @@ namespace ERPAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Project>>> GetProject()
         {
-            return await _context.Projects.ToListAsync();
+            return await _context.Projects.OrderByDescending(p => p.ProjectId).ToListAsync();
         }
 
 

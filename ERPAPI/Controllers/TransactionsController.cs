@@ -599,6 +599,7 @@ namespace ERPAPI.Controllers
                 .ToListAsync();
 
             var lots = new Dictionary<string, Dictionary<int, dynamic>>();
+            var totalLotPercentages = new Dictionary<string, double>();
             var lotQuantities = new Dictionary<string, double>();
             var lotWeightages = new Dictionary<string, double>();
             var projectLotPercentages = new Dictionary<string, double>();
@@ -610,7 +611,6 @@ namespace ERPAPI.Controllers
                 var processIdWeightage = new Dictionary<int, double>();
                 double totalWeightageSum = 0;
 
-                // Populate processIdWeightage and calculate total weightage sum
                 foreach (var processId in quantitySheet.ProcessId)
                 {
                     var process = projectProcesses.FirstOrDefault(p => p.ProcessId == processId);
@@ -621,11 +621,10 @@ namespace ERPAPI.Controllers
                     }
                 }
 
-                // Adjust weightages if total is less than 100
                 if (totalWeightageSum < 100)
                 {
                     double deficit = 100 - totalWeightageSum;
-                    double adjustment = deficit / (processIdWeightage.Count > 0 ? processIdWeightage.Count : 1);
+                    double adjustment = deficit / processIdWeightage.Count;
 
                     foreach (var key in processIdWeightage.Keys.ToList())
                     {
@@ -635,62 +634,58 @@ namespace ERPAPI.Controllers
                     totalWeightageSum = processIdWeightage.Values.Sum();
                 }
 
+                double completedWeightageSum = 0;
+                foreach (var kvp in processIdWeightage)
+                {
+                    var processId = kvp.Key;
+                    var weightage = kvp.Value;
+
+                    var completedProcess = transactions
+                        .Any(t => t.QuantitysheetId == quantitySheet.QuantitySheetId
+                                  && t.ProcessId == processId
+                                  && t.Status == 2);
+
+                    if (completedProcess)
+                    {
+                        completedWeightageSum += weightage;
+                    }
+                }
+
+                double lotPercentage = Math.Round(quantitySheet.PercentageCatch * (completedWeightageSum / 100), 2);
                 var lotNumber = quantitySheet.LotNo;
 
                 if (!lots.ContainsKey(lotNumber))
                 {
                     lots[lotNumber] = new Dictionary<int, dynamic>();
+                    totalLotPercentages[lotNumber] = 0;
                     lotQuantities[lotNumber] = 0;
                 }
 
-                double interimQuantity = transactions
-                    .Where(t => t.QuantitysheetId == quantitySheet.QuantitySheetId)
-                    .Sum(t => t.InterimQuantity);
-
-                double catchQuantity = quantitySheet.Quantity;
-
-                // Calculate the total percentage for this quantitySheet
-                double calculatedPercentage = 0;
-                if (catchQuantity > 0)
-                {
-                    foreach (var processId in processIdWeightage.Keys)
-                    {
-                        double processPercentage = processIdWeightage[processId];
-                        double percentage = ((interimQuantity / catchQuantity) * 100) * processPercentage * (quantitySheet.PercentageCatch / 100);
-                        calculatedPercentage += percentage;
-                    }
-                }
-
-                calculatedPercentage = double.IsFinite(calculatedPercentage) ? Math.Round(calculatedPercentage / 100, 2) : 0;
-
                 lots[lotNumber][quantitySheet.QuantitySheetId] = new
                 {
-                    ProcessDetails = processIdWeightage,
-                    InterimQuantity = interimQuantity,
-                    CatchQuantity = catchQuantity,
-                    PercentageCatch = quantitySheet.PercentageCatch,
-                    CalculatedPercentage = calculatedPercentage
+                    CompletedProcessPercentage = Math.Round(completedWeightageSum, 2),
+                    LotPercentage = lotPercentage,
+                    ProcessDetails = processIdWeightage
                 };
 
-                // Update totals
-                lotQuantities[lotNumber] += catchQuantity;
-                projectTotalQuantity += catchQuantity;
+                totalLotPercentages[lotNumber] = Math.Round(totalLotPercentages[lotNumber] + lotPercentage, 2);
+                lotQuantities[lotNumber] += quantitySheet.Quantity;
+                projectTotalQuantity += quantitySheet.Quantity;
 
                 if (!lotProcessWeightageSum.ContainsKey(lotNumber))
                 {
                     lotProcessWeightageSum[lotNumber] = new Dictionary<int, double>();
                 }
 
-                // Calculate lotProcessWeightageSum
                 foreach (var processId in processIdWeightage.Keys)
                 {
-                    int lotNumberInt = int.TryParse(lotNumber, out var temp) ? temp : 0;
+                    var lotNumberStr = lotNumber.ToString();
 
                     var completedQuantitySheets = transactions
-                        .Count(t => t.LotNo == lotNumberInt && t.ProcessId == processId && t.Status == 2);
+                        .Count(t => t.LotNo.ToString() == lotNumberStr && t.ProcessId == processId && t.Status == 2);
 
                     var totalQuantitySheets = quantitySheets
-                        .Count(qs => qs.LotNo == lotNumber);
+                        .Count(qs => qs.LotNo.ToString() == lotNumberStr);
 
                     double processPercentage = totalQuantitySheets > 0
                         ? Math.Round((double)completedQuantitySheets / totalQuantitySheets * 100, 2)
@@ -705,41 +700,26 @@ namespace ERPAPI.Controllers
                 var lotNumber = lot.Key;
                 var quantity = lot.Value;
 
-                // Calculate lot weightage
-                lotWeightages[lotNumber] = Math.Round((quantity / (projectTotalQuantity > 0 ? projectTotalQuantity : 1)) * 100, 2);
-            }
-
-            var totalLotPercentages = new Dictionary<string, double>();
-
-            foreach (var lot in lotProcessWeightageSum)
-            {
-                var lotNumber = lot.Key;
-
-                // Sum all process percentages for the lot
-                double sumOfProcessPercentages = lot.Value.Values.Sum();
-
-                // Multiply by lot weightage to get total lot percentage
-                totalLotPercentages[lotNumber] = Math.Round(sumOfProcessPercentages * (lotWeightages[lotNumber] / 100), 2);
-
-                // Calculate project lot percentages
-                projectLotPercentages[lotNumber] = double.IsFinite(totalLotPercentages[lotNumber])
-                    ? totalLotPercentages[lotNumber]
-                    : 0;
+                lotWeightages[lotNumber] = Math.Round((quantity / projectTotalQuantity) * 100, 2);
+                projectLotPercentages[lotNumber] = Math.Round(totalLotPercentages[lotNumber] * lotWeightages[lotNumber] / 100, 2);
             }
 
             double totalProjectLotPercentage = Math.Round(projectLotPercentages.Values.Sum(), 2);
             projectTotalQuantity = Math.Round(projectTotalQuantity, 2);
 
+            // Add the distinct process IDs for the project
+            var processIds = projectProcesses.Select(p => p.ProcessId).Distinct();
+
             return Ok(new
             {
+                //Lots = lots,
                 TotalLotPercentages = totalLotPercentages,
                 LotQuantities = lotQuantities,
                 LotWeightages = lotWeightages,
                 ProjectLotPercentages = projectLotPercentages,
                 TotalProjectLotPercentage = totalProjectLotPercentage,
                 ProjectTotalQuantity = projectTotalQuantity,
-                LotProcessWeightageSum = lotProcessWeightageSum,
-                Lots = lots
+                LotProcessWeightageSum = lotProcessWeightageSum
             });
         }
 
@@ -747,25 +727,6 @@ namespace ERPAPI.Controllers
 
 
 
-
-
-
-        //private double NormalizePercentage(double currentPercentage)
-        //{
-        //    double remainingPercent = 100 - currentPercentage;
-        //    return remainingPercent > 0 ? currentPercentage + remainingPercent * (currentPercentage / (100 - currentPercentage)) : currentPercentage;
-        //}
-
-        //private double CalculateTotalCatchQuantity(int projectId)
-        //{
-        //    var catchQuantitySheets = _context.QuantitySheets
-        //        .Where(sheet => sheet.ProjectId == projectId)
-        //        .ToList();
-
-        //    return catchQuantitySheets.Sum(sheet => sheet.Quantity);
-        //}
-
-        // Inner classes for SheetPercentage and Percentages
         public class SheetPercentage
         {
             public int QuantitySheetId { get; set; }
