@@ -454,18 +454,27 @@ public class QuantitySheetController : ControllerBase
         return Ok(processedNewSheets);
     }
 
-
     [HttpGet("Lots")]
     public async Task<ActionResult<IEnumerable<string>>> GetLots(int ProjectId)
     {
+        // Fetch the data from the database first
         var uniqueLotNumbers = await _context.QuantitySheets
             .Where(r => r.ProjectId == ProjectId)
             .Select(r => r.LotNo) // Select the LotNo
             .Distinct() // Get unique LotNo values
-            .ToListAsync();
+            .ToListAsync(); // Bring the data into memory
 
-        return Ok(uniqueLotNumbers);
+        // Sort the LotNo values by parsing them as integers
+        var sortedLotNumbers = uniqueLotNumbers
+            .Where(lotNo => int.TryParse(lotNo, out _)) // Filter out non-numeric LotNo values
+            .OrderBy(lotNo => int.Parse(lotNo)) // Order by LotNo as integers
+            .ToList();
+
+        return Ok(sortedLotNumbers);
     }
+
+
+
 
     [HttpGet("ReleasedLots")]
     public async Task<ActionResult<IEnumerable<string>>> GetReleasedLots(int ProjectId)
