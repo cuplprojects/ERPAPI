@@ -808,6 +808,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(lotData);
     }
 
+
     // Get Catch Data for a given project, lot, and catch
     [HttpGet("catch-data")]
     public async Task<ActionResult<IEnumerable<QuantitySheet>>> GetCatchData(int projectId, string lotNo, string catchNo)
