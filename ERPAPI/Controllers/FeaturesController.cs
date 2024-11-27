@@ -118,10 +118,22 @@ namespace ERPAPI.Controllers
         {
             try
             {
+                // Check if a feature with the same name already exists (case-insensitive)
+                bool featureExists = _context.Features.Any(f => f.Features.ToLower() == feature.Features.ToLower());
+
+                if (featureExists)
+                {
+                    return BadRequest($"A feature with the name '{feature.Features}' already exists.");
+                }
+
+                // Add the feature to the database
                 _context.Features.Add(feature);
                 await _context.SaveChangesAsync();
+
+                // Log the event
                 _loggerService.LogEvent("Created a new feature", "Features", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
 
+                // Return the created feature
                 return CreatedAtAction("GetFeature", new { id = feature.FeatureId }, feature);
             }
             catch (Exception ex)
@@ -130,6 +142,7 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
+
 
         // DELETE: api/Features/5
         [HttpDelete("{id}")]
