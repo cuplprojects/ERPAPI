@@ -113,23 +113,34 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/Cameras
-        [HttpPost]
-        public async Task<ActionResult<Camera>> PostCamera(Camera camera)
-        {
-            try
-            {
-                _context.Camera.Add(camera);
-                await _context.SaveChangesAsync();
-                _loggerService.LogEvent("Created a new camera", "Cameras", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+       [HttpPost]
+public async Task<ActionResult<Camera>> PostCamera(Camera camera)
+{
+    try
+    {
+        // Check for duplicates
+        var existingCamera = await _context.Camera
+            .FirstOrDefaultAsync(c => c.Name == camera.Name);
 
-                return CreatedAtAction("GetCamera", new { id = camera.CameraId }, camera);
-            }
-            catch (Exception ex)
-            {
-                _loggerService.LogError("Error creating camera", ex.Message, nameof(CamerasController));
-                return StatusCode(500, "Internal server error");
-            }
+        if (existingCamera != null)
+        {
+            return BadRequest("A camera with the same unique property already exists.");
         }
+
+        // Add and save the new camera
+        _context.Camera.Add(camera);
+        await _context.SaveChangesAsync();
+        _loggerService.LogEvent("Created a new camera", "Cameras", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+
+        return CreatedAtAction("GetCamera", new { id = camera.CameraId }, camera);
+    }
+    catch (Exception ex)
+    {
+        _loggerService.LogError("Error creating camera", ex.Message, nameof(CamerasController));
+        return StatusCode(500, "Internal server error");
+    }
+}
+
 
         // DELETE: api/Cameras/5
         [HttpDelete("{id}")]
