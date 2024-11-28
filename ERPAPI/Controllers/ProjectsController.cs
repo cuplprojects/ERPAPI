@@ -103,6 +103,14 @@ namespace ERPAPI.Controllers
         [HttpPost]
         public async Task<ActionResult<Project>> PostProject(Project project)
         {
+            // Check for duplicate project name
+            var existingProject = await _context.Projects
+                .FirstOrDefaultAsync(p => p.Name == project.Name);
+            if (existingProject != null)
+            {
+                return BadRequest("A project with the same name already exists.");
+            }
+
             // Check if project type is Booklets and series is not provided
             var projectType = await _context.Types
                 .Where(t => t.TypeId == project.TypeId)
@@ -113,6 +121,7 @@ namespace ERPAPI.Controllers
             {
                 return BadRequest("NoOfSeries and SeriesName are required for Booklet type projects");
             }
+
             // Set the Date to the current date
             project.Date = DateTime.Now;
 

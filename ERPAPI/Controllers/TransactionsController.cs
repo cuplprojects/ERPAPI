@@ -87,7 +87,7 @@ namespace ERPAPI.Controllers
                 .Where(q => q.ProjectId == projectId && q.Status == 1)
                 .ToListAsync();
 
-            // Fetch transaction data and parse alarm messages if needed
+            // Fetch transaction data and check if it's empty
             var transactions = await (from t in _context.Transaction
                                       where t.ProjectId == projectId && t.ProcessId == processId
                                       select new
@@ -96,7 +96,7 @@ namespace ERPAPI.Controllers
                                           t.AlarmId,
                                           t.ZoneId,
                                           t.QuantitysheetId,
-                                          t.TeamId,  // Assuming TeamId is a list of userIds
+                                          t.TeamId,
                                           t.Remarks,
                                           t.LotNo,
                                           t.InterimQuantity,
@@ -106,14 +106,36 @@ namespace ERPAPI.Controllers
                                           t.MachineId
                                       }).ToListAsync();
 
-            // Fetch alarm messages
+            // If no data is found for the current processId, check the fallback logic
+            if (!transactions.Any())
+            {
+                int fallbackProcessId = processId == 7 ? 6 : processId == 6 ? 7 : 0;
+                if (fallbackProcessId > 0)
+                {
+                    transactions = await (from t in _context.Transaction
+                                          where t.ProjectId == projectId && t.ProcessId == fallbackProcessId
+                                          select new
+                                          {
+                                              t.TransactionId,
+                                              t.AlarmId,
+                                              t.ZoneId,
+                                              t.QuantitysheetId,
+                                              t.TeamId,
+                                              t.Remarks,
+                                              t.LotNo,
+                                              t.InterimQuantity,
+                                              t.ProcessId,
+                                              t.VoiceRecording,
+                                              t.Status,
+                                              t.MachineId
+                                          }).ToListAsync();
+                }
+            }
+
+            // Fetch alarms, users, zones, and machines
             var alarms = await _context.Alarm.ToListAsync();
-
-            // Fetch users for all team members in advance to minimize the number of queries
             var allUsers = await _context.Users.ToListAsync();
-
             var allZone = await _context.Zone.ToListAsync();
-
             var allMachine = await _context.Machine.ToListAsync();
 
             // Map transactions with their alarm messages and usernames
@@ -124,39 +146,35 @@ namespace ERPAPI.Controllers
                     ? alarms.FirstOrDefault(a => a.AlarmId == parsedId)
                     : null;
 
-                // Get the usernames for each userId in the TeamId array
                 var userNames = allUsers
-                    .Where(u => t.TeamId.Contains(u.UserId)) // Match userId with the ids in TeamId
-                    .Select(u => u.FirstName + " " + u.LastName)  // Concatenate FirstName and LastName
+                    .Where(u => t.TeamId.Contains(u.UserId))
+                    .Select(u => u.FirstName + " " + u.LastName)
                     .ToList();
 
                 var zone = allZone.FirstOrDefault(z => z.ZoneId == t.ZoneId);
-                var zoneNo = zone != null ? zone.ZoneNo : null;
-
+                var zoneNo = zone?.ZoneNo;
 
                 var machine = allMachine.FirstOrDefault(z => z.MachineId == t.MachineId);
-                var machinename = machine != null ? machine.MachineName : null;
-
+                var machinename = machine?.MachineName;
 
                 return new
                 {
                     t.TransactionId,
                     AlarmId = t.AlarmId,
                     ZoneId = t.ZoneId,
-                    zoneNo = zoneNo,
-                    machinename = machinename,
+                    zoneNo,
+                    machinename,
                     QuantitysheetId = t.QuantitysheetId,
                     TeamId = t.TeamId,
                     Remarks = t.Remarks,
                     LotNo = t.LotNo,
-                    TeamUserNames = userNames,  // Include the usernames
+                    TeamUserNames = userNames,
                     InterimQuantity = t.InterimQuantity,
                     ProcessId = t.ProcessId,
                     VoiceRecording = t.VoiceRecording,
                     Status = t.Status,
                     MachineId = t.MachineId,
-                    ProcessIds = t.ProcessId,
-                    AlarmMessage = alarm != null ? alarm.Message : null // Handle null case for alarms
+                    AlarmMessage = alarm?.Message
                 };
             }).ToList();
 
@@ -176,9 +194,9 @@ namespace ERPAPI.Controllers
                 q.OuterEnvelope,
                 q.Quantity,
                 q.PercentageCatch,
-                ProcessIds = q.ProcessId,  // Assuming ProcessId is a list, map it directly
+                ProcessIds = q.ProcessId,
                 Transactions = transactionsWithAlarms
-                    .Where(t => t.QuantitysheetId == q.QuantitySheetId) // Filter transactions by QuantitySheetId
+                    .Where(t => t.QuantitysheetId == q.QuantitySheetId)
                     .ToList()
             });
 
@@ -190,16 +208,15 @@ namespace ERPAPI.Controllers
         {
             if (alarmId == null)
             {
-                return null; // Return null if AlarmId is null
+                return null;
             }
 
-            int parsedId;
-            if (int.TryParse(alarmId.ToString(), out parsedId))
+            if (int.TryParse(alarmId.ToString(), out int parsedId))
             {
-                return parsedId; // Return integer if parsing succeeds
+                return parsedId;
             }
 
-            return alarmId; // Return the original value if parsing fails
+            return alarmId;
         }
 
 
