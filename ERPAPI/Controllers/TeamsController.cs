@@ -181,6 +181,55 @@ namespace ERPAPI.Controllers
             }
         }
 
+        //[HttpPost]
+        //public async Task<ActionResult<Team>> PostTeam(Team team)
+        //{
+        //    try
+        //    {
+        //        // Normalize user IDs by ordering them
+        //        var normalizedUserIds = team.UserIds.OrderBy(id => id).ToList();
+
+        //        // Check if a team with the same name already exists
+        //        bool nameExists = await _context.Teams
+        //            .AnyAsync(t => t.TeamName == team.TeamName && t.ProcessId == team.ProcessId);
+
+        //        if (nameExists)
+        //        {
+        //            // Log conflict information
+        //            Console.WriteLine($"Conflict: Team with the same name '{team.TeamName}' and process ID '{team.ProcessId}' already exists.");
+        //            return Conflict(new { Message = "A team with the same name and process ID already exists." });
+        //        }
+
+        //        // Get the existing teams with the same process ID
+        //        var existingTeams = await _context.Teams
+        //            .Where(t => t.ProcessId == team.ProcessId)
+        //            .ToListAsync();
+
+        //        // Check if a team with the same user IDs already exists
+        //        bool exists = existingTeams.Any(t =>
+        //            t.UserIds.OrderBy(id => id).SequenceEqual(normalizedUserIds));
+
+
+
+        //        // If no existing team found, add the new team
+        //        _context.Teams.Add(team);
+        //        await _context.SaveChangesAsync();
+
+        //        Console.WriteLine($"Team created successfully with ID: {team.TeamId}");
+
+        //        return CreatedAtAction(nameof(GetTeam), new { id = team.TeamId }, team);
+        //    }
+        //    catch (Exception ex)
+        //    {
+
+        //        Console.WriteLine("Failed to create team: " + ex.ToString());
+
+        //        _loggerService.LogError("Failed to create team", ex.Message, "TeamsController");
+
+        //        return StatusCode(500, "Failed to create team");
+        //    }
+        //}
+
         [HttpPost]
         public async Task<ActionResult<Team>> PostTeam(Team team)
         {
@@ -189,65 +238,79 @@ namespace ERPAPI.Controllers
                 // Normalize user IDs by ordering them
                 var normalizedUserIds = team.UserIds.OrderBy(id => id).ToList();
 
-                // Check if a team with the same name already exists
+                // Check if a team with the same name already exists for the given process
                 bool nameExists = await _context.Teams
                     .AnyAsync(t => t.TeamName == team.TeamName && t.ProcessId == team.ProcessId);
 
                 if (nameExists)
                 {
-                    // Log conflict information
                     Console.WriteLine($"Conflict: Team with the same name '{team.TeamName}' and process ID '{team.ProcessId}' already exists.");
                     return Conflict(new { Message = "A team with the same name and process ID already exists." });
                 }
 
-                // Get the existing teams with the same process ID
+                // Check if a team with the same members and process ID already exists, regardless of the team name
                 var existingTeams = await _context.Teams
                     .Where(t => t.ProcessId == team.ProcessId)
                     .ToListAsync();
 
-                // Check if a team with the same user IDs already exists
-                bool exists = existingTeams.Any(t =>
+                bool sameMembersExist = existingTeams.Any(t =>
                     t.UserIds.OrderBy(id => id).SequenceEqual(normalizedUserIds));
 
-              
+                if (sameMembersExist)
+                {
+                    Console.WriteLine($"Conflict: A team with the same members and process ID '{team.ProcessId}' already exists.");
+                    return Conflict(new { Message = "A team with the same members and process ID already exists." });
+                }
 
-                // If no existing team found, add the new team
+                // Add the new team if no conflicts are found
                 _context.Teams.Add(team);
                 await _context.SaveChangesAsync();
 
                 Console.WriteLine($"Team created successfully with ID: {team.TeamId}");
-
                 return CreatedAtAction(nameof(GetTeam), new { id = team.TeamId }, team);
             }
             catch (Exception ex)
             {
-
                 Console.WriteLine("Failed to create team: " + ex.ToString());
-
                 _loggerService.LogError("Failed to create team", ex.Message, "TeamsController");
-
                 return StatusCode(500, "Failed to create team");
             }
         }
 
+
         // PUT: api/Teams/5
         [HttpPut("{id}")]
-        
         public async Task<IActionResult> UpdateTeam(int id, Team team)
         {
             if (id != team.TeamId)
             {
-                return BadRequest();
+                return BadRequest(new { Message = "Invalid Team ID" });
             }
 
             try
             {
+                // Find the existing team by ID
                 var existingTeam = await _context.Teams.FindAsync(id);
                 if (existingTeam == null)
                 {
                     return NotFound(new { Message = "Team not found" });
                 }
 
+                // Normalize user IDs by ordering them
+                var normalizedUserIds = team.UserIds.OrderBy(uid => uid).ToList();
+
+                // Check if another team with the same members and process ID exists, but with a different team name
+                var duplicateTeam = await _context.Teams
+                    .Where(t => t.TeamId != id && t.ProcessId == team.ProcessId)
+                    .ToListAsync();
+
+                bool sameMembersExist = duplicateTeam.Any(t =>
+                    t.UserIds.OrderBy(uid => uid).SequenceEqual(normalizedUserIds));
+
+                if (sameMembersExist)
+                {
+                    return Conflict(new { Message = "A team with the same members and process ID already exists." });
+                }
 
                 // Capture old values before updating
                 var oldTeam = new
@@ -259,11 +322,7 @@ namespace ERPAPI.Controllers
 
                 // Update the existing team with new values
                 existingTeam.TeamName = team.TeamName;
-
-               
-                existingTeam.TeamId = team.TeamId;
                 existingTeam.ProcessId = team.ProcessId;
-
                 existingTeam.Status = team.Status;
                 existingTeam.UserIds = team.UserIds;
 
@@ -292,7 +351,6 @@ namespace ERPAPI.Controllers
                     "Failed to update team",
                     ex.Message,
                     "TeamsController"
-                  
                 );
                 return StatusCode(500, "Failed to update team");
             }
