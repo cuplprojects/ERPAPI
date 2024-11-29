@@ -162,18 +162,31 @@ namespace ERPAPI.Controllers
         {
             try
             {
+                // Check if a process with the same name already exists
+                bool isDuplicate = await _context.Processes.AnyAsync(p => p.Name == process.Name);
+                if (isDuplicate)
+                {
+                    return BadRequest("A process with the same name already exists.");
+                }
+
+                // Add the new process
                 _context.Processes.Add(process);
                 await _context.SaveChangesAsync();
 
+                // Log the event
                 _loggerService.LogEvent("Created a new process", "Processes", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+
+                // Return the created process
                 return CreatedAtAction("GetProcess", new { id = process.Id }, process);
             }
             catch (Exception ex)
             {
+                // Log the error
                 _loggerService.LogError("Error creating process", ex.Message, nameof(ProcessesController));
                 return StatusCode(500, "Internal server error");
             }
         }
+
 
         // DELETE: api/Processes/5
         [HttpDelete("{id}")]
