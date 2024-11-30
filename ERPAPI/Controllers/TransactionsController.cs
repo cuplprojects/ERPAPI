@@ -780,7 +780,9 @@ namespace ERPAPI.Controllers
                         )
                     );
 
-                    var totalSheets = lotQuantitySheets.Count;
+                    // Assuming lotQuantitySheets is your existing collection of QuantitySheet objects
+                    var totalSheets = lotQuantitySheets.Count(sheet => sheet.ProcessId.Contains(process.ProcessId));
+
                     var percentage = totalSheets > 0
                         ? Math.Round((double)completedSheets / totalSheets * 100, 2)
                         : 0;
