@@ -817,8 +817,8 @@ public class QuantitySheetController : ControllerBase
         // Convert dates to Indian format
         var formattedDates = examDates
             .Where(date => !string.IsNullOrEmpty(date))
-            .Select(date => DateTime.TryParse(date, out var parsedDate) 
-                ? parsedDate.ToString("dd-MM-yyyy") 
+            .Select(date => DateTime.TryParse(date, out var parsedDate)
+                ? parsedDate.ToString("dd-MM-yyyy")
                 : date)
             .ToList();
 
@@ -846,8 +846,8 @@ public class QuantitySheetController : ControllerBase
     public async Task<ActionResult<IEnumerable<QuantitySheet>>> GetCatchData(int projectId, string lotNo, string catchNo)
     {
         var catchData = await _context.QuantitySheets
-            .Where(qs => qs.ProjectId == projectId 
-                      && qs.LotNo == lotNo 
+            .Where(qs => qs.ProjectId == projectId
+                      && qs.LotNo == lotNo
                       && qs.CatchNo == catchNo)
             .ToListAsync();
 
