@@ -47,8 +47,11 @@ namespace ERPAPI.Services
                     var processIdWeightage = new Dictionary<int, double>();
                     double totalWeightageSum = 0;
 
+                    // Exclude ProcessId 14 from weightage calculation
                     foreach (var processId in quantitySheet.ProcessId)
                     {
+                        if (processId == 14) continue; // Skip ProcessId 14
+
                         var process = projectProcesses.FirstOrDefault(p => p.ProcessId == processId);
                         if (process != null)
                         {
@@ -68,6 +71,8 @@ namespace ERPAPI.Services
                     }
 
                     double completedWeightageSum = 0;
+
+                    // Exclude ProcessId 14 from the completed process calculation
                     foreach (var kvp in processIdWeightage)
                     {
                         var processId = kvp.Key;
@@ -93,6 +98,7 @@ namespace ERPAPI.Services
 
                 double totalProjectLotPercentage = 0;
 
+                // Exclude ProcessId 14 when calculating the total project completion percentage
                 foreach (var lot in totalLotPercentages)
                 {
                     var lotNumber = lot.Key;

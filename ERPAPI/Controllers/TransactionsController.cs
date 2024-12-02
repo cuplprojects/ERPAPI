@@ -611,8 +611,11 @@ namespace ERPAPI.Controllers
                 var processIdWeightage = new Dictionary<int, double>();
                 double totalWeightageSum = 0;
 
+                // Only consider processes that are part of the current quantity sheet's processes
                 foreach (var processId in quantitySheet.ProcessId)
                 {
+                    if (processId == 14) continue; // Exclude ProcessId 14
+
                     var process = projectProcesses.FirstOrDefault(p => p.ProcessId == processId);
                     if (process != null)
                     {
@@ -621,6 +624,7 @@ namespace ERPAPI.Controllers
                     }
                 }
 
+                // Ensure the total weightage sum equals 100
                 if (totalWeightageSum < 100)
                 {
                     double deficit = 100 - totalWeightageSum;
@@ -670,7 +674,7 @@ namespace ERPAPI.Controllers
 
                 totalLotPercentages[lotNumber] = Math.Round(totalLotPercentages[lotNumber] + lotPercentage, 2);
                 lotQuantities[lotNumber] += quantitySheet.Quantity;
-                projectTotalQuantity += quantitySheet.Quantity;
+                projectTotalQuantity += quantitySheet.Quantity;  // This line now uses the total quantity from the sheet
 
                 if (!lotProcessWeightageSum.ContainsKey(lotNumber))
                 {
@@ -685,7 +689,7 @@ namespace ERPAPI.Controllers
                         .Count(t => t.LotNo.ToString() == lotNumberStr && t.ProcessId == processId && t.Status == 2);
 
                     var totalQuantitySheets = quantitySheets
-                        .Count(qs => qs.LotNo.ToString() == lotNumberStr);
+                        .Count(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId));
 
                     double processPercentage = totalQuantitySheets > 0
                         ? Math.Round((double)completedQuantitySheets / totalQuantitySheets * 100, 2)
@@ -712,7 +716,6 @@ namespace ERPAPI.Controllers
 
             return Ok(new
             {
-                //Lots = lots,
                 TotalLotPercentages = totalLotPercentages,
                 LotQuantities = lotQuantities,
                 LotWeightages = lotWeightages,
@@ -722,7 +725,6 @@ namespace ERPAPI.Controllers
                 LotProcessWeightageSum = lotProcessWeightageSum
             });
         }
-
 
 
 
