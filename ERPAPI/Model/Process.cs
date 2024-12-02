@@ -13,7 +13,6 @@ namespace ERPAPI.Model
         public double Weightage { get; set; }
         public bool Status { get; set; }
         public List<int> InstalledFeatures { get; set; }
-        //public int ProcessIdInput { get; set; }  // New field for process Order input
         public string ProcessType { get; set; }  // New field for process type
 
         // New properties for range

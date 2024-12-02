@@ -294,6 +294,57 @@ public class QuantitySheetController : ControllerBase
     }
 
 
+    [HttpGet("lot-dates")]
+    public async Task<ActionResult<Dictionary<string, object>>> GetLotDates(int projectId)
+    {
+        try
+        {
+            // Fetch all distinct exam dates grouped by LotNo for the given project
+            var lotwiseExamDates = await _context.QuantitySheets
+                .Where(qs => qs.ProjectId == projectId && !string.IsNullOrEmpty(qs.ExamDate))
+                .GroupBy(qs => qs.LotNo)
+                .Select(group => new
+                {
+                    LotNo = group.Key,
+                    ExamDates = group.Select(qs => qs.ExamDate).ToList() // Get all dates for the group
+                })
+                .ToListAsync();
+
+            if (!lotwiseExamDates.Any())
+            {
+                return NotFound($"No exam dates found for project {projectId}");
+            }
+
+            // Process the exam dates and calculate Min and Max per lot
+            var result = new Dictionary<string, object>();
+            foreach (var lot in lotwiseExamDates)
+            {
+                var parsedDates = lot.ExamDates
+                    .Select(date => DateTime.TryParse(date, out var parsedDate) ? parsedDate : (DateTime?)null)
+                    .Where(date => date.HasValue)
+                    .Select(date => date.Value)
+                    .ToList();
+
+                if (parsedDates.Any())
+                {
+                    var minDate = parsedDates.Min();
+                    var maxDate = parsedDates.Max();
+
+                    result[lot.LotNo] = new { MinDate = minDate.ToString("dd-MM-yyyy"), MaxDate = maxDate.ToString("dd-MM-yyyy") };
+                }
+                else
+                {
+                    result[lot.LotNo] = new { MinDate = (string)null, MaxDate = (string)null };
+                }
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Failed to retrieve exam dates: {ex.Message}");
+        }
+    }
 
 
 
@@ -454,18 +505,27 @@ public class QuantitySheetController : ControllerBase
         return Ok(processedNewSheets);
     }
 
-
     [HttpGet("Lots")]
     public async Task<ActionResult<IEnumerable<string>>> GetLots(int ProjectId)
     {
+        // Fetch the data from the database first
         var uniqueLotNumbers = await _context.QuantitySheets
             .Where(r => r.ProjectId == ProjectId)
             .Select(r => r.LotNo) // Select the LotNo
             .Distinct() // Get unique LotNo values
-            .ToListAsync();
+            .ToListAsync(); // Bring the data into memory
 
-        return Ok(uniqueLotNumbers);
+        // Sort the LotNo values by parsing them as integers
+        var sortedLotNumbers = uniqueLotNumbers
+            .Where(lotNo => int.TryParse(lotNo, out _)) // Filter out non-numeric LotNo values
+            .OrderBy(lotNo => int.Parse(lotNo)) // Order by LotNo as integers
+            .ToList();
+
+        return Ok(sortedLotNumbers);
     }
+
+
+
 
     [HttpGet("ReleasedLots")]
     public async Task<ActionResult<IEnumerable<string>>> GetReleasedLots(int ProjectId)

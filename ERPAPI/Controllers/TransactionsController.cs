@@ -219,20 +219,8 @@ namespace ERPAPI.Controllers
 
             return transaction;
         }
-/*
-        [HttpGet("{byProjectId}")]
-        public async Task<ActionResult<Transaction>> GetTransactionByProjectId(int projectId)
-        {
-            var transaction = await _context.Transaction.FindAsync(projectId);
 
-            if (transaction == null)
-            {
-                return NotFound();
-            }
 
-            return transaction;
-        }
-*/
         // PUT: api/Transactions/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTransaction(int id, Transaction transaction)
@@ -595,7 +583,6 @@ namespace ERPAPI.Controllers
 
 
 
-
         [HttpGet("combined-percentages")]
         public async Task<ActionResult> GetCombinedPercentages(int projectId)
         {
@@ -737,22 +724,9 @@ namespace ERPAPI.Controllers
         }
 
 
-        //private double NormalizePercentage(double currentPercentage)
-        //{
-        //    double remainingPercent = 100 - currentPercentage;
-        //    return remainingPercent > 0 ? currentPercentage + remainingPercent * (currentPercentage / (100 - currentPercentage)) : currentPercentage;
-        //}
 
-        //private double CalculateTotalCatchQuantity(int projectId)
-        //{
-        //    var catchQuantitySheets = _context.QuantitySheets
-        //        .Where(sheet => sheet.ProjectId == projectId)
-        //        .ToList();
 
-        //    return catchQuantitySheets.Sum(sheet => sheet.Quantity);
-        //}
 
-        // Inner classes for SheetPercentage and Percentages
         public class SheetPercentage
         {
             public int QuantitySheetId { get; set; }
@@ -767,6 +741,7 @@ namespace ERPAPI.Controllers
             public double ProjectPercent { get; set; }
             public double TotalCatchQuantity { get; set; }
         }
+
 
         [HttpGet("process-percentages")]
         public async Task<ActionResult> GetProcessPercentages(int projectId)
@@ -856,6 +831,7 @@ namespace ERPAPI.Controllers
 
             return Ok(result);
         }
+
 
         [HttpGet("process-lot-percentages")]
         public async Task<ActionResult> GetProcessLotPercentages(int projectId)
