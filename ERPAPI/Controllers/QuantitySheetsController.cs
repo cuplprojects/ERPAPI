@@ -347,20 +347,35 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-
     [HttpPut("{id}")]
     public async Task<IActionResult> PutQuantitySheet(int id, QuantitySheet quantity)
     {
+        // Validate if the received id matches the quantity's id (this can be adjusted if you want to update all with the same lotNo/catchNo)
         if (id != quantity.QuantitySheetId)
         {
             return BadRequest();
         }
 
-        _context.Entry(quantity).State = EntityState.Modified;
+        // Find all the records matching the lotNo and catchNo
+        var quantitySheetsToUpdate = _context.QuantitySheets
+            .Where(qs => qs.LotNo == quantity.LotNo && qs.CatchNo == quantity.CatchNo)
+            .ToList();
+
+        if (quantitySheetsToUpdate.Count == 0)
+        {
+            return NotFound("No matching records found.");
+        }
+
+        // Loop through each matching record and apply the update
+        foreach (var sheet in quantitySheetsToUpdate)
+        {
+            // Assuming that processId is the field being updated
+            sheet.ProcessId = quantity.ProcessId; // Update other fields as necessary
+        }
 
         try
         {
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(); // Save the changes to the database
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -376,6 +391,7 @@ public class QuantitySheetController : ControllerBase
 
         return NoContent();
     }
+
 
     [HttpPut]
     public async Task<IActionResult> UpdateQuantitySheet([FromBody] List<QuantitySheet> newSheets)
