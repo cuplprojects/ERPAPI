@@ -106,6 +106,9 @@ namespace ERPAPI.Controllers
                           ProcessName = p.Name,   // Assuming Process entity has a "Name" property
                           pp.Weightage,
                           pp.Sequence,
+                          ProcessType = p.ProcessType,
+                          RangeStart = p.RangeStart,
+                          RangeEnd = p.RangeEnd,
                           pp.FeaturesList,
                           pp.UserId
                       })
@@ -121,6 +124,9 @@ namespace ERPAPI.Controllers
                     pp.Id,
                     pp.ProjectId,
                     pp.ProcessId,
+                    pp.ProcessType,
+                    pp.RangeStart,
+                    pp.RangeEnd,
                     pp.ProcessName,   // Now including the ProcessName in the result
                     pp.Weightage,
                     pp.Sequence,
