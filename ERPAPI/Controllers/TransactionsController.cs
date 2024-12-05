@@ -9,6 +9,7 @@ using ERPAPI.Model;
 using Microsoft.CodeAnalysis;
 using System.Diagnostics;
 using ERPAPI.Services;
+using ERPAPI.Service.ProjectTransaction;
 
 
 namespace ERPAPI.Controllers
@@ -20,12 +21,14 @@ namespace ERPAPI.Controllers
         private readonly AppDbContext _context;
 
         private readonly IProjectCompletionService _projectCompletionService;
+        private readonly IProjectTransactionService _projectTransactionService;
 
-        public TransactionsController(AppDbContext context, IProjectCompletionService projectCompletionService)
+        public TransactionsController(AppDbContext context, IProjectCompletionService projectCompletionService, IProjectTransactionService projectTransactionService)
         {
             _context = context;
 
             _projectCompletionService = projectCompletionService;
+            _projectTransactionService = projectTransactionService;
         }
 
         [HttpGet]
@@ -79,8 +82,9 @@ namespace ERPAPI.Controllers
         }
 
 
-        [HttpGet("GetProjectTransactionsData")]
-        public async Task<ActionResult<IEnumerable<object>>> GetProjectTransactionsData(int projectId, int processId)
+        // 
+        [HttpGet("GetProjectTransactionsDataOld")]
+        public async Task<ActionResult<IEnumerable<object>>> GetProjectTransactionsDataOld(int projectId, int processId)
         {
             // Fetch quantity sheet data
             var quantitySheetData = await _context.QuantitySheets
@@ -186,6 +190,35 @@ namespace ERPAPI.Controllers
         }
 
         // Utility function to attempt parsing AlarmId and return an integer if possible, else return the original value
+      
+
+
+
+
+
+
+
+
+
+
+        [HttpGet("GetProjectTransactionsData")]
+        public async Task<ActionResult<IEnumerable<object>>> GetProjectTransactionsData(int projectId, int processId)
+        {
+            try
+            {
+                // Call the service method to get the data
+                var projectTransactionsData = await _projectTransactionService.GetProjectTransactionsDataAsync(projectId, processId);
+
+                // Return the data as a successful response
+                return Ok(projectTransactionsData);
+            }
+            catch (System.Exception ex)
+            {
+                // In case of any error, return a bad request response with the exception message
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+        // Utility function to attempt parsing AlarmId and return an integer if possible, else return the original value
         private object TryParseAlarmId(object alarmId)
         {
             if (alarmId == null)
@@ -201,6 +234,8 @@ namespace ERPAPI.Controllers
 
             return alarmId; // Return the original value if parsing fails
         }
+        // Utility function to attempt parsing AlarmId and return an integer if possible, else return the original value
+       
 
 
 
@@ -744,7 +779,6 @@ namespace ERPAPI.Controllers
             public double TotalCatchQuantity { get; set; }
         }
 
-
         [HttpGet("process-percentages")]
         public async Task<ActionResult> GetProcessPercentages(int projectId)
         {
@@ -782,12 +816,13 @@ namespace ERPAPI.Controllers
                         )
                     );
 
-                    // Assuming lotQuantitySheets is your existing collection of QuantitySheet objects
+                    // Calculate total sheets for this lot that are related to the process
                     var totalSheets = lotQuantitySheets.Count(sheet => sheet.ProcessId.Contains(process.ProcessId));
 
-                    var percentage = totalSheets > 0
-                        ? Math.Round((double)completedSheets / totalSheets * 100, 2)
-                        : 0;
+                    // If totalSheets is 0, return 100% (since there is nothing to complete)
+                    var percentage = totalSheets == 0
+                        ? 100
+                        : Math.Round((double)completedSheets / totalSheets * 100, 2);
 
                     totalProcessSheets += totalSheets;
                     totalProcessCompletedSheets += completedSheets;
@@ -806,7 +841,7 @@ namespace ERPAPI.Controllers
 
                 var overallPercentage = totalProcessSheets > 0
                     ? Math.Round((double)totalProcessCompletedSheets / totalProcessSheets * 100, 2)
-                    : 0;
+                    : 100; // If no total sheets for the process, consider 100%
 
                 processesList.Add(new
                 {
@@ -824,7 +859,7 @@ namespace ERPAPI.Controllers
 
             var overallProjectPercentage = totalProjectSheets > 0
                 ? Math.Round((double)totalProjectCompletedSheets / totalProjectSheets * 100, 2)
-                : 0;
+                : 100; // If no total sheets for the project, consider 100%
 
             var result = new
             {
