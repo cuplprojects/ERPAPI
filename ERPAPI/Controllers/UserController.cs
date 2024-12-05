@@ -48,25 +48,45 @@ namespace ERPAPI.Controllers
                 _context.Users.Add(user);
                 _context.SaveChanges();
 
-                // Generate and hash a password for the user
-                string generatedPassword = Passwordgen.GeneratePassword();
-                var hashedPassword = Sha256.ComputeSHA256Hash(generatedPassword);
+                // Check the user's RoleId
+                if (user.RoleId != 6)
+                {
+                    // Generate and hash a password for the user
+                    string generatedPassword = Passwordgen.GeneratePassword();
+                    var hashedPassword = Sha256.ComputeSHA256Hash(generatedPassword);
 
-                // Create a UserAuth entry with the auto-generated password
-                var userAuth = new UserAuth
+                    // Create a UserAuth entry with the auto-generated password
+                    var userAuth = new UserAuth
+                    {
+                        UserId = user.UserId,
+                        Password = hashedPassword,
+                        AutogenPass = true
+                    };
+
+                    _context.UserAuths.Add(userAuth);
+                    _context.SaveChanges();
+
+                    // Log the event
+                    _loggerService.LogEvent("User created with password", "User", user.UserId);
+
+                    return Ok(new
+                    {
+                        UserId = user.UserId,
+                        Message = "User created with password",
+                        UserName = user.UserName,
+                        Password = generatedPassword
+                    });
+                }
+
+                // Log the event for users with RoleId = 6
+                _loggerService.LogEvent("User created without password", "User", user.UserId);
+
+                return Ok(new
                 {
                     UserId = user.UserId,
-                    Password = hashedPassword,
-                    AutogenPass = true
-                };
-
-                _context.UserAuths.Add(userAuth);
-                _context.SaveChanges();
-
-                // Log the event
-                _loggerService.LogEvent("User created", "User", user.UserId);
-
-                return Ok(new { UserId = user.UserId, Message = "User created", UserName = user.UserName, Password = generatedPassword  });
+                    Message = "User created without password",
+                    UserName = user.UserName
+                });
             }
             catch (Exception ex)
             {
@@ -74,6 +94,7 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, "User creation failed");
             }
         }
+
 
         // GET: api/User
         [HttpGet]
