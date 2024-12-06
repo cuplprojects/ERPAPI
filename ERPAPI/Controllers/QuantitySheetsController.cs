@@ -169,7 +169,7 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-
+  
 
 
     [HttpGet("calculate-date-range")]
@@ -541,7 +541,17 @@ public class QuantitySheetController : ControllerBase
     }
 
 
+    [HttpGet("UnReleasedLots")]
+    public async Task<ActionResult<IEnumerable<string>>> GetUnReleasedLots(int ProjectId)
+    {
+        var uniqueLotNumbers = await _context.QuantitySheets
+            .Where(r => r.ProjectId == ProjectId && r.Status != 1)
+            .Select(r => r.LotNo) // Select the LotNo
+            .Distinct() // Get unique LotNo values
+            .ToListAsync();
 
+        return Ok(uniqueLotNumbers);
+    }
 
     [HttpGet("ReleasedLots")]
     public async Task<ActionResult<IEnumerable<string>>> GetReleasedLots(int ProjectId)
