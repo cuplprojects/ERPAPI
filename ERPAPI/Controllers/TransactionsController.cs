@@ -100,7 +100,7 @@ namespace ERPAPI.Controllers
                                           t.AlarmId,
                                           t.ZoneId,
                                           t.QuantitysheetId,
-                                          t.TeamId,  // Assuming TeamId is a list of userIds
+                                          t.TeamId,
                                           t.Remarks,
                                           t.LotNo,
                                           t.InterimQuantity,
@@ -112,12 +112,11 @@ namespace ERPAPI.Controllers
 
             // Fetch alarm messages
             var alarms = await _context.Alarm.ToListAsync();
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.ProjectId == projectId);
 
             // Fetch users for all team members in advance to minimize the number of queries
             var allUsers = await _context.Users.ToListAsync();
-
             var allZone = await _context.Zone.ToListAsync();
-
             var allMachine = await _context.Machine.ToListAsync();
 
             // Map transactions with their alarm messages and usernames
@@ -130,17 +129,15 @@ namespace ERPAPI.Controllers
 
                 // Get the usernames for each userId in the TeamId array
                 var userNames = allUsers
-                    .Where(u => t.TeamId.Contains(u.UserId)) // Match userId with the ids in TeamId
-                    .Select(u => u.FirstName + " " + u.LastName)  // Concatenate FirstName and LastName
+                    .Where(u => t.TeamId.Contains(u.UserId))
+                    .Select(u => u.FirstName + " " + u.LastName)
                     .ToList();
 
                 var zone = allZone.FirstOrDefault(z => z.ZoneId == t.ZoneId);
                 var zoneNo = zone != null ? zone.ZoneNo : null;
 
-
                 var machine = allMachine.FirstOrDefault(z => z.MachineId == t.MachineId);
                 var machinename = machine != null ? machine.MachineName : null;
-
 
                 return new
                 {
@@ -159,13 +156,58 @@ namespace ERPAPI.Controllers
                     VoiceRecording = t.VoiceRecording,
                     Status = t.Status,
                     MachineId = t.MachineId,
-                    ProcessIds = t.ProcessId,
-                    AlarmMessage = alarm != null ? alarm.Message : null // Handle null case for alarms
+                    AlarmMessage = alarm != null ? alarm.Message : null, // Handle null case for alarms
                 };
             }).ToList();
 
-            // Combine QuantitySheet and Transaction data in a structured response
-            var responseData = quantitySheetData.Select(q => new
+            // Group quantity sheet data by CatchNo
+            var groupedQuantitySheets = quantitySheetData
+                .GroupBy(q => q.CatchNo)
+                .Select(group =>
+                {
+                    // Retrieve the series name from the project and assign based on position in the group
+                    var seriesName = project?.SeriesName ?? "";  // Fetch the SeriesName from Project
+
+                    // Assign SeriesName based on the index of the QuantitySheet in the group
+                    var quantitySheetsWithSeriesName = group.Select((q, index) =>
+                    {
+                        var seriesLetter = index < seriesName.Length ? seriesName[index].ToString() : ""; // Use SeriesName from project
+                        return new
+                        {
+                            q.QuantitySheetId,
+                            q.ProjectId,
+                            q.LotNo,
+                            q.CatchNo,
+                            q.Paper,
+                            q.ExamDate,
+                            q.ExamTime,
+                            q.Course,
+                            q.Subject,
+                            q.InnerEnvelope,
+                            q.OuterEnvelope,
+                            q.Quantity,
+                            q.PercentageCatch,
+                            SeriesName = seriesLetter,  // Assign the SeriesName here
+                            ProcessIds = q.ProcessId,   // Assuming ProcessIds is a list, map it directly
+                        };
+                    }).ToList();
+
+                    // Get the transactions related to the QuantitySheetId(s) in this group
+                    var relatedTransactions = transactionsWithAlarms
+                        .Where(t => group.Select(g => g.QuantitySheetId).Contains(t.QuantitysheetId))
+                        .ToList();
+
+                    return new
+                    {
+                        CatchNo = group.Key,  // The CatchNo for this group
+                        QuantitySheets = quantitySheetsWithSeriesName,
+                        Transactions = relatedTransactions  // Add the related transactions for each QuantitySheet group
+                    };
+                })
+                .ToList();
+
+            // Flatten the grouped data into a single list
+            var flatResponseData = groupedQuantitySheets.SelectMany(group => group.QuantitySheets.Select(q => new
             {
                 q.QuantitySheetId,
                 q.ProjectId,
@@ -180,17 +222,21 @@ namespace ERPAPI.Controllers
                 q.OuterEnvelope,
                 q.Quantity,
                 q.PercentageCatch,
-                ProcessIds = q.ProcessId,  // Assuming ProcessId is a list, map it directly
-                Transactions = transactionsWithAlarms
-                    .Where(t => t.QuantitysheetId == q.QuantitySheetId) // Filter transactions by QuantitySheetId
-                    .ToList()
-            });
+                SeriesName = q.SeriesName,  // Use the assigned SeriesName
+                ProcessIds = q.ProcessIds,  // Assuming ProcessIds is a list, map it directly
+                Transactions = group.Transactions  // Add the transactions related to this group
+            }))
+            .ToList();
 
-            return Ok(responseData);
+            // Return the structured response
+            return Ok(flatResponseData);
         }
 
+
+
+
         // Utility function to attempt parsing AlarmId and return an integer if possible, else return the original value
-      
+
 
 
 
@@ -474,103 +520,7 @@ namespace ERPAPI.Controllers
         }
 
 
-        //[HttpGet("all-project-completion-percentages")]
-        //public async Task<ActionResult> GetAllProjectCompletionPercentages()
-        //{
-        //    var projects = await _projectService.GetAllProjects();
-        //    var projectCompletionPercentages = new List<dynamic>();
-
-        //    foreach (var project in projects)
-        //    {
-        //        var projectId = project.ProjectId;
-
-        //        // Fetch relevant data for each project using services
-        //        var projectProcesses = await _projectProcessService.GetProjectProcessesByProjectId(projectId);
-        //        var quantitySheets = await _quantitySheetService.GetQuantitySheetsByProjectId(projectId);
-        //        var transactions = await _transactionService.GetTransactionsByProjectId(projectId);
-
-        //        var totalLotPercentages = new Dictionary<string, double>();
-        //        var lotQuantities = new Dictionary<string, double>();
-        //        double projectTotalQuantity = 0;
-
-        //        // (Original logic here for calculating project completion percentages,
-        //        // adapted as necessary to work with the data fetched from services)
-
-        //        foreach (var quantitySheet in quantitySheets)
-        //        {
-        //            var processIdWeightage = new Dictionary<int, double>();
-        //            double totalWeightageSum = 0;
-
-        //            // Calculate weightages for each process in the quantity sheet
-        //            foreach (var processId in quantitySheet.ProcessId)
-        //            {
-        //                var process = projectProcesses.FirstOrDefault(p => p.ProcessId == processId);
-        //                if (process != null)
-        //                {
-        //                    processIdWeightage[processId] = Math.Round(process.Weightage, 2);
-        //                    totalWeightageSum += process.Weightage;
-        //                }
-        //            }
-
-        //            // Adjust weightages if they don’t sum up to 100
-        //            if (totalWeightageSum < 100)
-        //            {
-        //                double deficit = 100 - totalWeightageSum;
-        //                double adjustment = deficit / processIdWeightage.Count;
-        //                foreach (var key in processIdWeightage.Keys.ToList())
-        //                {
-        //                    processIdWeightage[key] = Math.Round(processIdWeightage[key] + adjustment, 2);
-        //                }
-        //            }
-
-        //            double completedWeightageSum = 0;
-        //            foreach (var kvp in processIdWeightage)
-        //            {
-        //                var processId = kvp.Key;
-        //                var weightage = kvp.Value;
-        //                var completedProcess = transactions
-        //                    .Any(t => t.QuantitysheetId == quantitySheet.QuantitySheetId
-        //                              && t.ProcessId == processId
-        //                              && t.Status == 2);
-
-        //                if (completedProcess)
-        //                {
-        //                    completedWeightageSum += weightage;
-        //                }
-        //            }
-
-        //            double lotPercentage = Math.Round(quantitySheet.PercentageCatch * (completedWeightageSum / 100), 2);
-        //            var lotNumber = quantitySheet.LotNo;
-
-        //            totalLotPercentages[lotNumber] = Math.Round(totalLotPercentages.GetValueOrDefault(lotNumber) + lotPercentage, 2);
-        //            lotQuantities[lotNumber] = lotQuantities.GetValueOrDefault(lotNumber) + quantitySheet.Quantity;
-        //            projectTotalQuantity += quantitySheet.Quantity;
-        //        }
-
-        //        double totalProjectLotPercentage = 0;
-
-        //        foreach (var lot in totalLotPercentages)
-        //        {
-        //            var lotNumber = lot.Key;
-        //            var quantity = lotQuantities[lotNumber];
-        //            var lotWeightage = projectTotalQuantity > 0 ? (quantity / projectTotalQuantity) * 100 : 0;
-
-        //            totalProjectLotPercentage += totalLotPercentages[lotNumber] * (lotWeightage / 100);
-        //        }
-
-        //        totalProjectLotPercentage = Math.Round(totalProjectLotPercentage, 2);
-
-        //        projectCompletionPercentages.Add(new
-        //        {
-        //            ProjectId = projectId,
-        //            CompletionPercentage = totalProjectLotPercentage,
-        //            ProjectTotalQuantity = projectTotalQuantity // Add total quantity for the project
-        //        });
-        //    }
-
-        //    return Ok(projectCompletionPercentages);
-        //}
-
+       
         [HttpGet("all-project-completion-percentages")]
         public async Task<ActionResult> GetAllProjectCompletionPercentages()
         {
