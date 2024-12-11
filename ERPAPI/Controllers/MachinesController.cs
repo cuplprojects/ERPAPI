@@ -84,8 +84,18 @@ namespace ERPAPI.Controllers
             var existingMachine = await _context.Machine.AsNoTracking().FirstOrDefaultAsync(m => m.MachineId == id);
             if (existingMachine == null)
             {
-                _loggerService.LogEvent($"Machine with ID {id} not found during update", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                _loggerService.LogEvent($"Machine with ID {id} not found during update", "Machines",
+                    User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                 return NotFound();
+            }
+
+            // Check for duplicate machine name
+            var duplicateMachine = await _context.Machine
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.MachineName == machine.MachineName && m.MachineId != id);
+            if (duplicateMachine != null)
+            {
+                return BadRequest("A machine with the same name already exists.");
             }
 
             // Capture old and new values for logging
@@ -97,13 +107,15 @@ namespace ERPAPI.Controllers
             try
             {
                 await _context.SaveChangesAsync();
-                _loggerService.LogEvent($"Updated machine with ID {id}", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, oldValue, newValue);
+                _loggerService.LogEvent($"Updated machine with ID {id}", "Machines",
+                    User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, oldValue, newValue);
             }
             catch (DbUpdateConcurrencyException ex)
             {
                 if (!MachineExists(id))
                 {
-                    _loggerService.LogEvent($"Machine with ID {id} not found during update", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+                    _loggerService.LogEvent($"Machine with ID {id} not found during update", "Machines",
+                        User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
                     return NotFound();
                 }
                 else
@@ -121,15 +133,26 @@ namespace ERPAPI.Controllers
             return NoContent();
         }
 
+
         // POST: api/Machines
         [HttpPost]
         public async Task<ActionResult<Machine>> PostMachine(Machine machine)
         {
             try
             {
+                // Check for duplicate machine name
+                var existingMachine = await _context.Machine
+                    .FirstOrDefaultAsync(m => m.MachineName == machine.MachineName);
+                if (existingMachine != null)
+                {
+                    return BadRequest("A machine with the same name already exists.");
+                }
+
                 _context.Machine.Add(machine);
                 await _context.SaveChangesAsync();
-                _loggerService.LogEvent("Created a new machine", "Machines", User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
+
+                _loggerService.LogEvent("Created a new machine", "Machines",
+                    User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0);
 
                 return CreatedAtAction("GetMachine", new { id = machine.MachineId }, machine);
             }
@@ -139,6 +162,7 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
+
 
         // DELETE: api/Machines/5
         [HttpDelete("{id}")]

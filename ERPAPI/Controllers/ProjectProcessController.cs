@@ -106,34 +106,44 @@ namespace ERPAPI.Controllers
                           ProcessName = p.Name,   // Assuming Process entity has a "Name" property
                           pp.Weightage,
                           pp.Sequence,
+                          ProcessType = p.ProcessType,
+                          RangeStart = p.RangeStart,
+                          RangeEnd = p.RangeEnd,
                           pp.FeaturesList,
                           pp.UserId
                       })
                 .AsNoTracking()
                 .ToListAsync();
 
-            // Filter the processes based on userId using client-side evaluation
-            var filteredProcesses = processes
-                .Where(pp => pp.UserId == null || pp.UserId.Contains(userId))
+            // Adjust the filtering logic based on userId
+            var filteredProcesses = userId < 5
+                ? processes
+                : processes.Where(pp => pp.UserId == null || pp.UserId.Contains(userId));
+
+            // Apply ordering and project the final results
+            var orderedProcesses = filteredProcesses
                 .OrderBy(pp => pp.Sequence)
                 .Select(pp => new
                 {
                     pp.Id,
                     pp.ProjectId,
                     pp.ProcessId,
-                    pp.ProcessName,   // Now including the ProcessName in the result
+                    pp.ProcessType,
+                    pp.RangeStart,
+                    pp.RangeEnd,
+                    pp.ProcessName,
                     pp.Weightage,
                     pp.Sequence,
                     pp.FeaturesList
                 })
                 .ToList();
 
-            if (!filteredProcesses.Any())
+            if (!orderedProcesses.Any())
             {
                 return NotFound(new { message = "No processes found for the given user and project." });
             }
 
-            return Ok(filteredProcesses);
+            return Ok(orderedProcesses);
         }
 
 
@@ -196,12 +206,28 @@ namespace ERPAPI.Controllers
                 return BadRequest("Project does not exist.");
             }
 
+            // Fetch existing processes for the project
             var existingProcesses = await _context.ProjectProcesses
                 .Where(pp => pp.ProjectId == projectId)
                 .ToListAsync();
 
-            // Calculate total weightage for existing processes to find an adjustment factor
-            var totalExistingWeightage = existingProcesses.Sum(pp => pp.Weightage);
+            // Extract the IDs of processes from the incoming DTO
+            var incomingProcessIds = addProcessesDto.ProjectProcesses
+                .Select(dto => dto.ProcessId)
+                .ToList();
+
+            // Identify processes to be removed
+            var processesToRemove = existingProcesses
+                .Where(pp => !incomingProcessIds.Contains(pp.ProcessId))
+                .ToList();
+
+            // Remove the orphaned processes
+            if (processesToRemove.Any())
+            {
+                _context.ProjectProcesses.RemoveRange(processesToRemove);
+            }
+
+            // Prepare processes for updating or adding
             var newProcesses = new List<ProjectProcess>();
 
             foreach (var dto in addProcessesDto.ProjectProcesses)
@@ -212,7 +238,7 @@ namespace ERPAPI.Controllers
                 if (existingProcess != null)
                 {
                     // Update existing process
-                    existingProcess.Weightage = dto.Weightage; // Directly set the weightage from DTO
+                    existingProcess.Weightage = dto.Weightage;
                     existingProcess.Sequence = dto.Sequence;
                     existingProcess.FeaturesList = dto.FeaturesList;
                     existingProcess.UserId = dto.UserId;
@@ -225,7 +251,7 @@ namespace ERPAPI.Controllers
                     {
                         ProjectId = dto.ProjectId,
                         ProcessId = dto.ProcessId,
-                        Weightage = dto.Weightage, // Set weightage from DTO
+                        Weightage = dto.Weightage,
                         Sequence = dto.Sequence,
                         FeaturesList = dto.FeaturesList,
                         UserId = dto.UserId

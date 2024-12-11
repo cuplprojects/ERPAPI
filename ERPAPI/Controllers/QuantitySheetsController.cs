@@ -169,7 +169,7 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-
+  
 
 
     [HttpGet("calculate-date-range")]
@@ -294,22 +294,88 @@ public class QuantitySheetController : ControllerBase
     }
 
 
+    [HttpGet("lot-dates")]
+    public async Task<ActionResult<Dictionary<string, object>>> GetLotDates(int projectId)
+    {
+        try
+        {
+            // Fetch all distinct exam dates grouped by LotNo for the given project
+            var lotwiseExamDates = await _context.QuantitySheets
+                .Where(qs => qs.ProjectId == projectId && !string.IsNullOrEmpty(qs.ExamDate))
+                .GroupBy(qs => qs.LotNo)
+                .Select(group => new
+                {
+                    LotNo = group.Key,
+                    ExamDates = group.Select(qs => qs.ExamDate).ToList() // Get all dates for the group
+                })
+                .ToListAsync();
 
+            if (!lotwiseExamDates.Any())
+            {
+                return NotFound($"No exam dates found for project {projectId}");
+            }
+
+            // Process the exam dates and calculate Min and Max per lot
+            var result = new Dictionary<string, object>();
+            foreach (var lot in lotwiseExamDates)
+            {
+                var parsedDates = lot.ExamDates
+                    .Select(date => DateTime.TryParse(date, out var parsedDate) ? parsedDate : (DateTime?)null)
+                    .Where(date => date.HasValue)
+                    .Select(date => date.Value)
+                    .ToList();
+
+                if (parsedDates.Any())
+                {
+                    var minDate = parsedDates.Min();
+                    var maxDate = parsedDates.Max();
+
+                    result[lot.LotNo] = new { MinDate = minDate.ToString("dd-MM-yyyy"), MaxDate = maxDate.ToString("dd-MM-yyyy") };
+                }
+                else
+                {
+                    result[lot.LotNo] = new { MinDate = (string)null, MaxDate = (string)null };
+                }
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"Failed to retrieve exam dates: {ex.Message}");
+        }
+    }
 
 
     [HttpPut("{id}")]
     public async Task<IActionResult> PutQuantitySheet(int id, QuantitySheet quantity)
     {
+        // Validate if the received id matches the quantity's id (this can be adjusted if you want to update all with the same lotNo/catchNo)
         if (id != quantity.QuantitySheetId)
         {
             return BadRequest();
         }
 
-        _context.Entry(quantity).State = EntityState.Modified;
+        // Find all the records matching the lotNo and catchNo
+        var quantitySheetsToUpdate = _context.QuantitySheets
+            .Where(qs => qs.LotNo == quantity.LotNo && qs.CatchNo == quantity.CatchNo)
+            .ToList();
+
+        if (quantitySheetsToUpdate.Count == 0)
+        {
+            return NotFound("No matching records found.");
+        }
+
+        // Loop through each matching record and apply the update
+        foreach (var sheet in quantitySheetsToUpdate)
+        {
+            // Assuming that processId is the field being updated
+            sheet.ProcessId = quantity.ProcessId; // Update other fields as necessary
+        }
 
         try
         {
-            await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync(); // Save the changes to the database
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -325,6 +391,7 @@ public class QuantitySheetController : ControllerBase
 
         return NoContent();
     }
+
 
     [HttpPut]
     public async Task<IActionResult> UpdateQuantitySheet([FromBody] List<QuantitySheet> newSheets)
@@ -474,7 +541,17 @@ public class QuantitySheetController : ControllerBase
     }
 
 
+    [HttpGet("UnReleasedLots")]
+    public async Task<ActionResult<IEnumerable<string>>> GetUnReleasedLots(int ProjectId)
+    {
+        var uniqueLotNumbers = await _context.QuantitySheets
+            .Where(r => r.ProjectId == ProjectId && r.Status != 1)
+            .Select(r => r.LotNo) // Select the LotNo
+            .Distinct() // Get unique LotNo values
+            .ToListAsync();
 
+        return Ok(uniqueLotNumbers);
+    }
 
     [HttpGet("ReleasedLots")]
     public async Task<ActionResult<IEnumerable<string>>> GetReleasedLots(int ProjectId)
@@ -680,9 +757,17 @@ public class QuantitySheetController : ControllerBase
                 return BadRequest("Source and target lots cannot be the same");
             }
 
-            // First, retrieve the ProjectId and CatchNo for the first provided CatchId to infer the project and catch number.
+            // Convert Source and Target LotNo to integers for comparison
+            if (!int.TryParse(request.SourceLotNo, out int sourceLotNo) ||
+                !int.TryParse(request.TargetLotNo, out int targetLotNo))
+            {
+                return BadRequest("Lot numbers must be valid integers");
+            }
+
+            // Retrieve the ProjectId and CatchNo for the first CatchId
             var initialCatch = await _context.QuantitySheets
-                .Where(qs => qs.QuantitySheetId == request.CatchIds.First() && qs.LotNo == request.SourceLotNo)
+                .Where(qs => qs.QuantitySheetId == request.CatchIds.First() &&
+                             Convert.ToInt32(qs.LotNo) == sourceLotNo)
                 .Select(qs => new { qs.ProjectId, qs.CatchNo })
                 .FirstOrDefaultAsync();
 
@@ -698,7 +783,7 @@ public class QuantitySheetController : ControllerBase
             var catchesToTransfer = await _context.QuantitySheets
                 .Where(qs => qs.ProjectId == projectId &&
                              qs.CatchNo == catchNo &&
-                             qs.LotNo == request.SourceLotNo)
+                             Convert.ToInt32(qs.LotNo) == sourceLotNo)
                 .ToListAsync();
 
             if (!catchesToTransfer.Any())
@@ -711,12 +796,12 @@ public class QuantitySheetController : ControllerBase
             {
                 foreach (var catch_ in catchesToTransfer)
                 {
-                    catch_.LotNo = request.TargetLotNo;
-                    
+                    catch_.LotNo = Convert.ToString(targetLotNo); // Update LotNo to TargetLotNo
+
                     // Update exam date if provided
                     if (!string.IsNullOrEmpty(request.NewExamDate))
                     {
-                        if (DateTime.TryParseExact(request.NewExamDate, "dd-MM-yyyy", 
+                        if (DateTime.TryParseExact(request.NewExamDate, "dd-MM-yyyy",
                             CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate))
                         {
                             catch_.ExamDate = parsedDate.ToString("yyyy-MM-dd"); // Store in database format
@@ -728,12 +813,27 @@ public class QuantitySheetController : ControllerBase
                     }
                 }
 
-                // Save changes to persist the LotNo updates
+                // Save changes to persist the LotNo updates in QuantitySheets
+                await _context.SaveChangesAsync();
+
+                // Update the LotNo in the Transaction table for the transferred QuantitySheets
+                var quantitySheetIds = catchesToTransfer.Select(ct => ct.QuantitySheetId).ToList();
+                var transactionsToUpdate = await _context.Transaction
+                    .Where(t => quantitySheetIds.Contains(t.QuantitysheetId) &&
+                                t.LotNo == sourceLotNo)
+                    .ToListAsync();
+
+                foreach (var transaction in transactionsToUpdate)
+                {
+                    transaction.LotNo = targetLotNo; // Update LotNo
+                }
+
+                // Save changes to persist the LotNo updates in Transactions
                 await _context.SaveChangesAsync();
 
                 // Recalculate percentages for both lots
-                await RecalculatePercentages(projectId, request.SourceLotNo);
-                await RecalculatePercentages(projectId, request.TargetLotNo);
+                await RecalculatePercentages(projectId, sourceLotNo.ToString());
+                await RecalculatePercentages(projectId, targetLotNo.ToString());
 
                 // Save changes again after recalculating percentages
                 await _context.SaveChangesAsync();
@@ -743,7 +843,8 @@ public class QuantitySheetController : ControllerBase
                 return Ok(new
                 {
                     Message = "Catches transferred successfully",
-                    TransferredCatches = catchesToTransfer
+                    TransferredCatches = catchesToTransfer,
+                    UpdatedTransactions = transactionsToUpdate
                 });
             }
             catch (Exception ex)
@@ -793,8 +894,8 @@ public class QuantitySheetController : ControllerBase
         // Convert dates to Indian format
         var formattedDates = examDates
             .Where(date => !string.IsNullOrEmpty(date))
-            .Select(date => DateTime.TryParse(date, out var parsedDate) 
-                ? parsedDate.ToString("dd-MM-yyyy") 
+            .Select(date => DateTime.TryParse(date, out var parsedDate)
+                ? parsedDate.ToString("dd-MM-yyyy")
                 : date)
             .ToList();
 
@@ -817,13 +918,14 @@ public class QuantitySheetController : ControllerBase
         return Ok(lotData);
     }
 
+
     // Get Catch Data for a given project, lot, and catch
     [HttpGet("catch-data")]
     public async Task<ActionResult<IEnumerable<QuantitySheet>>> GetCatchData(int projectId, string lotNo, string catchNo)
     {
         var catchData = await _context.QuantitySheets
-            .Where(qs => qs.ProjectId == projectId 
-                      && qs.LotNo == lotNo 
+            .Where(qs => qs.ProjectId == projectId
+                      && qs.LotNo == lotNo
                       && qs.CatchNo == catchNo)
             .ToListAsync();
 
