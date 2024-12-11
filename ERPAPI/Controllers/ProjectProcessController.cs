@@ -115,9 +115,13 @@ namespace ERPAPI.Controllers
                 .AsNoTracking()
                 .ToListAsync();
 
-            // Filter the processes based on userId using client-side evaluation
-            var filteredProcesses = processes
-                .Where(pp => pp.UserId == null || pp.UserId.Contains(userId))
+            // Adjust the filtering logic based on userId
+            var filteredProcesses = userId < 5
+                ? processes
+                : processes.Where(pp => pp.UserId == null || pp.UserId.Contains(userId));
+
+            // Apply ordering and project the final results
+            var orderedProcesses = filteredProcesses
                 .OrderBy(pp => pp.Sequence)
                 .Select(pp => new
                 {
@@ -127,19 +131,19 @@ namespace ERPAPI.Controllers
                     pp.ProcessType,
                     pp.RangeStart,
                     pp.RangeEnd,
-                    pp.ProcessName,   // Now including the ProcessName in the result
+                    pp.ProcessName,
                     pp.Weightage,
                     pp.Sequence,
                     pp.FeaturesList
                 })
                 .ToList();
 
-            if (!filteredProcesses.Any())
+            if (!orderedProcesses.Any())
             {
                 return NotFound(new { message = "No processes found for the given user and project." });
             }
 
-            return Ok(filteredProcesses);
+            return Ok(orderedProcesses);
         }
 
 
