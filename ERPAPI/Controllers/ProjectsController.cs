@@ -269,7 +269,7 @@ namespace ERPAPI.Controllers
             }
 
             // Check the RoleId and act accordingly
-            if (user.RoleId == 1 || user.RoleId == 2 || user.RoleId == 3 || user.RoleId == 4)
+            if (user.RoleId < 5)
             {
                 // Get all active projects if the RoleId is 1, 2, 3, or 4
                 var activeProjects = await _context.Projects
