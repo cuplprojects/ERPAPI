@@ -21,7 +21,6 @@ public class QuantitySheetController : ControllerBase
         _processService = processService;
     }
 
-    // POST api/quantitysheet
     [HttpPost]
     public async Task<IActionResult> Post([FromBody] List<QuantitySheet> newSheets)
     {
@@ -32,9 +31,9 @@ public class QuantitySheetController : ControllerBase
 
         var projectId = newSheets.First().ProjectId;
         var project = await _context.Projects
-       .Where(p => p.ProjectId == projectId)
-       .Select(p => new { p.TypeId, p.NoOfSeries })
-       .FirstOrDefaultAsync();
+           .Where(p => p.ProjectId == projectId)
+           .Select(p => new { p.TypeId, p.NoOfSeries })
+           .FirstOrDefaultAsync();
         if (project == null)
         {
             return BadRequest("Project not found.");
@@ -48,11 +47,12 @@ public class QuantitySheetController : ControllerBase
         if (projectType == "Booklet" && project.NoOfSeries.HasValue)
         {
             var noOfSeries = project.NoOfSeries.Value;
-
+            Console.WriteLine(noOfSeries);
             var adjustedSheets = new List<QuantitySheet>();
             foreach (var sheet in newSheets)
             {
-                var adjustedQuantity = sheet.Quantity / 4;
+                var adjustedQuantity = sheet.Quantity / noOfSeries;
+
                 for (int i = 0; i < noOfSeries; i++)
                 {
                     var newSheet = new QuantitySheet
@@ -65,14 +65,12 @@ public class QuantitySheetController : ControllerBase
                         OuterEnvelope = sheet.OuterEnvelope,
                         LotNo = sheet.LotNo,
                         Quantity = adjustedQuantity,
+                        Pages = sheet.Pages, // Include the Pages field
                         PercentageCatch = 0, // This will be recalculated below
                         ProjectId = sheet.ProjectId,
                         Status = sheet.Status,
-
                         ExamDate = sheet.ExamDate,
                         ExamTime = sheet.ExamTime,
-
-
                         ProcessId = new List<int>() // Start with an empty list for the new catch
                     };
                     adjustedSheets.Add(newSheet);
@@ -83,8 +81,8 @@ public class QuantitySheetController : ControllerBase
 
         // Get existing sheets for the same project and lots
         var existingSheets = await _context.QuantitySheets
-        .Where(s => s.ProjectId == projectId && newSheets.Select(ns => ns.LotNo).Contains(s.LotNo))
-        .ToListAsync();
+            .Where(s => s.ProjectId == projectId && newSheets.Select(ns => ns.LotNo).Contains(s.LotNo))
+            .ToListAsync();
 
         // Prepare a list to track new catches that need to be processed
         var processedNewSheets = new List<QuantitySheet>();

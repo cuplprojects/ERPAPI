@@ -43,8 +43,9 @@ namespace ERPAPI.Service
             var digitalPrintingProcessId = projectProcesses.FirstOrDefault(p => p.ProcessName == "Digital Printing")?.ProcessId;
 
             Console.WriteLine("Identified ProcessIds - CTP: " + ctpProcessId + ", Offset: " + offsetPrintingProcessId + ", Digital: " + digitalPrintingProcessId);
+            Console.WriteLine(catchData.ProjectId);
 
-            // Fetch the project to get the quantity threshold
+            // Fetch the project to get the threshold JSON string
             var project = _context.Projects
                 .Where(p => p.ProjectId == catchData.ProjectId)
                 .FirstOrDefault();
@@ -54,8 +55,43 @@ namespace ERPAPI.Service
                 Console.WriteLine($"Project not found for ProjectId {catchData.ProjectId}");
                 return;
             }
+            Console.WriteLine(project);
 
-            var quantityThreshold = project.QuantityThreshold;
+            // Handle null or empty QuantityThreshold
+            if (string.IsNullOrWhiteSpace(project.QuantityThreshold))
+            {
+                Console.WriteLine("QuantityThreshold is null or empty. Skipping threshold processing.");
+                return;
+            }
+
+            List<Threshold> thresholds;
+            try
+            {
+                // Parse the threshold JSON string
+                thresholds = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Threshold>>(project.QuantityThreshold);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Failed to deserialize QuantityThreshold: " + ex.Message);
+                return;
+            }
+
+            if (thresholds == null || !thresholds.Any())
+            {
+                Console.WriteLine("No valid thresholds found in project.QuantityThreshold.");
+                return;
+            }
+
+            // Find the threshold matching the Pages value in catchData
+            var matchingThreshold = thresholds.FirstOrDefault(t => t.Pages == catchData.Pages);
+            if (matchingThreshold == null)
+            {
+                Console.WriteLine($"No threshold found for Pages value {catchData.Pages}.");
+                return;
+            }
+
+            var quantityThreshold = matchingThreshold.Quantity;
+            Console.WriteLine($"Matching threshold found: Pages = {matchingThreshold.Pages}, Quantity = {quantityThreshold}");
 
             // Determine which processes to include in ProcessId based on the threshold
             if (catchData.Quantity > quantityThreshold)
@@ -102,5 +138,11 @@ namespace ERPAPI.Service
 
             Console.WriteLine("Final ProcessId for catchData: " + Newtonsoft.Json.JsonConvert.SerializeObject(catchData.ProcessId));
         }
+
     }
+    public class Threshold
+        {
+            public int Pages { get; set; }
+            public int Quantity { get; set; }
+        }
 }

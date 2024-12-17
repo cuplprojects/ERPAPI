@@ -26,6 +26,7 @@ namespace ERPAPI.Model
         public string? OuterEnvelope { get; set; }
         public string? LotNo { get; set; }
         public double Quantity { get; set; }
+        public int? Pages { get; set; }
         public double PercentageCatch { get; set; }
         public int ProjectId { get; set; }
         public int? Status { get; set; }
