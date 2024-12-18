@@ -866,7 +866,12 @@ namespace ERPAPI.Controllers
                     if (process != null)
                     {
                         processIdWeightage[processId] = Math.Round(process.Weightage, 2);
-                        totalWeightageSum += process.Weightage;
+
+                        // Only add the weightage if this process is part of the quantity sheet
+                        if (quantitySheet.ProcessId.Contains(processId))  // Ensure that processId is in the quantity sheet's ProcessId list
+                        {
+                            totalWeightageSum += process.Weightage;
+                        }
                     }
                 }
 
@@ -920,7 +925,7 @@ namespace ERPAPI.Controllers
 
                 totalLotPercentages[lotNumber] = Math.Round(totalLotPercentages[lotNumber] + lotPercentage, 2);
                 lotQuantities[lotNumber] += quantitySheet.Quantity;
-                projectTotalQuantity += quantitySheet.Quantity;  // This line now uses the total quantity from the sheet
+                projectTotalQuantity += quantitySheet.Quantity;
 
                 if (!lotProcessWeightageSum.ContainsKey(lotNumber))
                 {
