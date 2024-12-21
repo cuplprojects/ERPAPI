@@ -542,7 +542,7 @@ namespace ERPAPI.Controllers
             return alarmId; // Return the original value if parsing fails
         }
         // Utility function to attempt parsing AlarmId and return an integer if possible, else return the original value
-       
+
 
 
 
@@ -781,7 +781,7 @@ namespace ERPAPI.Controllers
         }
 
 
-       
+
         [HttpGet("all-project-completion-percentages")]
         public async Task<ActionResult> GetAllProjectCompletionPercentages()
         {
@@ -844,6 +844,10 @@ namespace ERPAPI.Controllers
                 .Where(t => t.ProjectId == projectId)
                 .ToListAsync();
 
+            var dispatches = await _context.Dispatch
+                .Where(d => d.ProjectId == projectId)
+                .ToListAsync();
+
             var lots = new Dictionary<string, Dictionary<int, dynamic>>();
             var totalLotPercentages = new Dictionary<string, double>();
             var lotQuantities = new Dictionary<string, double>();
@@ -857,11 +861,8 @@ namespace ERPAPI.Controllers
                 var processIdWeightage = new Dictionary<int, double>();
                 double totalWeightageSum = 0;
 
-                // Only consider processes that are part of the current quantity sheet's processes
                 foreach (var processId in quantitySheet.ProcessId)
                 {
-                    if (processId == 14) continue; // Exclude ProcessId 14
-
                     var process = projectProcesses.FirstOrDefault(p => p.ProcessId == processId);
                     if (process != null)
                     {
@@ -875,7 +876,6 @@ namespace ERPAPI.Controllers
                     }
                 }
 
-                // Ensure the total weightage sum equals 100
                 if (totalWeightageSum < 100)
                 {
                     double deficit = 100 - totalWeightageSum;
@@ -947,6 +947,16 @@ namespace ERPAPI.Controllers
                         : 0;
 
                     lotProcessWeightageSum[lotNumber][processId] = processPercentage;
+
+                    // Check Dispatch table for ProcessId 14 and Status 1
+                    if (processId == 14)
+                    {
+                        var dispatch = dispatches.FirstOrDefault(d => d.LotNo == lotNumber && d.ProcessId == 14 && d.Status);
+                        if (dispatch != null && dispatch.Status)
+                        {
+                            lotProcessWeightageSum[lotNumber][processId] = 100;
+                        }
+                    }
                 }
             }
 
@@ -961,9 +971,6 @@ namespace ERPAPI.Controllers
 
             double totalProjectLotPercentage = Math.Round(projectLotPercentages.Values.Sum(), 2);
             projectTotalQuantity = Math.Round(projectTotalQuantity, 2);
-
-            // Add the distinct process IDs for the project
-            var processIds = projectProcesses.Select(p => p.ProcessId).Distinct();
 
             return Ok(new
             {
@@ -1215,4 +1222,3 @@ namespace ERPAPI.Controllers
 
     }
 }
-
