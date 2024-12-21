@@ -958,6 +958,26 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+        [HttpGet("CheckTransaction")]
+        public async Task<IActionResult> CheckTransaction(int projectId, string catchNo, string lotNo)
+        {
+            // Find the QuantitySheet with the given ProjectId, CatchNo, and LotNo
+            var quantitySheet = await _context.QuantitySheets
+                .FirstOrDefaultAsync(qs => qs.ProjectId == projectId && qs.CatchNo == catchNo && qs.LotNo == lotNo);
+
+            if (quantitySheet == null)
+            {
+                // Return false if no matching QuantitySheet is found
+                return Ok(false);
+            }
+
+            // Check if a transaction exists with the given QuantitySheetId and ProjectId
+            var transactionExists = await _context.Transaction
+                .AnyAsync(t => t.ProjectId == projectId && t.QuantitysheetId == quantitySheet.QuantitySheetId);
+
+            // Return true if a transaction exists, otherwise false
+            return Ok(transactionExists);
+        }
 
     }
 }
