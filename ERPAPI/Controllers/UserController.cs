@@ -513,13 +513,13 @@ namespace ERPAPI.Controllers
                 }
 
                 // Unlock the screen (custom logic if needed)
-                _loggerService.LogEvent("Screen unlocked by PIN", "User", userId);
+             
 
                 return Ok(new { Message = "Screen unlocked successfully." });
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Failed to unlock screen by PIN", ex.Message, "UserController");
+              
                 return StatusCode(500, new { Message = "Internal server error", Details = ex.Message });
             }
         }
@@ -579,13 +579,13 @@ namespace ERPAPI.Controllers
                 await _context.SaveChangesAsync();
 
                 // Log the event (for security auditing purposes)
-                _loggerService.LogEvent("Screen lock PIN changed", "User", userId);
+                
 
                 return Ok(new { Message = "Screen lock PIN updated successfully." });
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Failed to change screen lock PIN", ex.Message, "UserController");
+              
                 return StatusCode(500, new { Message = "Internal server error", Details = ex.Message });
             }
         }
