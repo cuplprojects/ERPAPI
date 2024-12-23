@@ -675,12 +675,19 @@ namespace ERPAPI.Controllers
                 {
                     var lotNumberStr = lotNumber.ToString();
 
-                    var completedQuantitySheets = transactions
-                        .Count(t => t.LotNo.ToString() == lotNumberStr && t.ProcessId == processId && t.Status == 2);
+                    // Filter transactions and quantity sheets for the current processId
+                    var filteredTransactions = transactions
+                        .Where(t => t.LotNo.ToString() == lotNumberStr && t.ProcessId == processId && t.Status == 2 && t.ProjectId == projectId);
 
-                    var totalQuantitySheets = quantitySheets
-                        .Count(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId));
+                    var filteredQuantitySheets = quantitySheets
+                        .Where(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId) && qs.ProjectId == projectId);
 
+                    var completedQuantitySheets = filteredTransactions.Count(); //2
+                    Console.WriteLine(processId +"completed " + completedQuantitySheets);
+                    var totalQuantitySheets = filteredQuantitySheets.Count(); //57
+                    Console.WriteLine(totalQuantitySheets);
+
+                    // Calculate the percentage completion for the processId
                     double processPercentage = totalQuantitySheets > 0
                         ? Math.Round((double)completedQuantitySheets / totalQuantitySheets * 100, 2)
                         : 0;
@@ -697,6 +704,7 @@ namespace ERPAPI.Controllers
                         }
                     }
                 }
+
             }
 
             foreach (var lot in lotQuantities)
