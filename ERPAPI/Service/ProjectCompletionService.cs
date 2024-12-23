@@ -34,11 +34,9 @@ namespace ERPAPI.Services
             foreach (var project in projects)
             {
                 var projectId = project.ProjectId;
-
                 var projectProcesses = await _projectProcessService.GetProjectProcessesByProjectId(projectId);
                 var quantitySheets = await _quantitySheetService.GetQuantitySheetsByProjectId(projectId);
                 var transactions = await _transactionService.GetTransactionsByProjectId(projectId);
-
                 var totalLotPercentages = new Dictionary<string, double>();
                 var lotQuantities = new Dictionary<string, double>();
                 double projectTotalQuantity = 0;
