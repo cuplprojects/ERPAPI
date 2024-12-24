@@ -10,6 +10,7 @@ using Microsoft.CodeAnalysis;
 using System.Diagnostics;
 using ERPAPI.Services;
 using ERPAPI.Service.ProjectTransaction;
+using ERPAPI.Service;
 
 
 namespace ERPAPI.Controllers
@@ -19,16 +20,17 @@ namespace ERPAPI.Controllers
     public class TransactionsController : ControllerBase
     {
         private readonly AppDbContext _context;
-
+        private readonly ILoggerService _loggerService;
         private readonly IProjectCompletionService _projectCompletionService;
         private readonly IProjectTransactionService _projectTransactionService;
 
-        public TransactionsController(AppDbContext context, IProjectCompletionService projectCompletionService, IProjectTransactionService projectTransactionService)
+        public TransactionsController(AppDbContext context, IProjectCompletionService projectCompletionService, IProjectTransactionService projectTransactionService, ILoggerService loggerService)
         {
             _context = context;
 
             _projectCompletionService = projectCompletionService;
             _projectTransactionService = projectTransactionService;
+            _loggerService = loggerService;
         }
 
         [HttpGet]
@@ -82,264 +84,7 @@ namespace ERPAPI.Controllers
         }
 
 
-        // 
-        /*  [HttpGet("GetProjectTransactionsDataOld")]
-          public async Task<ActionResult<IEnumerable<object>>> GetProjectTransactionsDataOld(int projectId, int processId)
-          {
-              // Fetch quantity sheet data
-              var quantitySheetData = await _context.QuantitySheets
-                  .Where(q => q.ProjectId == projectId && q.Status == 1)
-                  .ToListAsync();
 
-              // Fetch transaction data and parse alarm messages if needed
-              var transactions = await (from t in _context.Transaction
-                                        where t.ProjectId == projectId && t.ProcessId == processId
-                                        select new
-                                        {
-                                            t.TransactionId,
-                                            t.AlarmId,
-                                            t.ZoneId,
-                                            t.QuantitysheetId,
-                                            t.TeamId,
-                                            t.Remarks,
-                                            t.LotNo,
-                                            t.InterimQuantity,
-                                            t.ProcessId,
-                                            t.VoiceRecording,
-                                            t.Status,
-                                            t.MachineId
-                                        }).ToListAsync();
-
-              // Fetch alarm messages
-              var alarms = await _context.Alarm.ToListAsync();
-              var project = await _context.Projects.FirstOrDefaultAsync(p => p.ProjectId == projectId);
-
-              // Fetch users for all team members in advance to minimize the number of queries
-              var allUsers = await _context.Users.ToListAsync();
-              var allZone = await _context.Zone.ToListAsync();
-              var allMachine = await _context.Machine.ToListAsync();
-
-              // Map transactions with their alarm messages and usernames
-              var transactionsWithAlarms = transactions.Select(t =>
-              {
-                  var parsedAlarmId = TryParseAlarmId(t.AlarmId);
-                  var alarm = parsedAlarmId is int parsedId
-                      ? alarms.FirstOrDefault(a => a.AlarmId == parsedId)
-                      : null;
-
-                  // Get the usernames for each userId in the TeamId array
-                  var userNames = allUsers
-                      .Where(u => t.TeamId.Contains(u.UserId))
-                      .Select(u => u.FirstName + " " + u.LastName)
-                      .ToList();
-
-                  var zone = allZone.FirstOrDefault(z => z.ZoneId == t.ZoneId);
-                  var zoneNo = zone != null ? zone.ZoneNo : null;
-
-                  var machine = allMachine.FirstOrDefault(z => z.MachineId == t.MachineId);
-                  var machinename = machine != null ? machine.MachineName : null;
-
-                  return new
-                  {
-                      t.TransactionId,
-                      AlarmId = t.AlarmId,
-                      ZoneId = t.ZoneId,
-                      zoneNo = zoneNo,
-                      machinename = machinename,
-                      QuantitysheetId = t.QuantitysheetId,
-                      TeamId = t.TeamId,
-                      Remarks = t.Remarks,
-                      LotNo = t.LotNo,
-                      TeamUserNames = userNames,  // Include the usernames
-                      InterimQuantity = t.InterimQuantity,
-                      ProcessId = t.ProcessId,
-                      VoiceRecording = t.VoiceRecording,
-                      Status = t.Status,
-                      MachineId = t.MachineId,
-                      AlarmMessage = alarm != null ? alarm.Message : null, // Handle null case for alarms
-                  };
-              }).ToList();
-
-              // Group quantity sheet data by CatchNo
-              var groupedQuantitySheets = quantitySheetData
-                  .GroupBy(q => q.CatchNo)
-                  .Select(group =>
-                  {
-                      // Retrieve the series name from the project and assign based on position in the group
-                      var seriesName = project?.SeriesName ?? "";  // Fetch the SeriesName from Project
-
-                      // Assign SeriesName based on the index of the QuantitySheet in the group
-                      var quantitySheetsWithSeriesName = group.Select((q, index) =>
-                      {
-                          var seriesLetter = index < seriesName.Length ? seriesName[index].ToString() : ""; // Use SeriesName from project
-                          return new
-                          {
-                              q.QuantitySheetId,
-                              q.ProjectId,
-                              q.LotNo,
-                              q.CatchNo,
-                              q.Paper,
-                              q.ExamDate,
-                              q.ExamTime,
-                              q.Course,
-                              q.Subject,
-                              q.InnerEnvelope,
-                              q.OuterEnvelope,
-                              q.Quantity,
-                              q.PercentageCatch,
-                              SeriesName = seriesLetter,  // Assign the SeriesName here
-                              ProcessIds = q.ProcessId,   // Assuming ProcessIds is a list, map it directly
-                          };
-                      }).ToList();
-
-                      // Get the transactions related to the QuantitySheetId(s) in this group
-                      var relatedTransactions = transactionsWithAlarms
-                          .Where(t => group.Select(g => g.QuantitySheetId).Contains(t.QuantitysheetId))
-                          .ToList();
-
-                      return new
-                      {
-                          CatchNo = group.Key,  // The CatchNo for this group
-                          QuantitySheets = quantitySheetsWithSeriesName,
-                          Transactions = relatedTransactions  // Add the related transactions for each QuantitySheet group
-                      };
-                  })
-                  .ToList();
-
-              // Flatten the grouped data into a single list
-              var flatResponseData = groupedQuantitySheets.SelectMany(group => group.QuantitySheets.Select(q => new
-              {
-                  q.QuantitySheetId,
-                  q.ProjectId,
-                  q.LotNo,
-                  q.CatchNo,
-                  q.Paper,
-                  q.ExamDate,
-                  q.ExamTime,
-                  q.Course,
-                  q.Subject,
-                  q.InnerEnvelope,
-                  q.OuterEnvelope,
-                  q.Quantity,
-                  q.PercentageCatch,
-                  SeriesName = q.SeriesName,  // Use the assigned SeriesName
-                  ProcessIds = q.ProcessIds,  // Assuming ProcessIds is a list, map it directly
-                  Transactions = group.Transactions  // Add the transactions related to this group
-              }))
-              .ToList();
-
-              // Return the structured response
-              return Ok(flatResponseData);
-          }
-  */
-
-
-        /*   [HttpGet("GetProjectTransactionsDataOld")]
-           public async Task<ActionResult<IEnumerable<object>>> GetProjectTransactionsDataOld(int projectId, int processId)
-           {
-               // Fetch quantity sheet data
-               var quantitySheetData = await _context.QuantitySheets
-                   .Where(q => q.ProjectId == projectId && q.Status == 1)
-                   .ToListAsync();
-
-               // Fetch transaction data and parse alarm messages if needed
-               var transactions = await (from t in _context.Transaction
-                                         where t.ProjectId == projectId && t.ProcessId == processId
-                                         select new
-                                         {
-                                             t.TransactionId,
-                                             t.AlarmId,
-                                             t.ZoneId,
-                                             t.QuantitysheetId,
-                                             t.TeamId,  // Assuming TeamId is a list of userIds
-                                             t.Remarks,
-                                             t.LotNo,
-                                             t.InterimQuantity,
-                                             t.ProcessId,
-                                             t.VoiceRecording,
-                                             t.Status,
-                                             t.MachineId
-                                         }).ToListAsync();
-
-               // Fetch alarm messages
-               var alarms = await _context.Alarm.ToListAsync();
-
-               // Fetch users for all team members in advance to minimize the number of queries
-               var allUsers = await _context.Users.ToListAsync();
-
-               var allZone = await _context.Zone.ToListAsync();
-
-               var allMachine = await _context.Machine.ToListAsync();
-
-               // Map transactions with their alarm messages and usernames
-               var transactionsWithAlarms = transactions.Select(t =>
-               {
-                   var parsedAlarmId = TryParseAlarmId(t.AlarmId);
-                   var alarm = parsedAlarmId is int parsedId
-                       ? alarms.FirstOrDefault(a => a.AlarmId == parsedId)
-                       : null;
-
-                   // Get the usernames for each userId in the TeamId array
-                   var userNames = allUsers
-                       .Where(u => t.TeamId.Contains(u.UserId)) // Match userId with the ids in TeamId
-                       .Select(u => u.FirstName + " " + u.LastName)  // Concatenate FirstName and LastName
-                       .ToList();
-
-                   var zone = allZone.FirstOrDefault(z => z.ZoneId == t.ZoneId);
-                   var zoneNo = zone != null ? zone.ZoneNo : null;
-
-
-                   var machine = allMachine.FirstOrDefault(z => z.MachineId == t.MachineId);
-                   var machinename = machine != null ? machine.MachineName : null;
-
-
-                   return new
-                   {
-                       t.TransactionId,
-                       AlarmId = t.AlarmId,
-                       ZoneId = t.ZoneId,
-                       zoneNo = zoneNo,
-                       machinename = machinename,
-                       QuantitysheetId = t.QuantitysheetId,
-                       TeamId = t.TeamId,
-                       Remarks = t.Remarks,
-                       LotNo = t.LotNo,
-                       TeamUserNames = userNames,  // Include the usernames
-                       InterimQuantity = t.InterimQuantity,
-                       ProcessId = t.ProcessId,
-                       VoiceRecording = t.VoiceRecording,
-                       Status = t.Status,
-                       MachineId = t.MachineId,
-                       ProcessIds = t.ProcessId,
-                       AlarmMessage = alarm != null ? alarm.Message : null // Handle null case for alarms
-                   };
-               }).ToList();
-
-               // Combine QuantitySheet and Transaction data in a structured response
-               var responseData = quantitySheetData.Select(q => new
-               {
-                   q.QuantitySheetId,
-                   q.ProjectId,
-                   q.LotNo,
-                   q.CatchNo,
-                   q.Paper,
-                   q.ExamDate,
-                   q.ExamTime,
-                   q.Course,
-                   q.Subject,
-                   q.InnerEnvelope,
-                   q.OuterEnvelope,
-                   q.Quantity,
-                   q.PercentageCatch,
-                   ProcessIds = q.ProcessId,  // Assuming ProcessId is a list, map it directly
-                   Transactions = transactionsWithAlarms
-                       .Where(t => t.QuantitysheetId == q.QuantitySheetId) // Filter transactions by QuantitySheetId
-                       .ToList()
-               });
-
-               return Ok(responseData);
-           }
-   */
 
 
         [HttpGet("GetProjectTransactionsDataOld")]
@@ -572,11 +317,36 @@ namespace ERPAPI.Controllers
                 return BadRequest();
             }
 
+            // Retrieve the existing transaction from the database
+            var existingTransaction = await _context.Transaction
+                .AsNoTracking() // Ensures the retrieved entity is not tracked to avoid conflicts during updates
+                .FirstOrDefaultAsync(t => t.TransactionId == id);
+
+            if (existingTransaction == null)
+            {
+                return NotFound();
+            }
+
+            // Capture the old status before the update
+            var oldStatus = existingTransaction.Status;
+
+            // Update the transaction in the context
             _context.Entry(transaction).State = EntityState.Modified;
 
             try
             {
+                // Save changes to the database
                 await _context.SaveChangesAsync();
+
+                // Log the update with old and new status
+                _loggerService.LogEventWithTransaction(
+                    "Transaction updated",
+                    "Transaction",
+                    User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, // Replace with the current user's ID or a dynamic ID
+                    id,
+                    oldValue: oldStatus.ToString(),
+                    newValue: transaction.Status.ToString()
+                );
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -594,6 +364,7 @@ namespace ERPAPI.Controllers
         }
 
 
+
         [HttpPut("quantitysheet/{quantitysheetId}")]
         public async Task<IActionResult> PutTransactionId(int quantitysheetId, Transaction transaction)
         {
@@ -602,11 +373,36 @@ namespace ERPAPI.Controllers
                 return BadRequest();
             }
 
+            // Retrieve the existing transaction from the database
+            var existingTransaction = await _context.Transaction
+                .AsNoTracking() // Ensures the entity is not tracked to avoid conflicts during updates
+                .FirstOrDefaultAsync(t => t.QuantitysheetId == quantitysheetId);
+
+            if (existingTransaction == null)
+            {
+                return NotFound();
+            }
+
+            // Capture the old status before the update
+            var oldStatus = existingTransaction.Status;
+
+            // Update the transaction in the context
             _context.Entry(transaction).State = EntityState.Modified;
 
             try
             {
+                // Save changes to the database
                 await _context.SaveChangesAsync();
+
+                // Log the update with old and new status
+                _loggerService.LogEventWithTransaction(
+                    message: "Transaction updated",
+                    category: "Transaction",
+                    triggeredBy: User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, // Replace with the current user's ID or a dynamic ID
+                    transactionId: existingTransaction.TransactionId,
+                    oldValue: oldStatus.ToString(),
+                    newValue: transaction.Status.ToString()
+                );
             }
             catch (DbUpdateConcurrencyException)
             {
@@ -622,6 +418,7 @@ namespace ERPAPI.Controllers
 
             return NoContent();
         }
+
 
         [HttpPost]
         public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
@@ -654,6 +451,9 @@ namespace ERPAPI.Controllers
 
                 if (existingTransaction != null)
                 {
+                    // Capture the old status before the update
+                    var oldStatus = existingTransaction.Status;
+
                     // If an existing transaction is found, update it
                     existingTransaction.InterimQuantity = transaction.InterimQuantity;
                     existingTransaction.Remarks = transaction.Remarks;
@@ -666,14 +466,35 @@ namespace ERPAPI.Controllers
 
                     // Update the existing transaction
                     _context.Transaction.Update(existingTransaction);
+
+                    // Log the update with old and new status
+                    _loggerService.LogEventWithTransaction(
+                        "Transaction updated",
+                        "Transaction",
+                        User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, // Replace with the current user's ID or a dynamic ID
+                        existingTransaction.TransactionId,
+                        oldValue: oldStatus.ToString(),
+                        newValue: existingTransaction.Status.ToString()
+                    );
                 }
                 else
                 {
                     // If no existing transaction, create a new one
                     _context.Transaction.Add(transaction);
+
+                    // Save changes to get the TransactionId for logging
+                    await _context.SaveChangesAsync();
+
+                    // Log the creation
+                    _loggerService.LogEventWithTransaction(
+                        "Transaction created",
+                        "Transaction",
+                        User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, // Replace with the current user's ID or a dynamic ID
+                        transaction.TransactionId
+                    );
                 }
 
-                // Save changes for the valid process transactions (either created or updated)
+                // Save changes for the valid process transactions
                 await _context.SaveChangesAsync();
 
                 return Ok(new { message = "Transaction created/updated successfully." });
@@ -711,6 +532,9 @@ namespace ERPAPI.Controllers
 
                     if (existingTransaction != null)
                     {
+                        // Capture the old status before the update
+                        var oldStatus = existingTransaction.Status;
+
                         // If an existing transaction is found, update it
                         existingTransaction.InterimQuantity = transaction.InterimQuantity;
                         existingTransaction.Remarks = transaction.Remarks;
@@ -721,9 +545,18 @@ namespace ERPAPI.Controllers
                         existingTransaction.AlarmId = transaction.AlarmId;
                         existingTransaction.TeamId = transaction.TeamId;
 
-                        // You can add more fields here to update as needed
+                        // Update the existing transaction
+                        _context.Transaction.Update(existingTransaction);
 
-                        _context.Transaction.Update(existingTransaction); // Mark as modified
+                        // Log the update with old and new status
+                        _loggerService.LogEventWithTransaction(
+                            "Transaction updated",
+                            "Transaction",
+                            User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, // Replace with the current user's ID or a dynamic ID
+                            existingTransaction.TransactionId,
+                            oldValue: oldStatus.ToString(),
+                            newValue: existingTransaction.Status.ToString()
+                        );
                     }
                     else
                     {
@@ -745,6 +578,17 @@ namespace ERPAPI.Controllers
                         };
 
                         _context.Transaction.Add(newTransaction);
+
+                        // Save changes to get the TransactionId for logging
+                        await _context.SaveChangesAsync();
+
+                        // Log the creation
+                        _loggerService.LogEventWithTransaction(
+                            "Transaction created",
+                            "Transaction",
+                            User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, // Replace with the current user's ID or a dynamic ID
+                            newTransaction.TransactionId
+                        );
                     }
                 }
 
@@ -754,6 +598,7 @@ namespace ERPAPI.Controllers
                 return Ok(new { message = "Transactions created/updated successfully." });
             }
         }
+
 
 
 
