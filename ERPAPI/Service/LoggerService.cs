@@ -27,6 +27,21 @@ namespace ERPAPI.Services
             _appDbContext.SaveChanges();
         }
 
+        public void LogEventWithTransaction(string message, string category, int triggeredBy, int transactionId, string oldValue = null, string newValue = null)
+        {
+            var log = new EventLog
+            {
+                Event = message,
+                EventTriggeredBy = triggeredBy,
+                Category = category,
+                TransactionId = transactionId,
+                OldValue = oldValue,
+                NewValue = newValue
+            };
+            _appDbContext.EventLogs.Add(log);
+            _appDbContext.SaveChanges();
+        }
+
         public void LogError(string error, string errormessage, string controller)
         {
             var log = new ErrorLog
