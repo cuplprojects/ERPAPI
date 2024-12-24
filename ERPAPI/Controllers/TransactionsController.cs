@@ -419,7 +419,7 @@ namespace ERPAPI.Controllers
             return NoContent();
         }
 
-
+        // TransactionController.cs
         [HttpPost]
         public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
         {
@@ -437,13 +437,10 @@ namespace ERPAPI.Controllers
                 return BadRequest("Invalid ProcessId.");
             }
 
-            // List of process names to be handled in a standard way
             var validProcessNames = new List<string> { "Digital Printing", "CTP", "Offset Printing", "Cutting" };
 
-            // Check if the process name matches one of the valid names
             if (validProcessNames.Contains(process.Name))
             {
-                // Check if a transaction already exists for this QuantitysheetId, LotNo, and ProcessId
                 var existingTransaction = await _context.Transaction
                     .FirstOrDefaultAsync(t => t.QuantitysheetId == transaction.QuantitysheetId &&
                                               t.LotNo == transaction.LotNo &&
@@ -451,10 +448,12 @@ namespace ERPAPI.Controllers
 
                 if (existingTransaction != null)
                 {
-                    // Capture the old status before the update
-                    var oldStatus = existingTransaction.Status;
+                    var oldValues = existingTransaction.GetType().GetProperties()
+                        .ToDictionary(prop => prop.Name, prop =>
+                            prop.Name == "TeamId"
+                                ? string.Join(",", existingTransaction.TeamId ?? new List<int>())
+                                : prop.GetValue(existingTransaction)?.ToString());
 
-                    // If an existing transaction is found, update it
                     existingTransaction.InterimQuantity = transaction.InterimQuantity;
                     existingTransaction.Remarks = transaction.Remarks;
                     existingTransaction.VoiceRecording = transaction.VoiceRecording;
@@ -462,46 +461,66 @@ namespace ERPAPI.Controllers
                     existingTransaction.MachineId = transaction.MachineId;
                     existingTransaction.Status = transaction.Status;
                     existingTransaction.AlarmId = transaction.AlarmId;
-                    existingTransaction.TeamId = transaction.TeamId;
+                    existingTransaction.TeamId = transaction.TeamId ?? new List<int>();
 
-                    // Update the existing transaction
+                    var newValues = existingTransaction.GetType().GetProperties()
+                        .ToDictionary(prop => prop.Name, prop =>
+                            prop.Name == "TeamId"
+                                ? string.Join(",", existingTransaction.TeamId ?? new List<int>())
+                                : prop.GetValue(existingTransaction)?.ToString());
+
                     _context.Transaction.Update(existingTransaction);
 
-                    // Log the update with old and new status
-                    _loggerService.LogEventWithTransaction(
-                        "Transaction updated",
-                        "Transaction",
-                        User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, // Replace with the current user's ID or a dynamic ID
-                        existingTransaction.TransactionId,
-                        oldValue: oldStatus.ToString(),
-                        newValue: existingTransaction.Status.ToString()
-                    );
+                    foreach (var key in oldValues.Keys)
+                    {
+                        var oldValue = oldValues[key];
+                        var newValue = newValues[key];
+
+                        if (oldValue != null && newValue != null && oldValue != newValue)
+                        {
+                            _loggerService.LogEventWithTransaction(
+                                $"{key} updated",
+                                "Transaction",
+                                User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0,
+                                existingTransaction.TransactionId,
+                                oldValue: oldValue,
+                                newValue: newValue
+                            );
+                        }
+                        else if (oldValue == null && newValue != null)
+                        {
+                            _loggerService.LogEventWithTransaction(
+                                $"{key} added",
+                                "Transaction",
+                                User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0,
+                                existingTransaction.TransactionId,
+                                newValue: newValue
+                            );
+                        }
+                    }
                 }
                 else
                 {
-                    // If no existing transaction, create a new one
+                    transaction.TeamId = transaction.TeamId ?? new List<int>(); // Ensure TeamId is not null
                     _context.Transaction.Add(transaction);
 
-                    // Save changes to get the TransactionId for logging
                     await _context.SaveChangesAsync();
 
-                    // Log the creation
                     _loggerService.LogEventWithTransaction(
                         "Transaction created",
                         "Transaction",
-                        User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, // Replace with the current user's ID or a dynamic ID
-                        transaction.TransactionId
+                        User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0,
+                        transaction.TransactionId,
+                        newValue: $"TeamId: {string.Join(",", transaction.TeamId)}, ZoneId: {transaction.ZoneId}, MachineId: {transaction.MachineId}"
                     );
                 }
 
-                // Save changes for the valid process transactions
                 await _context.SaveChangesAsync();
 
                 return Ok(new { message = "Transaction created/updated successfully." });
             }
             else
             {
-                // If it's not a valid process, fetch the CatchNumber using QuantitySheetId
                 var quantitySheet = await _context.QuantitySheets
                     .FirstOrDefaultAsync(qs => qs.QuantitySheetId == transaction.QuantitysheetId);
 
@@ -512,7 +531,6 @@ namespace ERPAPI.Controllers
 
                 string catchNumber = quantitySheet.CatchNo;
 
-                // Retrieve all QuantitySheetIds for the same CatchNumber, LotNo, and filtered by ProjectId
                 var quantitySheets = await _context.QuantitySheets
                     .Where(qs => qs.CatchNo == catchNumber && qs.LotNo == transaction.LotNo.ToString() && qs.ProjectId == transaction.ProjectId)
                     .ToListAsync();
@@ -524,7 +542,6 @@ namespace ERPAPI.Controllers
 
                 foreach (var sheet in quantitySheets)
                 {
-                    // Check if a transaction already exists for this QuantitysheetId, LotNo, and ProcessId
                     var existingTransaction = await _context.Transaction
                         .FirstOrDefaultAsync(t => t.QuantitysheetId == sheet.QuantitySheetId &&
                                                   t.LotNo == transaction.LotNo &&
@@ -532,10 +549,13 @@ namespace ERPAPI.Controllers
 
                     if (existingTransaction != null)
                     {
-                        // Capture the old status before the update
-                        var oldStatus = existingTransaction.Status;
+                        var oldValues = existingTransaction.GetType().GetProperties()
+                            .Where(prop => prop.GetValue(existingTransaction) != null)
+                            .ToDictionary(prop => prop.Name, prop =>
+                                prop.Name == "TeamId"
+                                    ? string.Join(",", existingTransaction.TeamId ?? new List<int>())
+                                    : prop.GetValue(existingTransaction)?.ToString());
 
-                        // If an existing transaction is found, update it
                         existingTransaction.InterimQuantity = transaction.InterimQuantity;
                         existingTransaction.Remarks = transaction.Remarks;
                         existingTransaction.VoiceRecording = transaction.VoiceRecording;
@@ -543,24 +563,47 @@ namespace ERPAPI.Controllers
                         existingTransaction.MachineId = transaction.MachineId;
                         existingTransaction.Status = transaction.Status;
                         existingTransaction.AlarmId = transaction.AlarmId;
-                        existingTransaction.TeamId = transaction.TeamId;
+                        existingTransaction.TeamId = transaction.TeamId ?? new List<int>();
 
-                        // Update the existing transaction
+                        var newValues = existingTransaction.GetType().GetProperties()
+                            .Where(prop => prop.GetValue(existingTransaction) != null)
+                            .ToDictionary(prop => prop.Name, prop =>
+                                prop.Name == "TeamId"
+                                    ? string.Join(",", existingTransaction.TeamId ?? new List<int>())
+                                    : prop.GetValue(existingTransaction)?.ToString());
+
                         _context.Transaction.Update(existingTransaction);
 
-                        // Log the update with old and new status
-                        _loggerService.LogEventWithTransaction(
-                            "Transaction updated",
-                            "Transaction",
-                            User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, // Replace with the current user's ID or a dynamic ID
-                            existingTransaction.TransactionId,
-                            oldValue: oldStatus.ToString(),
-                            newValue: existingTransaction.Status.ToString()
-                        );
+                        foreach (var key in oldValues.Keys)
+                        {
+                            var oldValue = oldValues[key];
+                            var newValue = newValues[key];
+
+                            if (oldValue != null && newValue != null && oldValue != newValue)
+                            {
+                                _loggerService.LogEventWithTransaction(
+                                    $"{key} updated",
+                                    "Transaction",
+                                    User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0,
+                                    existingTransaction.TransactionId,
+                                    oldValue: oldValue,
+                                    newValue: newValue
+                                );
+                            }
+                            else if (oldValue == null && newValue != null)
+                            {
+                                _loggerService.LogEventWithTransaction(
+                                    $"{key} added",
+                                    "Transaction",
+                                    User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0,
+                                    existingTransaction.TransactionId,
+                                    newValue: newValue
+                                );
+                            }
+                        }
                     }
                     else
                     {
-                        // If no existing transaction, create a new one
                         var newTransaction = new Transaction
                         {
                             InterimQuantity = transaction.InterimQuantity,
@@ -574,30 +617,41 @@ namespace ERPAPI.Controllers
                             Status = transaction.Status,
                             AlarmId = transaction.AlarmId,
                             LotNo = transaction.LotNo,
-                            TeamId = transaction.TeamId
+                            TeamId = transaction.TeamId ?? new List<int>()
                         };
 
                         _context.Transaction.Add(newTransaction);
 
-                        // Save changes to get the TransactionId for logging
                         await _context.SaveChangesAsync();
 
-                        // Log the creation
-                        _loggerService.LogEventWithTransaction(
-                            "Transaction created",
-                            "Transaction",
-                            User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0, // Replace with the current user's ID or a dynamic ID
-                            newTransaction.TransactionId
-                        );
+                        var addedValues = newTransaction.GetType().GetProperties()
+                            .Where(prop => prop.GetValue(newTransaction) != null)
+                            .ToDictionary(prop => prop.Name, prop =>
+                                prop.Name == "TeamId"
+                                    ? string.Join(",", newTransaction.TeamId ?? new List<int>())
+                                    : prop.GetValue(newTransaction)?.ToString());
+
+                        foreach (var key in addedValues.Keys)
+                        {
+                            _loggerService.LogEventWithTransaction(
+                                $"{key} added",
+                                "Transaction",
+                                User.Identity?.Name != null ? int.Parse(User.Identity.Name) : 0,
+                                newTransaction.TransactionId,
+                                newValue: addedValues[key]
+                            );
+                        }
                     }
                 }
 
-                // Save changes for all updates and new transactions
                 await _context.SaveChangesAsync();
 
                 return Ok(new { message = "Transactions created/updated successfully." });
             }
         }
+
+
+
 
 
 
@@ -1063,6 +1117,34 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
+        [HttpGet("CheckTransaction")]
+        public async Task<IActionResult> CheckTransaction(int projectId, int lotNo)
+        {
+            // Step 1: Get all QuantitySheetIds from the Transaction table where the combination of ProjectId and LotNo matches
+            var quantitySheetIds = await _context.Transaction
+                .Where(t => t.ProjectId == projectId && t.LotNo == lotNo)
+                .Select(t => t.QuantitysheetId)
+                .ToListAsync();
+
+            if (quantitySheetIds == null || !quantitySheetIds.Any())
+            {
+                // If no matching QuantitySheetIds are found, return an empty list
+                return Ok(new List<string>());
+            }
+
+            // Step 2: Get all CatchNos from the QuantitySheet table for the found QuantitySheetIds
+            var catchNos = await _context.QuantitySheets
+                .Where(qs => quantitySheetIds.Contains(qs.QuantitySheetId))
+                .Select(qs => qs.CatchNo)
+                .Distinct() // Ensure unique CatchNos
+                .ToListAsync();
+
+            // Return the list of CatchNos in JSON format
+            return Ok(catchNos);
+        }
+
+
 
     }
 }
