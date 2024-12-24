@@ -79,27 +79,6 @@ namespace ERPAPI.Controllers
 
 
 
-        //[HttpPost]
-        //public async Task<ActionResult<Project>> PostProject(Project project)
-        //{
-        //    // Check if project type is Booklets and series is not provided
-        //    var projectType = await _context.Types
-        //        .Where(t => t.TypeId == project.TypeId)
-        //        .Select(t => t.Types)
-        //        .FirstOrDefaultAsync();
-
-        //    if (projectType == "Booklets" && (!project.NoOfSeries.HasValue || string.IsNullOrEmpty(project.SeriesName)))
-        //    {
-        //        return BadRequest("NoOfSeries and SeriesName are required for Booklet type projects");
-        //    }
-
-        //    _context.Projects.Add(project);
-        //    await _context.SaveChangesAsync();
-
-        //    return CreatedAtAction("GetProject", new { id = project.ProjectId }, project);
-        //}
-
-
         [HttpPost]
         public async Task<ActionResult<Project>> PostProject(Project project)
         {
@@ -174,67 +153,6 @@ namespace ERPAPI.Controllers
         }
 
 
-        /* [HttpPost("AddProcessesToProject")]
-         public async Task<IActionResult> AddProcessesToProject([FromBody] AddProcessesDto addProcessesDto)
-         {
-             if (addProcessesDto.ProjectProcesses == null || !addProcessesDto.ProjectProcesses.Any())
-             {
-                 return BadRequest("No processes provided.");
-             }
-
-             var project = await _context.Projects.FindAsync(addProcessesDto.ProjectProcesses.First().ProjectId);
-             if (project == null)
-             {
-                 return BadRequest("Project does not exist.");
-             }
-
-             var processIds = addProcessesDto.ProjectProcesses.Select(dto => dto.ProcessId).Distinct().ToList();
-             var processes = await _context.Processes.Where(p => processIds.Contains(p.Id)).ToListAsync();
-
-             if (processes.Count != processIds.Count)
-             {
-                 return BadRequest("Some process IDs are invalid.");
-             }
-
-             var totalWeightage = processes.Sum(p => p.Weightage);
-             if (totalWeightage == 0)
-             {
-                 return BadRequest("Total weightage from the process table cannot be zero.");
-             }
-
-             var adjustmentFactor = 100.0 / totalWeightage;
-
-             var projectProcesses = addProcessesDto.ProjectProcesses.Select(dto =>
-             {
-                 var process = processes.FirstOrDefault(p => p.Id == dto.ProcessId);
-                 if (process == null) return null;
-
-                 var adjustedWeightage = process.Weightage * adjustmentFactor;
-
-                 return new ProjectProcess
-                 {
-                     Id = dto.Id,
-                     ProjectId = dto.ProjectId,
-                     ProcessId = dto.ProcessId,
-                     Weightage = adjustedWeightage,
-                     Sequence = dto.Sequence,
-                     FeaturesList = dto.FeaturesList,
-                     UserId = new List<int>() // Initialize UserIds as an empty list
-                 };
-             }).Where(pp => pp != null).ToList();
-
-             if (projectProcesses.Count != addProcessesDto.ProjectProcesses.Count)
-             {
-                 return BadRequest("Some process entries are invalid.");
-             }
-
-             _context.ProjectProcesses.AddRange(projectProcesses);
-             await _context.SaveChangesAsync();
-
-             return Ok(projectProcesses);
-         }
-         */
-
         private bool ProjectExists(int id)
         {
             return _context.Projects.Any(e => e.ProjectId == id);
@@ -274,6 +192,7 @@ namespace ERPAPI.Controllers
                 // Get all active projects if the RoleId is 1, 2, 3, or 4
                 var activeProjects = await _context.Projects
                     .Where(p => p.Status == true) // Assuming "Status" indicates active projects
+                    .OrderByDescending(p=>p.ProjectId)
                     .ToListAsync();
 
                 return Ok(activeProjects);
@@ -301,6 +220,7 @@ namespace ERPAPI.Controllers
                 // Fetch the project details for the distinct project IDs
                 var projects = await _context.Projects
                     .Where(p => userAssignedProcesses.Contains(p.ProjectId))
+                    .OrderByDescending (p=>p.ProjectId)
                     .ToListAsync();
 
                 return Ok(projects);

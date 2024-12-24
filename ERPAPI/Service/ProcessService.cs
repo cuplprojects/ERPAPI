@@ -41,8 +41,9 @@ namespace ERPAPI.Service
             var ctpProcessId = projectProcesses.FirstOrDefault(p => p.ProcessName == "CTP")?.ProcessId;
             var offsetPrintingProcessId = projectProcesses.FirstOrDefault(p => p.ProcessName == "Offset Printing")?.ProcessId;
             var digitalPrintingProcessId = projectProcesses.FirstOrDefault(p => p.ProcessName == "Digital Printing")?.ProcessId;
+            var cuttingProcessId = projectProcesses.FirstOrDefault(p => p.ProcessName == "Cutting")?.ProcessId;
 
-            Console.WriteLine("Identified ProcessIds - CTP: " + ctpProcessId + ", Offset: " + offsetPrintingProcessId + ", Digital: " + digitalPrintingProcessId);
+            Console.WriteLine("Identified ProcessIds - CTP: " + ctpProcessId + ", Offset: " + offsetPrintingProcessId + ", Digital: " + digitalPrintingProcessId + ", Cutting : " + cuttingProcessId + "");
             Console.WriteLine(catchData.ProjectId);
 
             // Fetch the project to get the threshold JSON string
@@ -79,7 +80,21 @@ namespace ERPAPI.Service
             if (thresholds == null || !thresholds.Any())
             {
                 Console.WriteLine("No valid thresholds found in project.QuantityThreshold.");
+
+                // If no valid thresholds are found, add all ProcessIds except for Digital Printing
+                foreach (var process in projectProcesses)
+                {
+                    if (process.ProcessId != digitalPrintingProcessId)
+                    {
+                        catchData.ProcessId.Add(process.ProcessId);
+                        Console.WriteLine("Added additional ProcessId (except Digital Printing): " + process.ProcessId);
+                    }
+                }
+
+                // Final log for catchData ProcessIds after no thresholds were found
+                Console.WriteLine("Final ProcessId for catchData after threshold not found: " + Newtonsoft.Json.JsonConvert.SerializeObject(catchData.ProcessId));
                 return;
+
             }
 
             // Find the threshold matching the Pages value in catchData
@@ -110,6 +125,11 @@ namespace ERPAPI.Service
                     catchData.ProcessId.Add(offsetPrintingProcessId.Value);
                     Console.WriteLine("Added Offset Printing ProcessId: " + offsetPrintingProcessId);
                 }
+                if (cuttingProcessId.HasValue)
+                {
+                    catchData.ProcessId.Add(cuttingProcessId.Value);
+                    Console.WriteLine("Added Cutting ProcessId: " + cuttingProcessId);
+                }
             }
             else
             {
@@ -129,7 +149,8 @@ namespace ERPAPI.Service
                 // Skip adding if it’s already included
                 if (process.ProcessId != ctpProcessId &&
                     process.ProcessId != offsetPrintingProcessId &&
-                    process.ProcessId != digitalPrintingProcessId)
+                    process.ProcessId != digitalPrintingProcessId &&
+                    process.ProcessId != cuttingProcessId)
                 {
                     catchData.ProcessId.Add(process.ProcessId);
                     Console.WriteLine("Added additional ProcessId: " + process.ProcessId);

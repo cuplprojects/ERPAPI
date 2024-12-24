@@ -85,8 +85,6 @@ namespace ERPAPI.Controllers
 
 
 
-
-
         [HttpGet("GetProjectTransactionsDataOld")]
         public async Task<ActionResult<IEnumerable<object>>> GetProjectTransactionsDataOld(int projectId, int processId)
         {
@@ -287,7 +285,7 @@ namespace ERPAPI.Controllers
             return alarmId; // Return the original value if parsing fails
         }
         // Utility function to attempt parsing AlarmId and return an integer if possible, else return the original value
-       
+
 
 
 
@@ -680,7 +678,7 @@ namespace ERPAPI.Controllers
         }
 
 
-       
+
         [HttpGet("all-project-completion-percentages")]
         public async Task<ActionResult> GetAllProjectCompletionPercentages()
         {
@@ -834,12 +832,19 @@ namespace ERPAPI.Controllers
                 {
                     var lotNumberStr = lotNumber.ToString();
 
-                    var completedQuantitySheets = transactions
-                        .Count(t => t.LotNo.ToString() == lotNumberStr && t.ProcessId == processId && t.Status == 2);
+                    // Filter transactions and quantity sheets for the current processId
+                    var filteredTransactions = transactions
+                        .Where(t => t.LotNo.ToString() == lotNumberStr && t.ProcessId == processId && t.Status == 2 && t.ProjectId == projectId);
 
-                    var totalQuantitySheets = quantitySheets
-                        .Count(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId));
+                    var filteredQuantitySheets = quantitySheets
+                        .Where(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId) && qs.ProjectId == projectId);
 
+                    var completedQuantitySheets = filteredTransactions.Count(); //2
+                    Console.WriteLine(processId +"completed " + completedQuantitySheets);
+                    var totalQuantitySheets = filteredQuantitySheets.Count(); //57
+                    Console.WriteLine(totalQuantitySheets);
+
+                    // Calculate the percentage completion for the processId
                     double processPercentage = totalQuantitySheets > 0
                         ? Math.Round((double)completedQuantitySheets / totalQuantitySheets * 100, 2)
                         : 0;
@@ -856,6 +861,7 @@ namespace ERPAPI.Controllers
                         }
                     }
                 }
+
             }
 
             foreach (var lot in lotQuantities)
@@ -1117,6 +1123,26 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+        [HttpGet("CheckTransaction")]
+        public async Task<IActionResult> CheckTransaction(int projectId, string catchNo, string lotNo)
+        {
+            // Find the QuantitySheet with the given ProjectId, CatchNo, and LotNo
+            var quantitySheet = await _context.QuantitySheets
+                .FirstOrDefaultAsync(qs => qs.ProjectId == projectId && qs.CatchNo == catchNo && qs.LotNo == lotNo);
+
+            if (quantitySheet == null)
+            {
+                // Return false if no matching QuantitySheet is found
+                return Ok(false);
+            }
+
+            // Check if a transaction exists with the given QuantitySheetId and ProjectId
+            var transactionExists = await _context.Transaction
+                .AnyAsync(t => t.ProjectId == projectId && t.QuantitysheetId == quantitySheet.QuantitySheetId);
+
+            // Return true if a transaction exists, otherwise false
+            return Ok(transactionExists);
+        }
 
         [HttpGet("CheckTransaction")]
         public async Task<IActionResult> CheckTransaction(int projectId, int lotNo)
@@ -1148,4 +1174,3 @@ namespace ERPAPI.Controllers
 
     }
 }
-
