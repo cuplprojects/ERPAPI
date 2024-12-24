@@ -181,7 +181,7 @@ namespace ERPAPI.Controllers
             }
         }
 
-     
+
 
         [HttpPost]
         public async Task<ActionResult<Team>> PostTeam(Team team)
@@ -197,7 +197,9 @@ namespace ERPAPI.Controllers
 
                 if (nameExists)
                 {
-                    Console.WriteLine($"Conflict: Team with the same name '{team.TeamName}' and process ID '{team.ProcessId}' already exists.");
+                    var conflictMessage = $"Conflict: Team with the same name '{team.TeamName}' and process ID '{team.ProcessId}' already exists.";
+                    Console.WriteLine(conflictMessage);
+                    _loggerService.LogError("Team creation conflict", conflictMessage, "TeamsController");
                     return Conflict(new { Message = "A team with the same name and process ID already exists." });
                 }
 
@@ -211,7 +213,9 @@ namespace ERPAPI.Controllers
 
                 if (sameMembersExist)
                 {
-                    Console.WriteLine($"Conflict: A team with the same members and process ID '{team.ProcessId}' already exists.");
+                    var conflictMessage = $"Conflict: A team with the same members and process ID '{team.ProcessId}' already exists.";
+                    Console.WriteLine(conflictMessage);
+                    _loggerService.LogError("Team creation conflict", conflictMessage, "TeamsController");
                     return Conflict(new { Message = "A team with the same members and process ID already exists." });
                 }
 
@@ -219,7 +223,17 @@ namespace ERPAPI.Controllers
                 _context.Teams.Add(team);
                 await _context.SaveChangesAsync();
 
-                Console.WriteLine($"Team created successfully with ID: {team.TeamId}");
+                // Log the successful team creation
+                var logMessage = $"Team created successfully with ID: {team.TeamId}, Name: {team.TeamName}, Process ID: {team.ProcessId}, Members: {string.Join(", ", team.UserIds)}";
+                Console.WriteLine(logMessage);
+                _loggerService.LogEvent(
+                    "Team created",
+                    "Teams",
+                    team.TeamId,
+                    oldValue: null,
+                    newValue: $"Name: '{team.TeamName}', Process ID: '{team.ProcessId}', Members: '{string.Join(", ", team.UserIds)}', Status: '{team.Status}'"
+                );
+
                 return CreatedAtAction(nameof(GetTeam), new { id = team.TeamId }, team);
             }
             catch (Exception ex)
@@ -231,7 +245,8 @@ namespace ERPAPI.Controllers
         }
 
 
-        // PUT: api/Teams/5
+
+
         // PUT: api/Teams/5
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTeam(int id, Team team)
