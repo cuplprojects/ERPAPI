@@ -102,6 +102,17 @@ namespace ERPAPI.Service
             if (matchingThreshold == null)
             {
                 Console.WriteLine($"No threshold found for Pages value {catchData.Pages}.");
+                foreach (var process in projectProcesses)
+                {
+                    if (process.ProcessId != digitalPrintingProcessId)
+                    {
+                        catchData.ProcessId.Add(process.ProcessId);
+                        Console.WriteLine("Added additional ProcessId (except Digital Printing): " + process.ProcessId);
+                    }
+                }
+
+                // Final log for catchData ProcessIds after no thresholds were found
+                Console.WriteLine("Final ProcessId for catchData after threshold not found: " + Newtonsoft.Json.JsonConvert.SerializeObject(catchData.ProcessId));
                 return;
             }
 
