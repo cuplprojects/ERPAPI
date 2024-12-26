@@ -840,7 +840,7 @@ namespace ERPAPI.Controllers
                         .Where(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId) && qs.ProjectId == projectId);
 
                     var completedQuantitySheets = filteredTransactions.Count(); //2
-                    Console.WriteLine(processId +"completed " + completedQuantitySheets);
+                    Console.WriteLine(processId + "completed " + completedQuantitySheets);
                     var totalQuantitySheets = filteredQuantitySheets.Count(); //57
                     Console.WriteLine(totalQuantitySheets);
 
@@ -1150,8 +1150,58 @@ namespace ERPAPI.Controllers
             // Return the list of CatchNos in JSON format
             return Ok(catchNos);
         }
+        [HttpGet("{id}/withlogs")]
+        public async Task<IActionResult> GetTransactionWithEventLogs(int id)
+        {
+            try
+            {
+                var result = await (from e in _context.EventLogs
+                                    join t in _context.Transaction on e.TransactionId equals t.TransactionId
+                                    where t.TransactionId == id
+                                    select new
+                                    {
+                                        EventLog = new
+                                        {
+                                            e.EventID,
+                                            Event = e.Event ?? string.Empty,
+                                            Category = e.Category ?? string.Empty,
+                                            EventTriggeredBy = e.EventTriggeredBy,
+                                            e.LoggedAT,
+                                            OldValue = e.OldValue ?? string.Empty,
+                                            NewValue = e.NewValue ?? string.Empty,
+                                            e.TransactionId
+                                        },
+                                        Transaction = new
+                                        {
+                                            t.TransactionId,
+                                            InterimQuantity = t.InterimQuantity, // No null-coalescing needed
+                                            Remarks = t.Remarks ?? string.Empty,
+                                            VoiceRecording = t.VoiceRecording ?? string.Empty,
+                                            t.ProjectId,
+                                            t.QuantitysheetId,
+                                            t.ProcessId,
+                                            t.ZoneId,
+                                            t.MachineId,
+                                            Status = t.Status.ToString(), // Convert int Status to string for consistency
+                                            AlarmId = t.AlarmId ?? string.Empty,
+                                            LotNo = t.LotNo, // No null-coalescing needed
+                                            TeamId = t.TeamId // Assuming this can be directly returned
+                                        }
+                                    }).ToListAsync();
 
+                if (!result.Any())
+                {
+                    return NotFound($"No data found for TransactionId: {id}");
+                }
 
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+                return StatusCode(500, "An error occurred while processing your request.");
+            }
+        }
 
     }
 }
