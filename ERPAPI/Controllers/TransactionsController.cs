@@ -682,10 +682,9 @@ namespace ERPAPI.Controllers
                     var filteredQuantitySheets = quantitySheets
                         .Where(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId) && qs.ProjectId == projectId);
 
-                    var completedQuantitySheets = filteredTransactions.Count(); //2
-                    Console.WriteLine(processId +"completed " + completedQuantitySheets);
+                    var completedQuantitySheets = filteredTransactions.Count();
                     var totalQuantitySheets = filteredQuantitySheets.Count(); //57
-                    Console.WriteLine(totalQuantitySheets);
+
 
                     // Calculate the percentage completion for the processId
                     double processPercentage = totalQuantitySheets > 0
