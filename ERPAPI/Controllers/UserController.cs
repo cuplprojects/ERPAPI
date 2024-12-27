@@ -114,13 +114,48 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/User
+        /* [HttpGet("operator")]
+         public async Task<ActionResult<IEnumerable<User>>> GetOperators()
+         {
+             try
+             {
+                 // Retrieve all users from the database
+                 var users = await Task.FromResult(_context.Users.Where(r=>r.RoleId==6).ToList());
+                 return Ok(users);
+             }
+             catch (Exception ex)
+             {
+                 _loggerService.LogError("Failed to retrieve operators", ex.Message, "UserController");
+                 return StatusCode(500, "Failed to retrieve operators");
+             }
+         }*/
         [HttpGet("operator")]
         public async Task<ActionResult<IEnumerable<User>>> GetOperators()
         {
             try
             {
-                // Retrieve all users from the database
-                var users = await Task.FromResult(_context.Users.Where(r=>r.RoleId==6).ToList());
+                // Retrieve users with roles 6 or 4 and add FullName as a concatenation of FirstName and MiddleName
+                var users = await Task.FromResult(
+                    _context.Users
+                        .Where(r => r.RoleId == 6 || r.RoleId == 4)
+                        .Select(u => new
+                        {
+                            u.UserId,
+                            u.FirstName,
+                            u.MiddleName,
+                            u.LastName,
+                            u.RoleId,
+                            u.Address,
+                            u.Gender,
+                            u.UserName,
+                            u.Status,
+                            u.MobileNo,
+
+                            FullName = u.FirstName + " " + u.MiddleName + " " + u.LastName// Concatenate FirstName and MiddleName
+                        })
+                        .ToList()
+                );
+
                 return Ok(users);
             }
             catch (Exception ex)
@@ -129,6 +164,7 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, "Failed to retrieve operators");
             }
         }
+
 
         [HttpGet("LoggedUser")]
         [Authorize] // Ensures the request is authenticated
