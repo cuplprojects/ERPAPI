@@ -549,13 +549,13 @@ namespace ERPAPI.Controllers
                 }
 
                 // Unlock the screen (custom logic if needed)
-                _loggerService.LogEvent("Screen unlocked by PIN", "User", userId);
+               
 
                 return Ok(new { Message = "Screen unlocked successfully." });
             }
             catch (Exception ex)
             {
-                _loggerService.LogError("Failed to unlock screen by PIN", ex.Message, "UserController");
+                
                 return StatusCode(500, new { Message = "Internal server error", Details = ex.Message });
             }
         }

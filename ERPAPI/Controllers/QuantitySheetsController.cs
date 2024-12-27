@@ -14,11 +14,13 @@ public class QuantitySheetController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly ProcessService _processService;
+    private readonly ILoggerService _loggerService;
 
-    public QuantitySheetController(AppDbContext context, ProcessService processService)
+    public QuantitySheetController(AppDbContext context, ProcessService processService, ILoggerService loggerService)
     {
         _context = context;
         _processService = processService;
+        _loggerService = loggerService;
     }
 
     [HttpPost]
@@ -31,9 +33,10 @@ public class QuantitySheetController : ControllerBase
 
         var projectId = newSheets.First().ProjectId;
         var project = await _context.Projects
-           .Where(p => p.ProjectId == projectId)
-           .Select(p => new { p.TypeId, p.NoOfSeries })
-           .FirstOrDefaultAsync();
+            .Where(p => p.ProjectId == projectId)
+            .Select(p => new { p.TypeId, p.NoOfSeries })
+            .FirstOrDefaultAsync();
+
         if (project == null)
         {
             return BadRequest("Project not found.");
@@ -44,11 +47,12 @@ public class QuantitySheetController : ControllerBase
             .Where(t => t.TypeId == projectTypeId)
             .Select(t => t.Types)
             .FirstOrDefaultAsync();
+
         if (projectType == "Booklet" && project.NoOfSeries.HasValue)
         {
             var noOfSeries = project.NoOfSeries.Value;
-            Console.WriteLine(noOfSeries);
             var adjustedSheets = new List<QuantitySheet>();
+
             foreach (var sheet in newSheets)
             {
                 var adjustedQuantity = sheet.Quantity / noOfSeries;
@@ -65,40 +69,36 @@ public class QuantitySheetController : ControllerBase
                         OuterEnvelope = sheet.OuterEnvelope,
                         LotNo = sheet.LotNo,
                         Quantity = adjustedQuantity,
-                        Pages = sheet.Pages, // Include the Pages field
-                        PercentageCatch = 0, // This will be recalculated below
+                        Pages = sheet.Pages,
+                        PercentageCatch = 0,
                         ProjectId = sheet.ProjectId,
                         Status = sheet.Status,
                         ExamDate = sheet.ExamDate,
                         ExamTime = sheet.ExamTime,
-                        ProcessId = new List<int>() // Start with an empty list for the new catch
+                        ProcessId = new List<int>()
                     };
                     adjustedSheets.Add(newSheet);
                 }
             }
+
             newSheets = adjustedSheets;
         }
 
-        // Get existing sheets for the same project and lots
         var existingSheets = await _context.QuantitySheets
             .Where(s => s.ProjectId == projectId && newSheets.Select(ns => ns.LotNo).Contains(s.LotNo))
             .ToListAsync();
 
-        // Prepare a list to track new catches that need to be processed
         var processedNewSheets = new List<QuantitySheet>();
 
         foreach (var sheet in newSheets)
         {
-            // For new sheets, clear the ProcessId and process it
             sheet.ProcessId.Clear();
             _processService.ProcessCatch(sheet);
             processedNewSheets.Add(sheet);
         }
 
-        // Combine new sheets with existing sheets
         var allSheets = existingSheets.Concat(processedNewSheets).ToList();
 
-        // Group by LotNo to recalculate quantities and percentages
         var groupedSheets = allSheets.GroupBy(sheet => sheet.LotNo);
 
         foreach (var group in groupedSheets)
@@ -110,26 +110,34 @@ public class QuantitySheetController : ControllerBase
                 return BadRequest($"Total quantity for lot {group.Key} is zero, cannot calculate percentages.");
             }
 
-            // Calculate percentage catch for each sheet in the current group
             foreach (var sheet in group)
             {
                 sheet.PercentageCatch = (sheet.Quantity / totalQuantityForLot) * 100;
 
-                // For existing sheets, just update the percentage
                 if (!processedNewSheets.Contains(sheet))
                 {
-                    // No need to call ProcessCatch again for existing sheets
                     continue;
                 }
             }
         }
 
-        // Add new sheets to the database
         await _context.QuantitySheets.AddRangeAsync(processedNewSheets);
         await _context.SaveChangesAsync();
 
+        foreach (var sheet in processedNewSheets)
+        {
+            _loggerService.LogEvent(
+                "New QuantitySheet added",
+                "QuantitySheet",
+                1, // Replace with actual user ID or triggered by value
+                null,
+                $"QuantitySheetId: {sheet.QuantitySheetId}, ProjectId: {sheet.ProjectId}"
+            );
+        }
+
         return Ok(processedNewSheets);
     }
+
 
     [HttpPost("ReleaseForProduction")]
     public async Task<IActionResult> ReleaseForProduction([FromBody] LotRequest request)
