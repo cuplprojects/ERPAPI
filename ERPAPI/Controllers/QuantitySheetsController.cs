@@ -399,6 +399,49 @@ public class QuantitySheetController : ControllerBase
     }
 
 
+    // Update pages 
+    [HttpPost]
+    [Route("UpdatePages")]
+    public async Task<IActionResult> UpdatePages([FromBody] List<PageUpdateRequest> updateRequests)
+    {
+        if (updateRequests == null || !updateRequests.Any())
+        {
+            return BadRequest("No data provided.");
+        }
+
+        try
+        {
+            foreach (var request in updateRequests)
+            {
+                // Find matching QuantitySheets
+                var existingSheets = await _context.QuantitySheets
+                    .Where(qs => qs.ProjectId == request.ProjectId &&
+                                 qs.LotNo == request.LotNo &&
+                                 qs.CatchNo == request.CatchNumber)
+                    .ToListAsync();
+
+                if (existingSheets.Any())
+                {
+                    // Update pages for all matching records
+                    foreach (var sheet in existingSheets)
+                    {
+                        sheet.Pages = request.Pages;
+                    }
+                }
+            }
+
+            // Save changes to the database
+            await _context.SaveChangesAsync();
+           
+            return Ok("Pages updated successfully.");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"An error occurred while updating pages: {ex.Message}");
+        }
+    }
+
+
     [HttpPut]
     public async Task<IActionResult> UpdateQuantitySheet([FromBody] List<QuantitySheet> newSheets)
     {
@@ -736,6 +779,15 @@ public class QuantitySheetController : ControllerBase
     {
         return _context.QuantitySheets.Any(e => e.QuantitySheetId == id);
     }
+
+    public class PageUpdateRequest
+    {
+        public int ProjectId { get; set; }
+        public string LotNo { get; set; }
+        public string CatchNumber { get; set; }
+        public int Pages { get; set; }
+    }
+
 
     // First, create a DTO to handle the transfer request
     public class CatchTransferRequest

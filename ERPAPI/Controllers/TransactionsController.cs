@@ -161,6 +161,7 @@ namespace ERPAPI.Controllers
                     Status = t.Status,
                     MachineId = t.MachineId,
                     AlarmMessage = alarm != null ? alarm.Message : null, // Handle null case for alarms
+                    
                 };
             }).ToList();
 
@@ -190,6 +191,7 @@ namespace ERPAPI.Controllers
                             q.OuterEnvelope,
                             q.Quantity,
                             q.PercentageCatch,
+                            q.Pages,
                             SeriesName = seriesLetter,  // Assign the SeriesName here
                             ProcessIds = q.ProcessId,   // Assuming ProcessIds is a list, map it directly
                         };
@@ -228,6 +230,7 @@ namespace ERPAPI.Controllers
                     q.Quantity,
                     q.PercentageCatch,
                     q.SeriesName,  // Directly use the SeriesName
+                    q.Pages,
                     ProcessIds = q.ProcessIds, // Assuming ProcessIds is a list, map it directly
                     Transactions = transactionsWithAlarms
                         .Where(t => t.QuantitysheetId == q.QuantitySheetId) // Only transactions matching the QuantitySheetId
@@ -839,10 +842,12 @@ namespace ERPAPI.Controllers
                     var filteredQuantitySheets = quantitySheets
                         .Where(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId) && qs.ProjectId == projectId);
 
+
                     var completedQuantitySheets = filteredTransactions.Count(); //2
                     Console.WriteLine(processId + "completed " + completedQuantitySheets);
+
                     var totalQuantitySheets = filteredQuantitySheets.Count(); //57
-                    Console.WriteLine(totalQuantitySheets);
+
 
                     // Calculate the percentage completion for the processId
                     double processPercentage = totalQuantitySheets > 0
