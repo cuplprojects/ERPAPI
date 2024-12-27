@@ -23,7 +23,7 @@ namespace ERPAPI.Model
         public string Course { get; set; }
         public string Subject { get; set; }
         public string? InnerEnvelope { get; set; }
-        public string? OuterEnvelope { get; set; }
+        public int? OuterEnvelope { get; set; }
         public string? LotNo { get; set; }
         public double Quantity { get; set; }
         public int? Pages { get; set; }
