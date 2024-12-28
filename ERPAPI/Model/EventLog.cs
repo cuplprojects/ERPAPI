@@ -20,6 +20,7 @@ namespace ERPAPI.Model
         public DateTime LoggedAT { get; set; } = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"));
         public string OldValue { get; set; }  // New column for old value
         public string NewValue { get; set; }  // New column for new value
+        public int? TransactionId { get; set; } // New column for TransactionId
 
     }
 }

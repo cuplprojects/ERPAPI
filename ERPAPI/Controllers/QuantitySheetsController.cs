@@ -424,7 +424,7 @@ public class QuantitySheetController : ControllerBase
 
             foreach (var sheet in newSheets)
             {
-                var adjustedQuantity = sheet.Quantity / 4;
+                var adjustedQuantity = sheet.Quantity / noOfSeries;
                 for (int i = 0; i < noOfSeries; i++)
                 {
                     var newSheet = new QuantitySheet
@@ -599,7 +599,8 @@ public class QuantitySheetController : ControllerBase
                 r.Quantity,
                 r.PercentageCatch,
                 r.ProjectId,
-                r.ProcessId
+                r.ProcessId,
+                r.Pages,
             })
             .ToListAsync();
 
@@ -644,6 +645,7 @@ public class QuantitySheetController : ControllerBase
             current.PercentageCatch,
             current.ProjectId,
             current.ProcessId,
+            current.Pages,
             IsExamDateOverlapped = lotNo != "1" && previousExamDates.Contains(current.ExamDate)
         }).ToList();
 
