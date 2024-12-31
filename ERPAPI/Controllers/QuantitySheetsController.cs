@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Globalization;
 using NuGet.Protocol.Plugins;
+using Microsoft.CodeAnalysis;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -72,7 +73,8 @@ public class QuantitySheetController : ControllerBase
                         Status = sheet.Status,
                         ExamDate = sheet.ExamDate,
                         ExamTime = sheet.ExamTime,
-                        ProcessId = new List<int>() // Start with an empty list for the new catch
+                        ProcessId = new List<int>(), // Start with an empty list for the new catch
+                        StopCatch = 0,
                     };
                     adjustedSheets.Add(newSheet);
                 }
@@ -419,6 +421,8 @@ public class QuantitySheetController : ControllerBase
                     foreach (var sheet in existingSheets)
                     {
                         sheet.Pages = request.Pages;
+                        sheet.ProcessId.Clear();
+                        _processService.ProcessCatch(sheet);
                     }
                 }
             }
@@ -485,7 +489,8 @@ public class QuantitySheetController : ControllerBase
                         ProjectId = sheet.ProjectId,
                         ExamDate = sheet.ExamDate,
                         ExamTime = sheet.ExamTime,
-                        ProcessId = new List<int>() // Empty list for new catch
+                        ProcessId = new List<int>(), // Empty list for new catch
+                        StopCatch = 0,
                     };
                     adjustedSheets.Add(newSheet);
                 }
@@ -514,7 +519,7 @@ public class QuantitySheetController : ControllerBase
         foreach (var newSheet in processedNewSheets)
         {
             var existingSheet = existingSheets
-                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId);
+                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.StopCatch == 0);
 
             if (existingSheet != null)
             {
@@ -530,6 +535,7 @@ public class QuantitySheetController : ControllerBase
                 existingSheet.ExamDate = newSheet.ExamDate;
                 existingSheet.ExamTime = newSheet.ExamTime;
                 existingSheet.ProcessId = newSheet.ProcessId;
+                existingSheet.StopCatch = newSheet.StopCatch;
             }
             else
             {
@@ -627,7 +633,7 @@ public class QuantitySheetController : ControllerBase
     {
         // Retrieve current lot data with necessary fields only
         var currentLotData = await _context.QuantitySheets
-            .Where(r => r.ProjectId == ProjectId && r.LotNo == lotNo)
+            .Where(r => r.ProjectId == ProjectId && r.LotNo == lotNo && r.StopCatch == 0)
             .Select(r => new
             {
                 r.QuantitySheetId,
@@ -645,6 +651,7 @@ public class QuantitySheetController : ControllerBase
                 r.ProjectId,
                 r.ProcessId,
                 r.Pages,
+                r.StopCatch,
             })
             .ToListAsync();
 
@@ -690,6 +697,7 @@ public class QuantitySheetController : ControllerBase
             current.ProjectId,
             current.ProcessId,
             current.Pages,
+            current.StopCatch,
             IsExamDateOverlapped = lotNo != "1" && previousExamDates.Contains(current.ExamDate)
         }).ToList();
 
@@ -703,7 +711,7 @@ public class QuantitySheetController : ControllerBase
     public async Task<ActionResult<IEnumerable<object>>> CatchByproject(int ProjectId)
     {
 
-        return await _context.QuantitySheets.Where(r => r.ProjectId == ProjectId).ToListAsync();
+        return await _context.QuantitySheets.Where(r => r.ProjectId == ProjectId && r.StopCatch == 0).ToListAsync();
     }
 
 
@@ -732,6 +740,61 @@ public class QuantitySheetController : ControllerBase
     }
 
 
+    [HttpPost("StopCatch")]
+    public async Task<IActionResult> StopCatch(int id)
+    {
+        // Get the 'QuantitySheet' with the provided 'id' from the database
+        var sheetToUpdate = await _context.QuantitySheets
+            .FirstOrDefaultAsync(q => q.QuantitySheetId == id);
+
+        if (sheetToUpdate == null)
+        {
+            return NotFound($"QuantitySheet with id {id} not found.");
+        }
+
+       var getCatchNo = sheetToUpdate.CatchNo;
+        // Get all 'QuantitySheets' that have the same 'CatchNo' as the provided 'quantitySheet'
+        var allQuantitySheetsWithSameCatchNo = await _context.QuantitySheets
+            .Where(q => q.CatchNo == getCatchNo)
+            .ToListAsync();
+        Console.WriteLine(allQuantitySheetsWithSameCatchNo);
+
+        // Update the status of the specific 'QuantitySheet' (with the provided 'id') to 1
+        foreach (var sheet in allQuantitySheetsWithSameCatchNo)
+        {
+            sheet.StopCatch = 1;
+        }
+
+
+        // Save changes to the database
+        await _context.SaveChangesAsync();
+
+        var projectId = sheetToUpdate.ProjectId;
+        var lotNo = sheetToUpdate.LotNo;
+
+        var remainingSheets = await _context.QuantitySheets
+           .Where(s => s.ProjectId == projectId && s.LotNo == lotNo && s.StopCatch == 0)
+           .ToListAsync();
+
+        double totalQuantityForLot = remainingSheets.Sum(sheet => sheet.Quantity);
+
+        if (totalQuantityForLot > 0)
+        {
+            foreach (var sheet in remainingSheets)
+            {
+                sheet.PercentageCatch = (sheet.Quantity / totalQuantityForLot) * 100;
+            }
+
+            // Save changes to update the percentages
+            await _context.SaveChangesAsync();
+        }
+
+        // Return the updated status for the specific 'QuantitySheet'
+        return Ok($"Catch with QuantitySheetId {id} has been stopped, and all QuantitySheets with CatchNo {getCatchNo} were retrieved.");
+    }
+
+
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteQuantitysheet(int id)
     {
@@ -749,7 +812,7 @@ public class QuantitySheetController : ControllerBase
 
         // After deletion, recalculate percentages for remaining sheets in the same project and lot
         var remainingSheets = await _context.QuantitySheets
-            .Where(s => s.ProjectId == projectId && s.LotNo == lotNo)
+            .Where(s => s.ProjectId == projectId && s.LotNo == lotNo && s.StopCatch == 0)
             .ToListAsync();
 
         double totalQuantityForLot = remainingSheets.Sum(sheet => sheet.Quantity);
@@ -916,7 +979,7 @@ public class QuantitySheetController : ControllerBase
     private async Task RecalculatePercentages(int projectId, string lotNo)
     {
         var sheetsInLot = await _context.QuantitySheets
-            .Where(s => s.ProjectId == projectId && s.LotNo == lotNo)
+            .Where(s => s.ProjectId == projectId && s.LotNo == lotNo && s.StopCatch == 0)
             .ToListAsync();
 
         double totalQuantityForLot = sheetsInLot.Sum(sheet => sheet.Quantity);

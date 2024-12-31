@@ -90,7 +90,7 @@ namespace ERPAPI.Controllers
         {
             // Fetch quantity sheet data
             var quantitySheetData = await _context.QuantitySheets
-                .Where(q => q.ProjectId == projectId && q.Status == 1)
+                .Where(q => q.ProjectId == projectId && q.Status == 1 && q.StopCatch == 0)
                 .ToListAsync();
 
             // Fetch transaction data and parse alarm messages if needed
@@ -242,17 +242,6 @@ namespace ERPAPI.Controllers
         }
 
 
-        // Utility function to attempt parsing AlarmId and return an integer if possible, else return the original value
-
-
-
-
-
-
-
-
-
-
 
         [HttpGet("GetProjectTransactionsData")]
         public async Task<ActionResult<IEnumerable<object>>> GetProjectTransactionsData(int projectId, int processId)
@@ -307,6 +296,7 @@ namespace ERPAPI.Controllers
 
             return transaction;
         }
+
 
 
         // PUT: api/Transactions/5
@@ -737,7 +727,7 @@ namespace ERPAPI.Controllers
                 .ToListAsync();
 
             var quantitySheets = await _context.QuantitySheets
-                .Where(p => p.ProjectId == projectId)
+                .Where(p => p.ProjectId == projectId && p.StopCatch == 0)
                 .ToListAsync();
 
             var transactions = await _context.Transaction
@@ -916,7 +906,7 @@ namespace ERPAPI.Controllers
                 .ToListAsync();
 
             var quantitySheets = await _context.QuantitySheets
-                .Where(qs => qs.ProjectId == projectId)
+                .Where(qs => qs.ProjectId == projectId && qs.StopCatch == 0)
                 .ToListAsync();
 
             var transactions = await _context.Transaction
@@ -1009,7 +999,7 @@ namespace ERPAPI.Controllers
                 .ToListAsync();
 
             var quantitySheets = await _context.QuantitySheets
-                .Where(qs => qs.ProjectId == projectId)
+                .Where(qs => qs.ProjectId == projectId && qs.StopCatch == 0)
                 .ToListAsync();
 
             var transactions = await _context.Transaction
@@ -1136,21 +1126,10 @@ namespace ERPAPI.Controllers
                 .Select(t => t.QuantitysheetId)
                 .ToListAsync();
 
-            if (quantitySheetIds == null || !quantitySheetIds.Any())
-            {
-                // If no matching QuantitySheetIds are found, return an empty list
-                return Ok(new List<string>());
-            }
-
-            // Step 2: Get all CatchNos from the QuantitySheet table for the found QuantitySheetIds
-            var catchNos = await _context.QuantitySheets
-                .Where(qs => quantitySheetIds.Contains(qs.QuantitySheetId))
-                .Select(qs => qs.CatchNo)
-                .Distinct() // Ensure unique CatchNos
-                .ToListAsync();
+            
 
             // Return the list of CatchNos in JSON format
-            return Ok(catchNos);
+            return Ok(quantitySheetIds);
         }
 
 
