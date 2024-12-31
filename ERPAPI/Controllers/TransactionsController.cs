@@ -90,7 +90,7 @@ namespace ERPAPI.Controllers
         {
             // Fetch quantity sheet data
             var quantitySheetData = await _context.QuantitySheets
-                .Where(q => q.ProjectId == projectId && q.Status == 1)
+                .Where(q => q.ProjectId == projectId && q.Status == 1 && q.StopCatch == 0)
                 .ToListAsync();
 
             // Fetch transaction data and parse alarm messages if needed
@@ -161,6 +161,7 @@ namespace ERPAPI.Controllers
                     Status = t.Status,
                     MachineId = t.MachineId,
                     AlarmMessage = alarm != null ? alarm.Message : null, // Handle null case for alarms
+                    
                 };
             }).ToList();
 
@@ -190,6 +191,7 @@ namespace ERPAPI.Controllers
                             q.OuterEnvelope,
                             q.Quantity,
                             q.PercentageCatch,
+                            q.Pages,
                             SeriesName = seriesLetter,  // Assign the SeriesName here
                             ProcessIds = q.ProcessId,   // Assuming ProcessIds is a list, map it directly
                         };
@@ -228,6 +230,7 @@ namespace ERPAPI.Controllers
                     q.Quantity,
                     q.PercentageCatch,
                     q.SeriesName,  // Directly use the SeriesName
+                    q.Pages,
                     ProcessIds = q.ProcessIds, // Assuming ProcessIds is a list, map it directly
                     Transactions = transactionsWithAlarms
                         .Where(t => t.QuantitysheetId == q.QuantitySheetId) // Only transactions matching the QuantitySheetId
@@ -237,17 +240,6 @@ namespace ERPAPI.Controllers
 
             return Ok(responseData);
         }
-
-
-        // Utility function to attempt parsing AlarmId and return an integer if possible, else return the original value
-
-
-
-
-
-
-
-
 
 
 
@@ -735,7 +727,7 @@ namespace ERPAPI.Controllers
                 .ToListAsync();
 
             var quantitySheets = await _context.QuantitySheets
-                .Where(p => p.ProjectId == projectId)
+                .Where(p => p.ProjectId == projectId && p.StopCatch == 0)
                 .ToListAsync();
 
             var transactions = await _context.Transaction
@@ -840,10 +832,9 @@ namespace ERPAPI.Controllers
                     var filteredQuantitySheets = quantitySheets
                         .Where(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId) && qs.ProjectId == projectId);
 
-                    var completedQuantitySheets = filteredTransactions.Count(); //2
-                    Console.WriteLine(processId +"completed " + completedQuantitySheets);
+                    var completedQuantitySheets = filteredTransactions.Count();
                     var totalQuantitySheets = filteredQuantitySheets.Count(); //57
-                    Console.WriteLine(totalQuantitySheets);
+
 
                     // Calculate the percentage completion for the processId
                     double processPercentage = totalQuantitySheets > 0
@@ -915,7 +906,7 @@ namespace ERPAPI.Controllers
                 .ToListAsync();
 
             var quantitySheets = await _context.QuantitySheets
-                .Where(qs => qs.ProjectId == projectId)
+                .Where(qs => qs.ProjectId == projectId && qs.StopCatch == 0)
                 .ToListAsync();
 
             var transactions = await _context.Transaction
@@ -1008,7 +999,7 @@ namespace ERPAPI.Controllers
                 .ToListAsync();
 
             var quantitySheets = await _context.QuantitySheets
-                .Where(qs => qs.ProjectId == projectId)
+                .Where(qs => qs.ProjectId == projectId && qs.StopCatch == 0)
                 .ToListAsync();
 
             var transactions = await _context.Transaction
