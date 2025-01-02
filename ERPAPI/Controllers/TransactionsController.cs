@@ -1134,15 +1134,15 @@ namespace ERPAPI.Controllers
             // Return the list of CatchNos in JSON format
             return Ok(quantitySheetIds);
         }
-        [HttpGet("{id}/withlogs")]
-        public async Task<IActionResult> GetTransactionWithEventLogs(int id)
+        [HttpGet("{projectId}/withlogs")]
+        public async Task<IActionResult> GetTransactionsWithEventLogsByProjectId(int projectId)
         {
             try
             {
                 var result = await (from e in _context.EventLogs
                                     join t in _context.Transaction on e.TransactionId equals t.TransactionId
                                     join q in _context.QuantitySheets on t.QuantitysheetId equals q.QuantitySheetId
-                                    where t.TransactionId == id
+                                    where t.ProjectId == projectId
                                     select new
                                     {
                                         EventLog = new
@@ -1195,7 +1195,7 @@ namespace ERPAPI.Controllers
 
                 if (!result.Any())
                 {
-                    return NotFound($"No data found for TransactionId: {id}");
+                    return NotFound($"No data found for ProjectId: {projectId}");
                 }
 
                 return Ok(result);
@@ -1206,6 +1206,7 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, "An error occurred while processing your request.");
             }
         }
+
 
 
     }
