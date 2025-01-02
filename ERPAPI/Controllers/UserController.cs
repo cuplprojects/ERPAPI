@@ -549,13 +549,13 @@ namespace ERPAPI.Controllers
                 }
 
                 // Unlock the screen (custom logic if needed)
-             
+               
 
                 return Ok(new { Message = "Screen unlocked successfully." });
             }
             catch (Exception ex)
             {
-              
+                
                 return StatusCode(500, new { Message = "Internal server error", Details = ex.Message });
             }
         }
