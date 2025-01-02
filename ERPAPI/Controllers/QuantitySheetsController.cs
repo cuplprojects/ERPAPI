@@ -124,19 +124,18 @@ public class QuantitySheetController : ControllerBase
         await _context.QuantitySheets.AddRangeAsync(processedNewSheets);
         await _context.SaveChangesAsync();
 
-        foreach (var sheet in processedNewSheets)
-        {
-            _loggerService.LogEvent(
-                "New QuantitySheet added",
-                "QuantitySheet",
-                1, // Replace with actual user ID or triggered by value
-                null,
-                $"QuantitySheetId: {sheet.QuantitySheetId}, ProjectId: {sheet.ProjectId}"
-            );
-        }
+        // Log the project ID only once
+        _loggerService.LogEvent(
+            "New QuantitySheet added",
+            "QuantitySheet",
+            1, // Replace with actual user ID or triggered by value
+            null,
+            $"ProjectId: {projectId}"
+        );
 
         return Ok(processedNewSheets);
     }
+
 
 
     [HttpPost("ReleaseForProduction")]
