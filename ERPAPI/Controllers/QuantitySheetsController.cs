@@ -140,6 +140,63 @@ public class QuantitySheetController : ControllerBase
     }
 
 
+    [HttpPut("update/{id}")]
+    public async Task<IActionResult> Put(int id, [FromBody] QuantitySheet updatedSheet)
+    {
+        if (updatedSheet == null)
+        {
+            return BadRequest("No data provided.");
+        }
+
+        // Retrieve the existing QuantitySheet from the database
+        var existingSheet = await _context.QuantitySheets.FirstOrDefaultAsync(sheet => sheet.QuantitySheetId == id);
+
+        if (existingSheet == null)
+        {
+            return NotFound("QuantitySheet not found.");
+        }
+
+        // Update the fields with the new values
+        existingSheet.Paper = updatedSheet.Paper;
+        existingSheet.Course = updatedSheet.Course;
+        existingSheet.Subject = updatedSheet.Subject;
+        existingSheet.ExamDate = updatedSheet.ExamDate;
+        existingSheet.ExamTime = updatedSheet.ExamTime;
+        existingSheet.InnerEnvelope = updatedSheet.InnerEnvelope;
+        existingSheet.OuterEnvelope = updatedSheet.OuterEnvelope;
+        existingSheet.Quantity = updatedSheet.Quantity;
+
+        // Save the changes to the database
+        try
+        {
+            _context.QuantitySheets.Update(existingSheet);
+            await _context.SaveChangesAsync();
+
+            // Log the update operation
+            _loggerService.LogEvent(
+                "QuantitySheet updated",
+                "QuantitySheet",
+                1, // Replace with actual user ID or triggered by value
+                null,
+                $"QuantitySheetId: {id}"
+            );
+
+            return Ok(existingSheet);
+        }
+        catch (Exception ex)
+        {
+            // Log the error and return an appropriate error response
+            _loggerService.LogError(
+                "Error updating QuantitySheet",
+                ex.Message,
+                "QuantitySheet"
+            );
+            return StatusCode(500, "An error occurred while updating the record.");
+        }
+    }
+
+
+
 
     [HttpPost("ReleaseForProduction")]
     public async Task<IActionResult> ReleaseForProduction([FromBody] LotRequest request)
