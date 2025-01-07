@@ -189,6 +189,7 @@ namespace ERPAPI.Controllers
                             q.InnerEnvelope,
                             q.OuterEnvelope,
                             q.Quantity,
+                            q.Pages,
                             q.PercentageCatch,
                             SeriesName = seriesLetter,  // Assign the SeriesName here
                             ProcessIds = q.ProcessId,   // Assuming ProcessIds is a list, map it directly
@@ -223,6 +224,7 @@ namespace ERPAPI.Controllers
                     q.ExamTime,
                     q.Course,
                     q.Subject,
+                    q.Pages,
                     q.InnerEnvelope,
                     q.OuterEnvelope,
                     q.Quantity,

@@ -687,6 +687,55 @@ public class QuantitySheetController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost]
+    [Route("UpdatePages")]
+    public async Task<IActionResult> UpdatePages([FromBody] List<PageUpdateRequest> updateRequests)
+    {
+        if (updateRequests == null || !updateRequests.Any())
+        {
+            return BadRequest("No data provided.");
+        }
+
+        try
+        {
+            foreach (var request in updateRequests)
+            {
+                // Find matching QuantitySheets
+                var existingSheets = await _context.QuantitySheets
+                    .Where(qs => qs.ProjectId == request.ProjectId &&
+                                 qs.LotNo == request.LotNo &&
+                                 qs.CatchNo == request.CatchNumber)
+                    .ToListAsync();
+
+                if (existingSheets.Any())
+                {
+                    // Update pages for all matching records
+                    foreach (var sheet in existingSheets)
+                    {
+                        sheet.Pages = request.Pages;
+                        sheet.ProcessId.Clear();
+                        _processService.ProcessCatch(sheet);
+                    }
+                }
+            }
+
+            // Save changes to the database
+            await _context.SaveChangesAsync();
+
+            return Ok("Pages updated successfully.");
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, $"An error occurred while updating pages: {ex.Message}");
+        }
+    }
+    public class PageUpdateRequest
+    {
+        public int ProjectId { get; set; }
+        public string LotNo { get; set; }
+        public string CatchNumber { get; set; }
+        public int Pages { get; set; }
+    }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteQuantitysheet(int id)
