@@ -36,6 +36,7 @@ public class QuantitySheetController : ControllerBase
            .Where(p => p.ProjectId == projectId)
            .Select(p => new { p.TypeId, p.NoOfSeries })
            .FirstOrDefaultAsync();
+
         if (project == null)
         {
             return BadRequest("Project not found.");
@@ -144,7 +145,7 @@ public class QuantitySheetController : ControllerBase
 
         // Find all records that belong to the given lot
         var quantitySheets = await _context.QuantitySheets
-            .Where(q => q.LotNo == request.LotNo)
+            .Where(q => q.LotNo == request.LotNo && q.ProjectId == request.ProjectId)
             .ToListAsync();
 
         if (quantitySheets == null || quantitySheets.Count == 0)
@@ -157,6 +158,10 @@ public class QuantitySheetController : ControllerBase
         {
             sheet.Status = 1;
         }
+        var project = await _context.Projects
+            .Where(p => p.ProjectId == request.ProjectId)
+            .FirstOrDefaultAsync();
+        project.LastReleasedLotDate = DateTime.Now;
 
         // Save changes to the database
         await _context.SaveChangesAsync();
@@ -167,6 +172,7 @@ public class QuantitySheetController : ControllerBase
     public class LotRequest
     {
         public string LotNo { get; set; }
+        public int ProjectId { get; set; }
     }
 
 
