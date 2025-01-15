@@ -205,21 +205,15 @@ namespace ERPAPI.Controllers
             }
             else
             {
-                var projectProcesses = await _context.ProjectProcesses
-           .AsNoTracking()
-           .ToListAsync();
+                 var projectProcesses = await _context.ProjectProcesses
+            .AsNoTracking()
+            .ToListAsync();
 
                 var userAssignedProcesses = projectProcesses
           .Where(pp => pp.UserId.Contains(userId)) // Client-side filtering
           .Select(pp => pp.ProjectId) // Select the project IDs
           .Distinct() // Ensure distinct project IDs
           .ToList();
-
-                if (!userAssignedProcesses.Any())
-                {
-                    return NotFound("No projects found for this user.");
-                }
-
                 // Fetch all project processes that contain the userId in the UserId list
                 var ongoingProjectIds = ongoingProjects.Select(op => op.ProjectId).ToList();
 
