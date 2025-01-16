@@ -47,7 +47,7 @@ namespace ERPAPI.Controllers
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Issuer"],
                 claims: claims,
-                expires: DateTime.Now.AddMinutes(120),
+                expires: DateTime.Now.AddHours(8),
                 signingCredentials: credentials
                 );
             return new JwtSecurityTokenHandler().WriteToken(token);
