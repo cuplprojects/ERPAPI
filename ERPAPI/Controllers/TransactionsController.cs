@@ -832,7 +832,10 @@ namespace ERPAPI.Controllers
                     var filteredQuantitySheets = quantitySheets
                         .Where(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId) && qs.ProjectId == projectId);
 
-                    var completedQuantitySheets = filteredTransactions.Count();
+
+                    var completedQuantitySheets = filteredTransactions.Count(); //2
+                    Console.WriteLine(processId + "completed " + completedQuantitySheets);
+
                     var totalQuantitySheets = filteredQuantitySheets.Count(); //57
 
 
@@ -1130,6 +1133,78 @@ namespace ERPAPI.Controllers
 
             // Return the list of CatchNos in JSON format
             return Ok(quantitySheetIds);
+        }
+        [HttpGet("{projectId}/withlogs")]
+        public async Task<IActionResult> GetTransactionsWithEventLogsByProjectId(int projectId)
+        {
+            try
+            {
+                var result = await (from e in _context.EventLogs
+                                    join t in _context.Transaction on e.TransactionId equals t.TransactionId
+                                    join q in _context.QuantitySheets on t.QuantitysheetId equals q.QuantitySheetId
+                                    where t.ProjectId == projectId
+                                    select new
+                                    {
+                                        EventLog = new
+                                        {
+                                            e.EventID,
+                                            Event = e.Event ?? string.Empty,
+                                            Category = e.Category ?? string.Empty,
+                                            EventTriggeredBy = e.EventTriggeredBy,
+                                            e.LoggedAT,
+                                            OldValue = e.OldValue ?? string.Empty,
+                                            NewValue = e.NewValue ?? string.Empty,
+                                            e.TransactionId
+                                        },
+                                        Transaction = new
+                                        {
+                                            t.TransactionId,
+                                            InterimQuantity = t.InterimQuantity,
+                                            Remarks = t.Remarks ?? string.Empty,
+                                            VoiceRecording = t.VoiceRecording ?? string.Empty,
+                                            t.ProjectId,
+                                            t.QuantitysheetId,
+                                            t.ProcessId,
+                                            t.ZoneId,
+                                            t.MachineId,
+                                            Status = t.Status.ToString(),
+                                            AlarmId = t.AlarmId ?? string.Empty,
+                                            LotNo = t.LotNo,
+                                            TeamId = t.TeamId
+                                        },
+                                        QuantitySheet = new
+                                        {
+                                            q.QuantitySheetId,
+                                            q.CatchNo,
+                                            Paper = q.Paper ?? string.Empty,
+                                            q.ExamDate,
+                                            q.ExamTime,
+                                            q.Course,
+                                            q.Subject,
+                                            InnerEnvelope = q.InnerEnvelope ?? string.Empty,
+                                            OuterEnvelope = q.OuterEnvelope ?? 0,
+                                            LotNo = q.LotNo ?? string.Empty,
+                                            q.Quantity,
+                                            Pages = q.Pages ?? 0,
+                                            q.PercentageCatch,
+                                            q.ProjectId,
+                                            Status = q.Status ?? 0,
+                                            ProcessId = q.ProcessId // This is a List<int>, handle as needed
+                                        }
+                                    }).ToListAsync();
+
+                if (!result.Any())
+                {
+                    return NotFound($"No data found for ProjectId: {projectId}");
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred: {ex.Message}");
+                return StatusCode(500, "An error occurred while processing your request.");
+            }
         }
 
 
