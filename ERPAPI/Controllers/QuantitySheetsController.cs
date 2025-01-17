@@ -15,9 +15,8 @@ public class QuantitySheetController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly ProcessService _processService;
-    private readonly ILoggerService _loggerService;
 
-    public QuantitySheetController(AppDbContext context, ProcessService processService, ILoggerService loggerService)
+    public QuantitySheetController(AppDbContext context, ProcessService processService)
     {
         _context = context;
         _processService = processService;
