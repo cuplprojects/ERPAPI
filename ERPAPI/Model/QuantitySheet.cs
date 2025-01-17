@@ -30,7 +30,8 @@ namespace ERPAPI.Model
         public double PercentageCatch { get; set; }
         public int ProjectId { get; set; }
         public int? Status { get; set; }
-       public List<int> ProcessId { get; set; } 
+        public int? StopCatch { get; set; }
+        public List<int> ProcessId { get; set; } 
 
     }
 
