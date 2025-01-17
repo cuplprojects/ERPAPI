@@ -8,6 +8,7 @@ using System.Linq;
 using System.Globalization;
 using NuGet.Protocol.Plugins;
 using Microsoft.CodeAnalysis;
+using ERPAPI.Services;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -15,8 +16,9 @@ public class QuantitySheetController : ControllerBase
 {
     private readonly AppDbContext _context;
     private readonly ProcessService _processService;
+    private readonly ILoggerService _loggerService;
 
-    public QuantitySheetController(AppDbContext context, ProcessService processService)
+    public QuantitySheetController(AppDbContext context, ProcessService processService, ILoggerService loggerService)
     {
         _context = context;
         _processService = processService;
