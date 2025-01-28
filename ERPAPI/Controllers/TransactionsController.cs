@@ -161,7 +161,6 @@ namespace ERPAPI.Controllers
                     Status = t.Status,
                     MachineId = t.MachineId,
                     AlarmMessage = alarm != null ? alarm.Message : null, // Handle null case for alarms
-                    
                 };
             }).ToList();
 
@@ -190,8 +189,9 @@ namespace ERPAPI.Controllers
                             q.InnerEnvelope,
                             q.OuterEnvelope,
                             q.Quantity,
-                            q.PercentageCatch,
                             q.Pages,
+                            q.PercentageCatch,
+                            
                             SeriesName = seriesLetter,  // Assign the SeriesName here
                             ProcessIds = q.ProcessId,   // Assuming ProcessIds is a list, map it directly
                         };
@@ -225,12 +225,13 @@ namespace ERPAPI.Controllers
                     q.ExamTime,
                     q.Course,
                     q.Subject,
+                    q.Pages,
                     q.InnerEnvelope,
                     q.OuterEnvelope,
                     q.Quantity,
                     q.PercentageCatch,
                     q.SeriesName,  // Directly use the SeriesName
-                    q.Pages,
+                    
                     ProcessIds = q.ProcessIds, // Assuming ProcessIds is a list, map it directly
                     Transactions = transactionsWithAlarms
                         .Where(t => t.QuantitysheetId == q.QuantitySheetId) // Only transactions matching the QuantitySheetId
@@ -719,172 +720,172 @@ namespace ERPAPI.Controllers
 
 
         [HttpGet("combined-percentages")]
-        public async Task<ActionResult> GetCombinedPercentages(int projectId)
-        {
-            var projectProcesses = await _context.ProjectProcesses
-                .Where(p => p.ProjectId == projectId)
-                .ToListAsync();
+ public async Task<ActionResult> GetCombinedPercentages(int projectId)
+ {
+     var projectProcesses = await _context.ProjectProcesses
+         .Where(p => p.ProjectId == projectId)
+         .ToListAsync();
 
-            var quantitySheets = await _context.QuantitySheets
-                .Where(p => p.ProjectId == projectId)
-                .ToListAsync();
+     var quantitySheets = await _context.QuantitySheets
+         .Where(p => p.ProjectId == projectId)
+         .ToListAsync();
 
-            var transactions = await _context.Transaction
-                .Where(t => t.ProjectId == projectId)
-                .ToListAsync();
+     var transactions = await _context.Transaction
+         .Where(t => t.ProjectId == projectId)
+         .ToListAsync();
 
-            var dispatches = await _context.Dispatch
-                .Where(d => d.ProjectId == projectId)
-                .ToListAsync();
+     var dispatches = await _context.Dispatch
+         .Where(d => d.ProjectId == projectId)
+         .ToListAsync();
 
-            var lots = new Dictionary<string, Dictionary<int, dynamic>>();
-            var totalLotPercentages = new Dictionary<string, double>();
-            var lotQuantities = new Dictionary<string, double>();
-            var lotWeightages = new Dictionary<string, double>();
-            var projectLotPercentages = new Dictionary<string, double>();
-            var lotProcessWeightageSum = new Dictionary<string, Dictionary<int, double>>();
-            double projectTotalQuantity = 0;
+     var lots = new Dictionary<string, Dictionary<int, dynamic>>();
+     var totalLotPercentages = new Dictionary<string, double>();
+     var lotQuantities = new Dictionary<string, double>();
+     var lotWeightages = new Dictionary<string, double>();
+     var projectLotPercentages = new Dictionary<string, double>();
+     var lotProcessWeightageSum = new Dictionary<string, Dictionary<int, double>>();
+     double projectTotalQuantity = 0;
 
-            foreach (var quantitySheet in quantitySheets)
-            {
-                var processIdWeightage = new Dictionary<int, double>();
-                double totalWeightageSum = 0;
+     foreach (var quantitySheet in quantitySheets)
+     {
+         var processIdWeightage = new Dictionary<int, double>();
+         double totalWeightageSum = 0;
 
-                foreach (var processId in quantitySheet.ProcessId)
-                {
-                    var process = projectProcesses.FirstOrDefault(p => p.ProcessId == processId);
-                    if (process != null)
-                    {
-                        processIdWeightage[processId] = Math.Round(process.Weightage, 2);
+         foreach (var processId in quantitySheet.ProcessId)
+         {
+             var process = projectProcesses.FirstOrDefault(p => p.ProcessId == processId);
+             if (process != null)
+             {
+                 processIdWeightage[processId] = Math.Round(process.Weightage, 2);
 
-                        if (quantitySheet.ProcessId.Contains(processId))
-                        {
-                            totalWeightageSum += process.Weightage;
-                        }
-                    }
-                }
+                 if (quantitySheet.ProcessId.Contains(processId))
+                 {
+                     totalWeightageSum += process.Weightage;
+                 }
+             }
+         }
 
-                if (totalWeightageSum < 100)
-                {
-                    double deficit = 100 - totalWeightageSum;
-                    double adjustment = deficit / processIdWeightage.Count;
+         if (totalWeightageSum < 100)
+         {
+             double deficit = 100 - totalWeightageSum;
+             double adjustment = deficit / processIdWeightage.Count;
 
-                    foreach (var key in processIdWeightage.Keys.ToList())
-                    {
-                        processIdWeightage[key] = Math.Round(processIdWeightage[key] + adjustment, 2);
-                    }
+             foreach (var key in processIdWeightage.Keys.ToList())
+             {
+                 processIdWeightage[key] = Math.Round(processIdWeightage[key] + adjustment, 2);
+             }
 
-                    totalWeightageSum = processIdWeightage.Values.Sum();
-                }
+             totalWeightageSum = processIdWeightage.Values.Sum();
+         }
 
-                double completedWeightageSum = 0;
-                foreach (var kvp in processIdWeightage)
-                {
-                    var processId = kvp.Key;
-                    var weightage = kvp.Value;
+         double completedWeightageSum = 0;
+         foreach (var kvp in processIdWeightage)
+         {
+             var processId = kvp.Key;
+             var weightage = kvp.Value;
 
-                    var completedProcess = transactions
-                        .Any(t => t.QuantitysheetId == quantitySheet.QuantitySheetId
-                                  && t.ProcessId == processId
-                                  && t.Status == 2);
+             var completedProcess = transactions
+                 .Any(t => t.QuantitysheetId == quantitySheet.QuantitySheetId
+                           && t.ProcessId == processId
+                           && t.Status == 2);
 
-                    if (completedProcess)
-                    {
-                        completedWeightageSum += weightage;
-                    }
-                }
+             if (completedProcess)
+             {
+                 completedWeightageSum += weightage;
+             }
+         }
 
-                double lotPercentage = Math.Round(quantitySheet.PercentageCatch * (completedWeightageSum / 100), 2);
-                var lotNumber = quantitySheet.LotNo;
+         double lotPercentage = Math.Round(quantitySheet.PercentageCatch * (completedWeightageSum / 100), 2);
+         var lotNumber = quantitySheet.LotNo;
 
-                if (!lots.ContainsKey(lotNumber))
-                {
-                    lots[lotNumber] = new Dictionary<int, dynamic>();
-                    totalLotPercentages[lotNumber] = 0;
-                    lotQuantities[lotNumber] = 0;
-                }
+         if (!lots.ContainsKey(lotNumber))
+         {
+             lots[lotNumber] = new Dictionary<int, dynamic>();
+             totalLotPercentages[lotNumber] = 0;
+             lotQuantities[lotNumber] = 0;
+         }
 
-                lots[lotNumber][quantitySheet.QuantitySheetId] = new
-                {
-                    CompletedProcessPercentage = Math.Round(completedWeightageSum, 2),
-                    LotPercentage = lotPercentage,
-                    ProcessDetails = processIdWeightage
-                };
+         lots[lotNumber][quantitySheet.QuantitySheetId] = new
+         {
+             CompletedProcessPercentage = Math.Round(completedWeightageSum, 2),
+             LotPercentage = lotPercentage,
+             ProcessDetails = processIdWeightage
+         };
 
-                totalLotPercentages[lotNumber] = Math.Round(totalLotPercentages[lotNumber] + lotPercentage, 2);
-                lotQuantities[lotNumber] += quantitySheet.Quantity;
-                projectTotalQuantity += quantitySheet.Quantity;
+         totalLotPercentages[lotNumber] = Math.Round(totalLotPercentages[lotNumber] + lotPercentage, 2);
+         lotQuantities[lotNumber] += quantitySheet.Quantity;
+         projectTotalQuantity += quantitySheet.Quantity;
 
-                if (!lotProcessWeightageSum.ContainsKey(lotNumber))
-                {
-                    lotProcessWeightageSum[lotNumber] = new Dictionary<int, double>();
-                }
+         if (!lotProcessWeightageSum.ContainsKey(lotNumber))
+         {
+             lotProcessWeightageSum[lotNumber] = new Dictionary<int, double>();
+         }
 
-                foreach (var processId in processIdWeightage.Keys)
-                {
-                    var lotNumberStr = lotNumber.ToString();
+         foreach (var processId in processIdWeightage.Keys)
+         {
+             var lotNumberStr = lotNumber.ToString();
 
-                    var filteredTransactions = transactions
-                        .Where(t => t.LotNo.ToString() == lotNumberStr && t.ProcessId == processId && t.Status == 2 && t.ProjectId == projectId);
+             var filteredTransactions = transactions
+                 .Where(t => t.LotNo.ToString() == lotNumberStr && t.ProcessId == processId && t.Status == 2 && t.ProjectId == projectId);
 
-                    var filteredQuantitySheets = quantitySheets
-                        .Where(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId) && qs.ProjectId == projectId);
+             var filteredQuantitySheets = quantitySheets
+                 .Where(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId) && qs.ProjectId == projectId);
 
-                    var completedQuantitySheets = filteredTransactions.Count();
-                    var totalQuantitySheets = filteredQuantitySheets.Count();
+             var completedQuantitySheets = filteredTransactions.Count();
+             var totalQuantitySheets = filteredQuantitySheets.Count();
 
-                    double processPercentage = totalQuantitySheets > 0
-                        ? Math.Round((double)completedQuantitySheets / totalQuantitySheets * 100, 2)
-                        : 0;
+             double processPercentage = totalQuantitySheets > 0
+                 ? Math.Round((double)completedQuantitySheets / totalQuantitySheets * 100, 2)
+                 : 0;
 
-                    lotProcessWeightageSum[lotNumber][processId] = processPercentage;
+             lotProcessWeightageSum[lotNumber][processId] = processPercentage;
 
-                    if (processId == 14)
-                    {
-                        var dispatch = dispatches.FirstOrDefault(d => d.LotNo == lotNumber && d.ProcessId == 14 && d.Status);
-                        if (dispatch != null && dispatch.Status)
-                        {
-                            lotProcessWeightageSum[lotNumber][processId] = 100;
-                        }
-                    }
-                }
-            }
+             if (processId == 14)
+             {
+                 var dispatch = dispatches.FirstOrDefault(d => d.LotNo == lotNumber && d.ProcessId == 14 && d.Status);
+                 if (dispatch != null && dispatch.Status)
+                 {
+                     lotProcessWeightageSum[lotNumber][processId] = 100;
+                 }
+             }
+         }
+     }
 
-            // Adjust totalLotPercentages if ProcessId 14 is completed
-            foreach (var lotNumber in totalLotPercentages.Keys.ToList())
-            {
-                var process14Completed = lotProcessWeightageSum[lotNumber].ContainsKey(14) &&
-                                         lotProcessWeightageSum[lotNumber][14] == 100;
+     // Adjust totalLotPercentages if ProcessId 14 is completed
+     foreach (var lotNumber in totalLotPercentages.Keys.ToList())
+     {
+         var process14Completed = lotProcessWeightageSum[lotNumber].ContainsKey(14) &&
+                                  lotProcessWeightageSum[lotNumber][14] == 100;
 
-                if (process14Completed)
-                {
-                    totalLotPercentages[lotNumber] = 100; // Override to 100% if ProcessId 14 is completed
-                }
-            }
+         if (process14Completed)
+         {
+             totalLotPercentages[lotNumber] = 100; // Override to 100% if ProcessId 14 is completed
+         }
+     }
 
-            foreach (var lot in lotQuantities)
-            {
-                var lotNumber = lot.Key;
-                var quantity = lot.Value;
+     foreach (var lot in lotQuantities)
+     {
+         var lotNumber = lot.Key;
+         var quantity = lot.Value;
 
-                lotWeightages[lotNumber] = Math.Round((quantity / projectTotalQuantity) * 100, 2);
-                projectLotPercentages[lotNumber] = Math.Round(totalLotPercentages[lotNumber] * lotWeightages[lotNumber] / 100, 2);
-            }
+         lotWeightages[lotNumber] = Math.Round((quantity / projectTotalQuantity) * 100, 2);
+         projectLotPercentages[lotNumber] = Math.Round(totalLotPercentages[lotNumber] * lotWeightages[lotNumber] / 100, 2);
+     }
 
-            double totalProjectLotPercentage = Math.Round(projectLotPercentages.Values.Sum(), 2);
-            projectTotalQuantity = Math.Round(projectTotalQuantity, 2);
+     double totalProjectLotPercentage = Math.Round(projectLotPercentages.Values.Sum(), 2);
+     projectTotalQuantity = Math.Round(projectTotalQuantity, 2);
 
-            return Ok(new
-            {
-                TotalLotPercentages = totalLotPercentages,
-                LotQuantities = lotQuantities,
-                LotWeightages = lotWeightages,
-                ProjectLotPercentages = projectLotPercentages,
-                TotalProjectLotPercentage = totalProjectLotPercentage,
-                ProjectTotalQuantity = projectTotalQuantity,
-                LotProcessWeightageSum = lotProcessWeightageSum
-            });
-        }
+     return Ok(new
+     {
+         TotalLotPercentages = totalLotPercentages,
+         LotQuantities = lotQuantities,
+         LotWeightages = lotWeightages,
+         ProjectLotPercentages = projectLotPercentages,
+         TotalProjectLotPercentage = totalProjectLotPercentage,
+         ProjectTotalQuantity = projectTotalQuantity,
+         LotProcessWeightageSum = lotProcessWeightageSum
+     });
+ }
 
 
 
