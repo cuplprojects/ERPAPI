@@ -153,6 +153,8 @@ namespace ERPAPI.Controllers
                             .Select(p => p.Name)
                             .ToList()
                         : null,
+                    // Check if QuantitySheetId exists in the Transaction table
+                    ReleaseForProduction = transactions.Any(t => t.QuantitysheetId == q.QuantitySheetId) ? "Yes" : "No",
                     // Grouped Transaction Data
                     TransactionData = new
                     {
