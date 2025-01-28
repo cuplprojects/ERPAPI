@@ -718,7 +718,6 @@ namespace ERPAPI.Controllers
         }
 
 
-
         [HttpGet("combined-percentages")]
         public async Task<ActionResult> GetCombinedPercentages(int projectId)
         {
@@ -727,7 +726,7 @@ namespace ERPAPI.Controllers
                 .ToListAsync();
 
             var quantitySheets = await _context.QuantitySheets
-                .Where(p => p.ProjectId == projectId && p.StopCatch == 0)
+                .Where(p => p.ProjectId == projectId)
                 .ToListAsync();
 
             var transactions = await _context.Transaction
@@ -825,28 +824,21 @@ namespace ERPAPI.Controllers
                 {
                     var lotNumberStr = lotNumber.ToString();
 
-                    // Filter transactions and quantity sheets for the current processId
                     var filteredTransactions = transactions
                         .Where(t => t.LotNo.ToString() == lotNumberStr && t.ProcessId == processId && t.Status == 2 && t.ProjectId == projectId);
 
                     var filteredQuantitySheets = quantitySheets
                         .Where(qs => qs.LotNo.ToString() == lotNumberStr && qs.ProcessId.Contains(processId) && qs.ProjectId == projectId);
 
+                    var completedQuantitySheets = filteredTransactions.Count();
+                    var totalQuantitySheets = filteredQuantitySheets.Count();
 
-                    var completedQuantitySheets = filteredTransactions.Count(); //2
-                    Console.WriteLine(processId + "completed " + completedQuantitySheets);
-
-                    var totalQuantitySheets = filteredQuantitySheets.Count(); //57
-
-
-                    // Calculate the percentage completion for the processId
                     double processPercentage = totalQuantitySheets > 0
                         ? Math.Round((double)completedQuantitySheets / totalQuantitySheets * 100, 2)
                         : 0;
 
                     lotProcessWeightageSum[lotNumber][processId] = processPercentage;
 
-                    // Check Dispatch table for ProcessId 14 and Status 1
                     if (processId == 14)
                     {
                         var dispatch = dispatches.FirstOrDefault(d => d.LotNo == lotNumber && d.ProcessId == 14 && d.Status);
@@ -856,7 +848,18 @@ namespace ERPAPI.Controllers
                         }
                     }
                 }
+            }
 
+            // Adjust totalLotPercentages if ProcessId 14 is completed
+            foreach (var lotNumber in totalLotPercentages.Keys.ToList())
+            {
+                var process14Completed = lotProcessWeightageSum[lotNumber].ContainsKey(14) &&
+                                         lotProcessWeightageSum[lotNumber][14] == 100;
+
+                if (process14Completed)
+                {
+                    totalLotPercentages[lotNumber] = 100; // Override to 100% if ProcessId 14 is completed
+                }
             }
 
             foreach (var lot in lotQuantities)
@@ -882,6 +885,7 @@ namespace ERPAPI.Controllers
                 LotProcessWeightageSum = lotProcessWeightageSum
             });
         }
+
 
 
 
