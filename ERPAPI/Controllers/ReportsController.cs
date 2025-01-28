@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Model;
 using ERPAPI.Data;
+using ERPGenericFunctions.Model;
 
 namespace ERPAPI.Controllers
 {
@@ -111,20 +112,27 @@ namespace ERPAPI.Controllers
         {
             try
             {
-                // Retrieve QuantitySheets filtered by ProjectId
+                // Fetch QuantitySheet data by ProjectId
                 var quantitySheets = await _context.Set<QuantitySheet>()
                     .Where(q => q.ProjectId == projectId)
-                    .ToListAsync(); // Bring data into memory to handle complex mappings
+                    .ToListAsync();
 
                 if (quantitySheets == null || quantitySheets.Count == 0)
                 {
                     return NotFound(new { Message = "No data found for the given ProjectId." });
                 }
 
-                // Retrieve all processes to map ProcessId to Process Name
+                // Fetch all Processes, Transactions, Machines, Zones, Teams, and Users
                 var allProcesses = await _context.Set<Process>().ToListAsync();
+                var transactions = await _context.Set<Transaction>()
+                    .Where(t => t.ProjectId == projectId)
+                    .ToListAsync();
+                var allMachines = await _context.Set<Machine>().ToListAsync();
+                var allZones = await _context.Set<Zone>().ToListAsync();
+                var allTeams = await _context.Set<Team>().ToListAsync();
+                var allUsers = await _context.Set<User>().ToListAsync();
 
-                // Map ProcessId to Process Names
+                // Map QuantitySheet data with Process Name and Transaction data
                 var result = quantitySheets.Select(q => new
                 {
                     q.CatchNo,
@@ -144,7 +152,39 @@ namespace ERPAPI.Controllers
                             .Where(p => q.ProcessId.Contains(p.Id))
                             .Select(p => p.Name)
                             .ToList()
-                        : null // Map ProcessId to Process Names
+                        : null,
+                    // Grouped Transaction Data
+                    TransactionData = new
+                    {
+                        ZoneDescriptions = transactions
+                            .Where(t => t.QuantitysheetId == q.QuantitySheetId)
+                            .Select(t => t.ZoneId)
+                            .Distinct()
+                            .Select(zoneId => allZones.FirstOrDefault(z => z.ZoneId == zoneId)?.ZoneDescription)
+                            .Where(description => description != null)
+                            .ToList(),
+                        TeamDetails = transactions
+                            .Where(t => t.QuantitysheetId == q.QuantitySheetId)
+                            .SelectMany(t => t.TeamId ?? new List<int>())
+                            .Distinct()
+                            .Select(teamId => new
+                            {
+                                TeamName = allTeams.FirstOrDefault(t => t.TeamId == teamId)?.TeamName,
+                                UserNames = allTeams.FirstOrDefault(t => t.TeamId == teamId)?.UserIds
+                                    .Select(userId => allUsers.FirstOrDefault(u => u.UserId == userId)?.UserName)
+                                    .Where(userName => userName != null)
+                                    .ToList()
+                            })
+                            .Where(team => team.TeamName != null)
+                            .ToList(),
+                        MachineNames = transactions
+                            .Where(t => t.QuantitysheetId == q.QuantitySheetId)
+                            .Select(t => t.MachineId)
+                            .Distinct()
+                            .Select(machineId => allMachines.FirstOrDefault(m => m.MachineId == machineId)?.MachineName)
+                            .Where(name => name != null)
+                            .ToList()
+                    }
                 });
 
                 return Ok(result);
@@ -155,6 +195,8 @@ namespace ERPAPI.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "An error occurred.", Details = ex.Message });
             }
         }
+
+
 
 
     }

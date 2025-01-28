@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic; // Add this for List
+using System.Collections.Generic; 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -20,7 +20,7 @@ namespace ERPAPI.Model
 
         public bool Status { get; set; } = true;
 
-        // Property to hold user IDs
+        
         public List<int> UserIds { get; set; } = new List<int>();
     }
 }
