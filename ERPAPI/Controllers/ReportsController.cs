@@ -79,5 +79,33 @@ namespace ERPAPI.Controllers
         }
 
 
+        // GET: api/Reports/GetLotNosByProjectId/{projectId}
+        [HttpGet("GetLotNosByProjectId/{projectId}")]
+        public async Task<IActionResult> GetLotNosByProjectId(int projectId)
+        {
+            try
+            {
+                // Query the database for unique LotNos of the given ProjectId
+                var lotNos = await _context.Set<QuantitySheet>()
+                    .Where(q => q.ProjectId == projectId && !string.IsNullOrEmpty(q.LotNo)) // Filter by ProjectId and non-null LotNo
+                    .Select(q => q.LotNo)
+                    .Distinct() // Ensure uniqueness
+                    .ToListAsync();
+
+                // Check if any LotNos exist for the given ProjectId
+                if (lotNos == null || lotNos.Count == 0)
+                {
+                    return NotFound(new { Message = "No LotNos found for the given ProjectId." });
+                }
+
+                return Ok(lotNos);
+            }
+            catch (Exception ex)
+            {
+                // Handle errors gracefully
+                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "An error occurred.", Details = ex.Message });
+            }
+        }
+
     }
 }
