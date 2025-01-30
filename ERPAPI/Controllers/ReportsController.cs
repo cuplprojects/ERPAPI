@@ -17,6 +17,30 @@ namespace ERPAPI.Controllers
             _context = context;
         }
 
+
+
+        [HttpPost("CreateReport")]
+        public async Task<IActionResult> CreateReport([FromBody] Reports report)
+        {
+            try
+            {
+                if (report == null)
+                {
+                    return BadRequest(new { Message = "Invalid report data." });
+                }
+
+                await _context.Set<Reports>().AddAsync(report);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { Message = "Report created successfully.", ReportId = report.ReportId });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "An error occurred while creating the report.", Details = ex.Message });
+            }
+        }
+
+
         // GET: api/Reports/GetAllGroups
         [HttpGet("GetAllGroups")]
         public async Task<IActionResult> GetAllGroups()
