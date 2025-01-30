@@ -107,6 +107,9 @@ namespace ERPAPI.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "An error occurred.", Details = ex.Message });
             }
         }
+
+
+
         [HttpGet("GetQuantitySheetsByProjectId/{projectId}")]
         public async Task<IActionResult> GetQuantitySheetsByProjectId(int projectId)
         {
@@ -122,7 +125,7 @@ namespace ERPAPI.Controllers
                     return NotFound(new { Message = "No data found for the given ProjectId." });
                 }
 
-                // Fetch all Processes, Transactions, Machines, Zones, Teams, and Users
+                // Fetch all necessary data
                 var allProcesses = await _context.Set<Process>().ToListAsync();
                 var transactions = await _context.Set<Transaction>()
                     .Where(t => t.ProjectId == projectId)
@@ -132,61 +135,100 @@ namespace ERPAPI.Controllers
                 var allTeams = await _context.Set<Team>().ToListAsync();
                 var allUsers = await _context.Set<User>().ToListAsync();
 
-                // Map QuantitySheet data with Process Name and Transaction data
-                var result = quantitySheets.Select(q => new
+                // Map QuantitySheet data with required details
+                var result = quantitySheets.Select(q =>
                 {
-                    q.CatchNo,
-                    q.Paper,
-                    q.ExamDate,
-                    q.ExamTime,
-                    q.Course,
-                    q.Subject,
-                    q.InnerEnvelope,
-                    q.OuterEnvelope,
-                    q.LotNo,
-                    q.Quantity,
-                    q.Pages,
-                    q.Status,
-                    ProcessNames = q.ProcessId != null
-                        ? allProcesses
-                            .Where(p => q.ProcessId.Contains(p.Id))
-                            .Select(p => p.Name)
-                            .ToList()
-                        : null,
-                    // Check if QuantitySheetId exists in the Transaction table
-                    ReleaseForProduction = transactions.Any(t => t.QuantitysheetId == q.QuantitySheetId) ? "Yes" : "No",
-                    // Grouped Transaction Data
-                    TransactionData = new
+                    // Get transactions related to this QuantitySheetId
+                    var relatedTransactions = transactions
+                        .Where(t => t.QuantitysheetId == q.QuantitySheetId)
+                        .ToList();
+
+                    string catchStatus;
+
+                    if (!relatedTransactions.Any())
                     {
-                        ZoneDescriptions = transactions
-                            .Where(t => t.QuantitysheetId == q.QuantitySheetId)
-                            .Select(t => t.ZoneId)
-                            .Distinct()
-                            .Select(zoneId => allZones.FirstOrDefault(z => z.ZoneId == zoneId)?.ZoneDescription)
-                            .Where(description => description != null)
-                            .ToList(),
-                        TeamDetails = transactions
-                            .Where(t => t.QuantitysheetId == q.QuantitySheetId)
-                            .SelectMany(t => t.TeamId ?? new List<int>())
-                            .Distinct()
-                            .Select(teamId => new
-                            {
-                                TeamName = allTeams.FirstOrDefault(t => t.TeamId == teamId)?.TeamName,
-                                UserNames = allTeams.FirstOrDefault(t => t.TeamId == teamId)?.UserIds
-                                    .Select(userId => allUsers.FirstOrDefault(u => u.UserId == userId)?.UserName)
-                                    .Where(userName => userName != null)
-                                    .ToList()
-                            })
-                            .Where(team => team.TeamName != null)
-                            .ToList(),
-                        MachineNames = transactions
-                            .Where(t => t.QuantitysheetId == q.QuantitySheetId)
-                            .Select(t => t.MachineId)
-                            .Distinct()
-                            .Select(machineId => allMachines.FirstOrDefault(m => m.MachineId == machineId)?.MachineName)
-                            .Where(name => name != null)
-                            .ToList()
+                        catchStatus = "Pending";
                     }
+                    else
+                    {
+                        // Check if any transaction has ProcessId == 12
+                        var process12Transaction = relatedTransactions.FirstOrDefault(t => t.ProcessId == 12);
+
+                        if (process12Transaction != null && process12Transaction.Status == 2)
+                        {
+                            catchStatus = "Completed";
+                        }
+                        else if (relatedTransactions.Any(t => t.ProcessId != 12))
+                        {
+                            catchStatus = "Running";
+                        }
+                        else
+                        {
+                            catchStatus = "Pending";
+                        }
+                    }
+
+                    var lastTransactionProcessId = relatedTransactions
+                        .OrderByDescending(t => t.TransactionId) // Get the latest transaction based on TransactionId
+                        .Select(t => t.ProcessId)
+                        .FirstOrDefault();
+
+                    var lastTransactionProcessName = allProcesses
+                        .FirstOrDefault(p => p.Id == lastTransactionProcessId)?.Name;
+
+                    return new
+                    {
+                        q.CatchNo,
+                        q.Paper,
+                        q.ExamDate,
+                        q.ExamTime,
+                        q.Course,
+                        q.Subject,
+                        q.InnerEnvelope,
+                        q.OuterEnvelope,
+                        q.LotNo,
+                        q.Quantity,
+                        q.Pages,
+                        q.Status,
+                        ProcessNames = q.ProcessId != null
+                            ? allProcesses
+                                .Where(p => q.ProcessId.Contains(p.Id))
+                                .Select(p => p.Name)
+                                .ToList()
+                            : null,
+                        CatchStatus = catchStatus, // Updated logic
+                        TwelvethProcess = relatedTransactions.Any(t => t.ProcessId == 12),
+                        CurrentProcessName = lastTransactionProcessName,
+                        // Grouped Transaction Data
+                        TransactionData = new
+                        {
+                            ZoneDescriptions = relatedTransactions
+                                .Select(t => t.ZoneId)
+                                .Distinct()
+                                .Select(zoneId => allZones.FirstOrDefault(z => z.ZoneId == zoneId)?.ZoneDescription)
+                                .Where(description => description != null)
+                                .ToList(),
+                            TeamDetails = relatedTransactions
+                                .SelectMany(t => t.TeamId ?? new List<int>())
+                                .Distinct()
+                                .Select(teamId => new
+                                {
+                                    TeamName = allTeams.FirstOrDefault(t => t.TeamId == teamId)?.TeamName,
+                                    UserNames = allTeams.FirstOrDefault(t => t.TeamId == teamId)?.UserIds
+                                        .Select(userId => allUsers.FirstOrDefault(u => u.UserId == userId)?.UserName)
+                                        .Where(userName => userName != null)
+                                        .ToList()
+                                })
+                                .Where(team => team.TeamName != null)
+                                .ToList(),
+                            MachineNames = relatedTransactions
+                                .Select(t => t.MachineId)
+                                .Distinct()
+                                .Select(machineId => allMachines.FirstOrDefault(m => m.MachineId == machineId)?.MachineName)
+                                .Where(name => name != null)
+                                .ToList()
+                        }
+                    };
                 });
 
                 return Ok(result);
@@ -197,7 +239,6 @@ namespace ERPAPI.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "An error occurred.", Details = ex.Message });
             }
         }
-
 
 
 
