@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -20,6 +21,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/FeatureEnablings
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<FeatureEnabling>>> GetFeatureEnablings()
         {
@@ -27,6 +29,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/FeatureEnablings/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<FeatureEnabling>> GetFeatureEnabling(int id)
         {
@@ -41,6 +44,7 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/FeatureEnablings/5
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutFeatureEnabling(int id, FeatureEnabling featureEnabling)
         {
@@ -71,6 +75,7 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/FeatureEnablings
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<FeatureEnabling>> PostFeatureEnabling(FeatureEnabling featureEnabling)
         {
@@ -82,6 +87,7 @@ namespace ERPAPI.Controllers
         }
 
         // DELETE: api/FeatureEnablings/5
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteFeatureEnabling(int id)
         {

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
 using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -150,6 +151,7 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/TextLabels
+
         [HttpPost]
         public async Task<ActionResult<TextLabel>> PostTextLabel(TextLabel textLabel)
         {
@@ -168,6 +170,7 @@ namespace ERPAPI.Controllers
         }
 
         // DELETE: api/TextLabels/5
+  
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTextLabel(int id)
         {
