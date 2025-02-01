@@ -8,6 +8,7 @@ using System.Linq;
 using System.Globalization;
 using NuGet.Protocol.Plugins;
 using Microsoft.CodeAnalysis;
+using Microsoft.AspNetCore.Authorization;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -24,6 +25,7 @@ public class QuantitySheetController : ControllerBase
         _loggerService = loggerService;
     }
 
+    [Authorize]
     [HttpPost]
     public async Task<IActionResult> Post([FromBody] List<QuantitySheet> newSheets)
     {
@@ -139,7 +141,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(processedNewSheets);
     }
 
-
+    [Authorize]
     [HttpPut("update/{id}")]
     public async Task<IActionResult> Put(int id, [FromBody] QuantitySheet updatedSheet)
     {
@@ -197,7 +199,7 @@ public class QuantitySheetController : ControllerBase
 
 
 
-
+    [Authorize]
     [HttpPost("ReleaseForProduction")]
     public async Task<IActionResult> ReleaseForProduction([FromBody] LotRequest request)
     {
@@ -239,9 +241,9 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-  
 
 
+    [Authorize]
     [HttpGet("calculate-date-range")]
     public async Task<IActionResult> CalculateDateRange([FromQuery] string selectedLot, [FromQuery] int projectId)
     {
@@ -363,7 +365,7 @@ public class QuantitySheetController : ControllerBase
         }
     }
 
-
+    [Authorize]
     [HttpGet("lot-dates")]
     public async Task<ActionResult<Dictionary<string, object>>> GetLotDates(int projectId)
     {
@@ -416,7 +418,7 @@ public class QuantitySheetController : ControllerBase
         }
     }
 
-
+    [Authorize]
     [HttpPut("{id}")]
     public async Task<IActionResult> PutQuantitySheet(int id, QuantitySheet quantity)
     {
@@ -463,9 +465,9 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-  
 
 
+    [Authorize]
     [HttpPut]
     public async Task<IActionResult> UpdateQuantitySheet([FromBody] List<QuantitySheet> newSheets)
     {
@@ -596,6 +598,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(processedNewSheets);
     }
 
+    [Authorize]
     [HttpGet("Lots")]
     public async Task<ActionResult<IEnumerable<string>>> GetLots(int ProjectId)
     {
@@ -615,7 +618,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(sortedLotNumbers);
     }
 
-
+    [Authorize]
     [HttpGet("UnReleasedLots")]
     public async Task<ActionResult<IEnumerable<string>>> GetUnReleasedLots(int ProjectId)
     {
@@ -628,6 +631,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(uniqueLotNumbers);
     }
 
+    [Authorize]
     [HttpGet("ReleasedLots")]
     public async Task<ActionResult<IEnumerable<string>>> GetReleasedLots(int ProjectId)
     {
@@ -640,6 +644,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(uniqueLotNumbers);
     }
 
+    [Authorize]
     [HttpGet("Columns")]
     public IActionResult GetColumnNames()
     {
@@ -655,6 +660,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(columnNames);
     }
 
+    [Authorize]
     [HttpGet("Catch")]
     public async Task<ActionResult<IEnumerable<object>>> GetCatches(int ProjectId, string lotNo)
     {
@@ -732,7 +738,7 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-
+    [Authorize]
     [HttpGet("Catches")]
     public async Task<ActionResult<IEnumerable<object>>> GetCatch(int ProjectId, string lotNo)
     {
@@ -809,7 +815,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(result);
     }
 
-
+    [Authorize]
     [HttpGet("CatchByproject")]
     public async Task<ActionResult<IEnumerable<object>>> CatchByproject(int ProjectId)
     {
@@ -818,12 +824,14 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-
+    [Authorize]
     [HttpGet("check-all-quantity-sheets")]
-    public async Task<ActionResult<IEnumerable<object>>> GetAllProjectsQuantitySheetStatus()
+    public async Task<ActionResult<IEnumerable<object>>> GetAllProjectsQuantitySheetStatus([FromQuery] List<int> projectIds)
     {
-        // Get all projects from the database
-        var projects = await _context.Projects.ToListAsync();
+        // If no projectIds are passed, fetch all projects
+        var projects = projectIds.Any()
+            ? await _context.Projects.Where(p => projectIds.Contains(p.ProjectId)).ToListAsync()
+            : await _context.Projects.ToListAsync();
 
         var result = new List<object>();
 
@@ -842,6 +850,8 @@ public class QuantitySheetController : ControllerBase
         return Ok(result);
     }
 
+
+    [Authorize]
     [HttpPost]
     [Route("UpdatePages")]
     public async Task<IActionResult> UpdatePages([FromBody] List<PageUpdateRequest> updateRequests)
@@ -892,6 +902,7 @@ public class QuantitySheetController : ControllerBase
         public int Pages { get; set; }
     }
 
+    [Authorize]
     [HttpPost("StopCatch")]
     public async Task<IActionResult> StopCatch(int id)
     {
@@ -949,7 +960,7 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-
+    [Authorize]
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteQuantitysheet(int id)
     {
@@ -1003,6 +1014,7 @@ public class QuantitySheetController : ControllerBase
         public string? NewExamDate { get; set; }  // Optional exam date in dd-MM-yyyy format
     }
 
+    [Authorize]
     [HttpPut("transfer-catches")]
     public async Task<IActionResult> TransferCatches([FromBody] CatchTransferRequest request)
     {
@@ -1141,6 +1153,7 @@ public class QuantitySheetController : ControllerBase
         }
     }
     // Get Exam Dates for a given project and lot
+    [Authorize]
     [HttpGet("exam-dates")]
     public async Task<ActionResult<IEnumerable<string>>> GetExamDates(int projectId, string lotNo)
     {
@@ -1167,6 +1180,7 @@ public class QuantitySheetController : ControllerBase
     }
 
     // Get Lot Data for a given project and lot
+    [Authorize]
     [HttpGet("lot-data")]
     public async Task<ActionResult<IEnumerable<QuantitySheet>>> GetLotData(int projectId, string lotNo)
     {
@@ -1184,6 +1198,7 @@ public class QuantitySheetController : ControllerBase
 
 
     // Get Catch Data for a given project, lot, and catch
+    [Authorize]
     [HttpGet("catch-data")]
     public async Task<ActionResult<IEnumerable<QuantitySheet>>> GetCatchData(int projectId, string lotNo, string catchNo)
     {
@@ -1201,6 +1216,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(catchData);
     }
 
+    [Authorize]
     [HttpDelete("DeleteByProjectId/{projectId}")]
     public async Task<IActionResult> DeleteByProjectId(int projectId)
     {

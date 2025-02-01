@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -22,6 +23,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/PaperTypes
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<PaperType>>> GetTypes()
         {
@@ -29,6 +31,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/PaperTypes/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<PaperType>> GetPaperType(int id)
         {
@@ -42,8 +45,9 @@ namespace ERPAPI.Controllers
             return paperType;
         }
 
-
+        [Authorize]
         [HttpGet("{typeId}/Processes")]
+
         public async Task<ActionResult<IEnumerable<object>>> GetProcessesByTypeId(int typeId)
         {
             // Fetch the paper type
@@ -77,6 +81,7 @@ namespace ERPAPI.Controllers
             return Ok(processes);
         }
 
+        [Authorize]
         [HttpGet("{typeId}/RequiredProcesses")]
         public async Task<ActionResult<IEnumerable<object>>> GetRequiredProcessByTypeId(int typeId)
         {
@@ -111,6 +116,7 @@ namespace ERPAPI.Controllers
             return Ok(processes);
         }
 
+        [Authorize]
         [HttpGet("{typeId}/AssociatedProcesses")]
         public async Task<ActionResult<IEnumerable<object>>> GetAssociatedProcessByTypeId(int typeId)
         {
@@ -148,6 +154,7 @@ namespace ERPAPI.Controllers
 
         // PUT: api/PaperTypes/5
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutPaperType(int id, PaperType paperType)
         {
@@ -179,6 +186,7 @@ namespace ERPAPI.Controllers
 
         // POST: api/PaperTypes
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<PaperType>> PostPaperType(PaperType paperType)
         {
@@ -189,6 +197,7 @@ namespace ERPAPI.Controllers
         }
 
         // DELETE: api/PaperTypes/5
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeletePaperType(int id)
         {
