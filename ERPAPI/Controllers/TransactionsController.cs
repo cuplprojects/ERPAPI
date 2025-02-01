@@ -163,7 +163,6 @@ namespace ERPAPI.Controllers
                     Status = t.Status,
                     MachineId = t.MachineId,
                     AlarmMessage = alarm != null ? alarm.Message : null, // Handle null case for alarms
-                    
                 };
             }).ToList();
 
