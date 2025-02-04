@@ -325,7 +325,10 @@ namespace ERPAPI.Controllers
                     GroupName = _context.Groups.Where(g => g.Id == _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.GroupId).FirstOrDefault()).Select(g => g.Name).FirstOrDefault(),
                     MatchedColumn = q.CatchNo.StartsWith(query) ? "CatchNo" :
                                     q.Subject.StartsWith(query) ? "Subject" :
-                                    q.Course.StartsWith(query) ? "Course" : "Paper"
+                                    q.Course.StartsWith(query) ? "Course" : "Paper",
+                    MatchedValue = q.CatchNo.StartsWith(query) ? q.CatchNo :
+                                   q.Subject.StartsWith(query) ? q.Subject :
+                                   q.Course.StartsWith(query) ? q.Course : q.Paper
                 })
                 .Skip((page - 1) * pageSize) // Skip records based on the page number
                 .Take(pageSize) // Limit the number of results per page
