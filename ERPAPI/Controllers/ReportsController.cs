@@ -134,19 +134,19 @@ namespace ERPAPI.Controllers
 
 
 
-        [HttpGet("GetQuantitySheetsByProjectId/{projectId}")]
-        public async Task<IActionResult> GetQuantitySheetsByProjectId(int projectId)
+        [HttpGet("GetQuantitySheetsByProjectId/{projectId}/LotNo/{lotNo}")]
+        public async Task<IActionResult> GetQuantitySheetsByProjectId(int projectId, string lotNo)
         {
             try
             {
-                // Fetch QuantitySheet data by ProjectId
+                // Fetch QuantitySheet data by ProjectId and LotNo
                 var quantitySheets = await _context.Set<QuantitySheet>()
-                    .Where(q => q.ProjectId == projectId)
+                    .Where(q => q.ProjectId == projectId && q.LotNo == lotNo)
                     .ToListAsync();
 
                 if (quantitySheets == null || quantitySheets.Count == 0)
                 {
-                    return NotFound(new { Message = "No data found for the given ProjectId." });
+                    return NotFound(new { Message = "No data found for the given ProjectId and LotNo." });
                 }
 
                 // Fetch all necessary data
@@ -158,6 +158,9 @@ namespace ERPAPI.Controllers
                 var allZones = await _context.Set<Zone>().ToListAsync();
                 var allTeams = await _context.Set<Team>().ToListAsync();
                 var allUsers = await _context.Set<User>().ToListAsync();
+                var dispatches = await _context.Set<Dispatch>()
+                    .Where(d => d.ProjectId == projectId && d.LotNo == lotNo)
+                    .ToListAsync(); // Fetch dispatch data
 
                 // Map QuantitySheet data with required details
                 var result = quantitySheets.Select(q =>
@@ -168,7 +171,6 @@ namespace ERPAPI.Controllers
                         .ToList();
 
                     string catchStatus;
-
                     if (!relatedTransactions.Any())
                     {
                         catchStatus = "Pending";
@@ -177,7 +179,6 @@ namespace ERPAPI.Controllers
                     {
                         // Check if any transaction has ProcessId == 12
                         var process12Transaction = relatedTransactions.FirstOrDefault(t => t.ProcessId == 12);
-
                         if (process12Transaction != null && process12Transaction.Status == 2)
                         {
                             catchStatus = "Completed";
@@ -199,6 +200,12 @@ namespace ERPAPI.Controllers
 
                     var lastTransactionProcessName = allProcesses
                         .FirstOrDefault(p => p.Id == lastTransactionProcessId)?.Name;
+
+                    // Get Dispatch Date if available, else return "Not Available"
+                    var dispatchEntry = dispatches.FirstOrDefault(d => d.LotNo == q.LotNo);
+                    var dispatchDate = dispatchEntry?.UpdatedAt.HasValue == true
+                        ? dispatchEntry.UpdatedAt.Value.ToString("yyyy-MM-dd")
+                        : "Not Available";
 
                     return new
                     {
@@ -223,7 +230,8 @@ namespace ERPAPI.Controllers
                         CatchStatus = catchStatus, // Updated logic
                         TwelvethProcess = relatedTransactions.Any(t => t.ProcessId == 12),
                         CurrentProcessName = lastTransactionProcessName,
-                        // Grouped Transaction Data
+                        DispatchDate = dispatchDate, // Added Dispatch Date
+                                                     // Grouped Transaction Data
                         TransactionData = new
                         {
                             ZoneDescriptions = relatedTransactions
@@ -263,6 +271,8 @@ namespace ERPAPI.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "An error occurred.", Details = ex.Message });
             }
         }
+
+
 
         [HttpGet("GetCatchNoByProject/{projectId}")]
         public async Task<IActionResult> GetCatchNoByProject(int projectId)
@@ -321,6 +331,7 @@ namespace ERPAPI.Controllers
                 .Select(q => new
                 {
                     q.CatchNo,
+                    
                     ProjectName = _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.Name).FirstOrDefault(),
                     GroupName = _context.Groups.Where(g => g.Id == _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.GroupId).FirstOrDefault()).Select(g => g.Name).FirstOrDefault(),
                     MatchedColumn = q.CatchNo.StartsWith(query) ? "CatchNo" :
@@ -335,6 +346,145 @@ namespace ERPAPI.Controllers
                 .ToListAsync();
 
             return Ok(new { TotalRecords = totalRecords, Results = results });
+        }
+
+
+        [HttpGet("GetQuantitySheetsByCatchNo/{catchNo}")]
+        public async Task<IActionResult> GetQuantitySheetsByCatchNo(string catchNo)
+        {
+            try
+            {
+                // Fetch QuantitySheet data by CatchNo
+                var quantitySheets = await _context.Set<QuantitySheet>()
+                    .Where(q => q.CatchNo == catchNo)
+                    .ToListAsync();
+
+                if (quantitySheets == null || quantitySheets.Count == 0)
+                {
+                    return NotFound(new { Message = "No data found for the given CatchNo." });
+                }
+
+                // Fetch all necessary data
+                var allProcesses = await _context.Set<Process>().ToListAsync();
+                var transactions = await _context.Set<Transaction>()
+                    .Where(t => quantitySheets.Select(q => q.QuantitySheetId).Contains(t.QuantitysheetId))
+                    .ToListAsync();
+                var allMachines = await _context.Set<Machine>().ToListAsync();
+                var allZones = await _context.Set<Zone>().ToListAsync();
+                var allTeams = await _context.Set<Team>().ToListAsync();
+                var allUsers = await _context.Set<User>().ToListAsync();
+                var dispatches = await _context.Set<Dispatch>()
+                    .Where(d => quantitySheets.Select(q => q.LotNo).Contains(d.LotNo))
+                    .ToListAsync(); // Fetch dispatch data
+
+                // Map QuantitySheet data with required details
+                var result = quantitySheets.Select(q =>
+                {
+                    // Get transactions related to this QuantitySheetId
+                    var relatedTransactions = transactions
+                        .Where(t => t.QuantitysheetId == q.QuantitySheetId)
+                        .ToList();
+
+                    string catchStatus;
+                    if (!relatedTransactions.Any())
+                    {
+                        catchStatus = "Pending";
+                    }
+                    else
+                    {
+                        // Check if any transaction has ProcessId == 12
+                        var process12Transaction = relatedTransactions.FirstOrDefault(t => t.ProcessId == 12);
+                        if (process12Transaction != null && process12Transaction.Status == 2)
+                        {
+                            catchStatus = "Completed";
+                        }
+                        else if (relatedTransactions.Any(t => t.ProcessId != 12))
+                        {
+                            catchStatus = "Running";
+                        }
+                        else
+                        {
+                            catchStatus = "Pending";
+                        }
+                    }
+
+                    var lastTransactionProcessId = relatedTransactions
+                        .OrderByDescending(t => t.TransactionId) // Get the latest transaction based on TransactionId
+                        .Select(t => t.ProcessId)
+                        .FirstOrDefault();
+
+                    var lastTransactionProcessName = allProcesses
+                        .FirstOrDefault(p => p.Id == lastTransactionProcessId)?.Name;
+
+                    // Get Dispatch Date if available, else return "Not Available"
+                    var dispatchEntry = dispatches.FirstOrDefault(d => d.LotNo == q.LotNo);
+                    var dispatchDate = dispatchEntry?.UpdatedAt.HasValue == true
+                        ? dispatchEntry.UpdatedAt.Value.ToString("yyyy-MM-dd")
+                        : "Not Available";
+
+                    return new
+                    {
+                        q.CatchNo,
+                        q.Paper,
+                        q.ExamDate,
+                        q.ExamTime,
+                        q.Course,
+                        q.Subject,
+                        q.InnerEnvelope,
+                        q.OuterEnvelope,
+                        q.LotNo,
+                        q.Quantity,
+                        q.Pages,
+                        q.Status,
+                        ProcessNames = q.ProcessId != null
+                            ? allProcesses
+                                .Where(p => q.ProcessId.Contains(p.Id))
+                                .Select(p => p.Name)
+                                .ToList()
+                            : null,
+                        CatchStatus = catchStatus, // Updated logic
+                        TwelvethProcess = relatedTransactions.Any(t => t.ProcessId == 12),
+                        CurrentProcessName = lastTransactionProcessName,
+                        DispatchDate = dispatchDate, // Added Dispatch Date
+                                                     // Grouped Transaction Data
+                        TransactionData = new
+                        {
+                            ZoneDescriptions = relatedTransactions
+                                .Select(t => t.ZoneId)
+                                .Distinct()
+                                .Select(zoneId => allZones.FirstOrDefault(z => z.ZoneId == zoneId)?.ZoneDescription)
+                                .Where(description => description != null)
+                                .ToList(),
+                            TeamDetails = relatedTransactions
+                                .SelectMany(t => t.TeamId ?? new List<int>())
+                                .Distinct()
+                                .Select(teamId => new
+                                {
+                                    TeamName = allTeams.FirstOrDefault(t => t.TeamId == teamId)?.TeamName,
+                                    UserNames = allTeams.FirstOrDefault(t => t.TeamId == teamId)?.UserIds
+                                        .Select(userId => allUsers.FirstOrDefault(u => u.UserId == userId)?.UserName)
+                                        .Where(userName => userName != null)
+                                        .ToList()
+                                })
+                                .Where(team => team.TeamName != null)
+                                .ToList(),
+                            MachineNames = relatedTransactions
+                                .Select(t => t.MachineId)
+                                .Distinct()
+                                .Select(machineId => allMachines.FirstOrDefault(m => m.MachineId == machineId)?.MachineName)
+                                .Where(name => name != null)
+                                .ToList()
+                        }
+                    };
+                });
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                // Handle errors gracefully
+                return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "An error occurred.", Details = ex.Message });
+            }
         }
 
 
