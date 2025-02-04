@@ -300,12 +300,18 @@ namespace ERPAPI.Controllers
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> SearchQuantitySheet([FromQuery] string query)
+        public async Task<IActionResult> SearchQuantitySheet([FromQuery] string query, [FromQuery] int page = 1, [FromQuery] int pageSize = 5)
         {
             if (string.IsNullOrWhiteSpace(query))
             {
                 return BadRequest("Search query cannot be empty.");
             }
+
+            var totalRecords = await _context.QuantitySheets
+                .CountAsync(q => q.CatchNo.StartsWith(query) ||
+                                q.Subject.StartsWith(query) ||
+                                q.Course.StartsWith(query) ||
+                                (q.Paper != null && q.Paper.StartsWith(query)));
 
             var results = await _context.QuantitySheets
                 .Where(q => q.CatchNo.StartsWith(query) ||
@@ -321,9 +327,11 @@ namespace ERPAPI.Controllers
                                     q.Subject.StartsWith(query) ? "Subject" :
                                     q.Course.StartsWith(query) ? "Course" : "Paper"
                 })
+                .Skip((page - 1) * pageSize) // Skip records based on the page number
+                .Take(pageSize) // Limit the number of results per page
                 .ToListAsync();
 
-            return Ok(results);
+            return Ok(new { TotalRecords = totalRecords, Results = results });
         }
 
 
