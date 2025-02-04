@@ -264,6 +264,67 @@ namespace ERPAPI.Controllers
             }
         }
 
+        [HttpGet("GetCatchNoByProject/{projectId}")]
+        public async Task<IActionResult> GetCatchNoByProject(int projectId)
+        {
+            try
+            {
+                // Fetch all CatchNo where ProjectId matches and Status is 1
+                var quantitySheets = await _context.QuantitySheets
+                    .Where(q => q.ProjectId == projectId && q.Status == 1)
+                    .Select(q => q.CatchNo)
+                    .ToListAsync();
+
+                if (quantitySheets == null || quantitySheets.Count == 0)
+                {
+                    return NotFound(new { Message = "No records found with Status = 1 for the given ProjectId." });
+                }
+
+                // Fetch event logs where category is 'Production' and projectId is present in OldValue or NewValue
+                var eventLogs = await _context.EventLogs
+                    .Where(e => e.Category == "Production" && (e.OldValue.Contains(projectId.ToString()) || e.NewValue.Contains(projectId.ToString())))
+                    .Select(e => new { e.NewValue, e.LoggedAT })
+                    .ToListAsync();
+
+                if (eventLogs == null || eventLogs.Count == 0)
+                {
+                    return NotFound(new { Message = "No event logs found for the given ProjectId." });
+                }
+
+                return Ok(new { CatchNumbers = quantitySheets, Events = eventLogs });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = "An error occurred.", Error = ex.Message });
+            }
+        }
+
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchQuantitySheet([FromQuery] string query)
+        {
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                return BadRequest("Search query cannot be empty.");
+            }
+
+            var results = await _context.QuantitySheets
+                .Where(q => q.CatchNo.StartsWith(query) ||
+                            q.Subject.StartsWith(query) ||
+                            q.Course.StartsWith(query) ||
+                            (q.Paper != null && q.Paper.StartsWith(query)))
+                .Select(q => new
+                {
+                    q.CatchNo,
+                    ProjectName = _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.Name).FirstOrDefault(),
+                    GroupName = _context.Groups.Where(g => g.Id == _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.GroupId).FirstOrDefault()).Select(g => g.Name).FirstOrDefault(),
+                    MatchedColumn = q.CatchNo.StartsWith(query) ? "CatchNo" :
+                                    q.Subject.StartsWith(query) ? "Subject" :
+                                    q.Course.StartsWith(query) ? "Course" : "Paper"
+                })
+                .ToListAsync();
+
+            return Ok(results);
+        }
 
 
     }

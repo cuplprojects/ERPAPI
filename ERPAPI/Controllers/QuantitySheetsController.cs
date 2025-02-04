@@ -9,6 +9,7 @@ using System.Globalization;
 using NuGet.Protocol.Plugins;
 using Microsoft.CodeAnalysis;
 using ERPAPI.Services;
+using System.Security.Claims;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -207,31 +208,86 @@ public class QuantitySheetController : ControllerBase
             return BadRequest("Invalid lot number.");
         }
 
-        // Find all records that belong to the given lot
-        var quantitySheets = await _context.QuantitySheets
-            .Where(q => q.LotNo == request.LotNo && q.ProjectId == request.ProjectId)
-            .ToListAsync();
-
-        if (quantitySheets == null || quantitySheets.Count == 0)
+        // Get authenticated user ID from JWT claims
+        var userIdClaim = HttpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Name);
+        if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
         {
-            return NotFound($"No records found for Lot No: {request.LotNo}");
+            return Unauthorized("User not authenticated.");
         }
 
-        // Update the status to 1 (released for production)
-        foreach (var sheet in quantitySheets)
+        try
         {
-            sheet.Status = 1;
+            // Find all records that belong to the given lot
+            var quantitySheets = await _context.QuantitySheets
+                .Where(q => q.LotNo == request.LotNo && q.ProjectId == request.ProjectId)
+                .ToListAsync();
+
+            if (quantitySheets == null || quantitySheets.Count == 0)
+            {
+                _loggerService.LogEvent($"Lot {request.LotNo} not found",
+                    "Production", userId);
+                return NotFound($"No records found for Lot No: {request.LotNo}");
+            }
+
+            // Capture old values before updating
+            var oldValues = new
+            {
+                ProjectId = request.ProjectId,
+                Data = quantitySheets.Select(q => new
+                {
+                    Id = q.QuantitySheetId,
+                    Status = q.Status
+                }).ToList()
+            };
+
+            // Update the status to 1 (released for production)
+            foreach (var sheet in quantitySheets)
+            {
+                sheet.Status = 1;
+            }
+
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId);
+            if (project != null)
+            {
+                project.LastReleasedLotDate = DateTime.UtcNow;
+            }
+
+            // Save changes to the database
+            await _context.SaveChangesAsync();
+
+            // Capture new values after update
+            var newValues = new
+            {
+                ProjectId = request.ProjectId,
+                Data = quantitySheets.Select(q => new
+                {
+                    Id = q.QuantitySheetId,
+                    Status = q.Status
+                }).ToList()
+            };
+
+            // Convert to JSON string
+            string oldValuesJson = System.Text.Json.JsonSerializer.Serialize(oldValues);
+            string newValuesJson = System.Text.Json.JsonSerializer.Serialize(newValues);
+
+            // Log the successful release of the lot
+            _loggerService.LogEvent($"Lot {request.LotNo} successfully released for production",
+                "Production", userId, oldValuesJson, newValuesJson);
+
+            return Ok($"Lot {request.LotNo} has been released for production.");
         }
-        var project = await _context.Projects
-            .Where(p => p.ProjectId == request.ProjectId)
-            .FirstOrDefaultAsync();
-        project.LastReleasedLotDate = DateTime.Now;
-
-        // Save changes to the database
-        await _context.SaveChangesAsync();
-
-        return Ok($"Lot {request.LotNo} has been released for production.");
+        catch (Exception ex)
+        {
+            // Log the error
+            _loggerService.LogEvent($"Error releasing Lot {request.LotNo}",
+                "Production", userId, null, ex.Message);
+            return StatusCode(500, "An error occurred while processing the request.");
+        }
     }
+
+
+
+
 
     public class LotRequest
     {
