@@ -464,7 +464,6 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-  
 
 
     [HttpPut]
@@ -547,27 +546,22 @@ public class QuantitySheetController : ControllerBase
         foreach (var newSheet in processedNewSheets)
         {
             var existingSheet = existingSheets
-                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.StopCatch == 0);
+                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.CatchNo == newSheet.CatchNo && s.StopCatch == 0);
 
             if (existingSheet != null)
             {
-                // Update the existing sheet
-                existingSheet.CatchNo = newSheet.CatchNo;
-                existingSheet.Paper = newSheet.Paper;
-                existingSheet.Course = newSheet.Course;
-                existingSheet.Subject = newSheet.Subject;
-                existingSheet.InnerEnvelope = newSheet.InnerEnvelope;
-                existingSheet.OuterEnvelope = newSheet.OuterEnvelope;
-                existingSheet.Quantity = newSheet.Quantity;
-                existingSheet.PercentageCatch = newSheet.PercentageCatch;
-                existingSheet.ExamDate = newSheet.ExamDate;
-                existingSheet.ExamTime = newSheet.ExamTime;
-                existingSheet.ProcessId = newSheet.ProcessId;
-                existingSheet.StopCatch = newSheet.StopCatch;
+                // Only update fields where new data is present
+                if (!string.IsNullOrEmpty(newSheet.Paper)) existingSheet.Paper = newSheet.Paper;
+                if (!string.IsNullOrEmpty(newSheet.Course)) existingSheet.Course = newSheet.Course;
+                if (!string.IsNullOrEmpty(newSheet.Subject)) existingSheet.Subject = newSheet.Subject;
+                if (!string.IsNullOrEmpty(newSheet.InnerEnvelope)) existingSheet.InnerEnvelope = newSheet.InnerEnvelope;
+                if (newSheet.OuterEnvelope > 0) existingSheet.OuterEnvelope = newSheet.OuterEnvelope;
+                if (!string.IsNullOrEmpty(newSheet.ExamDate)) existingSheet.ExamDate = newSheet.ExamDate;
+                if (!string.IsNullOrEmpty(newSheet.ExamTime)) existingSheet.ExamTime = newSheet.ExamTime;
             }
             else
             {
-                // If no existing sheet found, add it to the context for insertion
+                // If no existing sheet found for this CatchNo, add it to the context for insertion
                 _context.QuantitySheets.Add(newSheet);
             }
         }
@@ -596,6 +590,7 @@ public class QuantitySheetController : ControllerBase
 
         return Ok(processedNewSheets);
     }
+
 
     [HttpGet("Lots")]
     public async Task<ActionResult<IEnumerable<string>>> GetLots(int ProjectId)
@@ -1222,4 +1217,23 @@ public class QuantitySheetController : ControllerBase
         return NoContent(); // Return 204 No Content on successful deletion
     }
 
+    [HttpDelete("DeleteByLot")]
+    public async Task<IActionResult> DeleteByLot(int projectId, string LotNo)
+    {
+        // Find all quantity sheets for the given projectId
+        var sheetsToDelete = await _context.QuantitySheets
+            .Where(s => s.ProjectId == projectId && s.LotNo == LotNo)
+            .ToListAsync();
+
+        if (sheetsToDelete == null || !sheetsToDelete.Any())
+        {
+            return NotFound($"No quantity sheets found for Project ID: {projectId}");
+        }
+
+        // Remove the sheets from the context
+        _context.QuantitySheets.RemoveRange(sheetsToDelete);
+        await _context.SaveChangesAsync();
+
+        return NoContent(); // Return 204 No Content on successful deletion
+    }
 }
