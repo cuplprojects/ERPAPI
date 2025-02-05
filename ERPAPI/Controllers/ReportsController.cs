@@ -560,8 +560,11 @@ namespace ERPAPI.Controllers
                                          .ToList()
                                  })
                                  .ToList(),
-                    UserIds = pp.UserId,
-                    t.Status,
+                    Users = _context.Users.Where(user => pp.UserId.Contains(user.UserId)).Select(u => new {
+                        FullName = u.FirstName + " " + u.LastName,
+                        RoleID = u.RoleId
+                    }).ToList(),
+            t.Status,
                     MachineName = machines.Where(m => m.MachineId == t.MachineId).Select(m => m.MachineName).FirstOrDefault()
                 }).ToList());
 
