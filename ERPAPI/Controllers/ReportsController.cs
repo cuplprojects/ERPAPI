@@ -512,7 +512,7 @@ namespace ERPAPI.Controllers
         {
             var quantitySheet = await _context.QuantitySheets
                 .Where(q => q.CatchNo == catchNo)
-                .Select(q => new { q.QuantitySheetId, q.ProjectId, q.ProcessId })
+                .Select(q => new { q.QuantitySheetId, q.ProcessId, q.ProjectId })
                 .FirstOrDefaultAsync();
 
             if (quantitySheet == null)
@@ -527,12 +527,13 @@ namespace ERPAPI.Controllers
             var transactions = await _context.Transaction
                 .Where(t => t.QuantitysheetId == quantitySheet.QuantitySheetId)
                 .ToListAsync();
+            
 
             var teamIds = transactions.SelectMany(t => t.TeamId).Distinct().ToList();
             var teams = await _context.Teams
                 .Where(team => teamIds.Contains(team.TeamId))
                 .ToListAsync();
-            var userIds = projectProcesses.SelectMany(pp => pp.UserId).Distinct().ToList();
+            var userIds = teams.SelectMany(t => t.UserIds).Distinct().ToList();
             var users = await _context.Users
                 .Where(u => userIds.Contains(u.UserId))
                 .ToListAsync();
@@ -541,9 +542,9 @@ namespace ERPAPI.Controllers
             var machines = await _context.Machine
                 .ToListAsync();
 
-            var processWiseData = transactions.GroupBy(t => t.ProcessId).ToDictionary(g => g.Key, g => new
-            {
-                Transactions = g.Select(t => new
+            var processWiseData = projectProcesses.ToDictionary(pp => pp.ProcessId, pp => transactions
+                .Where(t => t.ProcessId == pp.ProcessId)
+                .Select(t => new
                 {
                     ZoneDescription = _context.Zone.Where(z => z.ZoneId == t.ZoneId).Select(z => z.ZoneDescription).FirstOrDefault(),
                     TeamDetails = teams
@@ -559,16 +560,10 @@ namespace ERPAPI.Controllers
                                          .ToList()
                                  })
                                  .ToList(),
+                    UserIds = pp.UserId,
                     t.Status,
                     MachineName = machines.Where(m => m.MachineId == t.MachineId).Select(m => m.MachineName).FirstOrDefault()
-                }).ToList(),
-                Users = users.Where(u => projectProcesses.Any(pp => pp.ProcessId == g.Key && pp.UserId.Contains(u.UserId)))
-                            .Select(u => new {
-                                FullName = u.FirstName + " " + u.LastName,
-                                RoleName = roles.Where(r => r.RoleId == u.RoleId).Select(r => r.RoleName).FirstOrDefault()
-                            })
-                            .ToList()
-            });
+                }).ToList());
 
             return Ok(processWiseData);
         }
