@@ -310,20 +310,41 @@ namespace ERPAPI.Controllers
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> SearchQuantitySheet([FromQuery] string query, [FromQuery] int page = 1, [FromQuery] int pageSize = 5)
+        public async Task<IActionResult> SearchQuantitySheet(
+    [FromQuery] string query,
+    [FromQuery] int page = 1,
+    [FromQuery] int pageSize = 5,
+    [FromQuery] int? groupId = null,
+    [FromQuery] int? projectId = null)
         {
             if (string.IsNullOrWhiteSpace(query))
             {
                 return BadRequest("Search query cannot be empty.");
             }
 
-            var totalRecords = await _context.QuantitySheets
+            var queryable = _context.QuantitySheets.AsQueryable();
+
+            if (groupId.HasValue)
+            {
+                var projectIdsInGroup = _context.Projects
+                    .Where(p => p.GroupId == groupId)
+                    .Select(p => p.ProjectId);
+
+                queryable = queryable.Where(q => projectIdsInGroup.Contains(q.ProjectId));
+            }
+
+            if (projectId.HasValue)
+            {
+                queryable = queryable.Where(q => q.ProjectId == projectId);
+            }
+
+            var totalRecords = await queryable
                 .CountAsync(q => q.CatchNo.StartsWith(query) ||
                                 q.Subject.StartsWith(query) ||
                                 q.Course.StartsWith(query) ||
                                 (q.Paper != null && q.Paper.StartsWith(query)));
 
-            var results = await _context.QuantitySheets
+            var results = await queryable
                 .Where(q => q.CatchNo.StartsWith(query) ||
                             q.Subject.StartsWith(query) ||
                             q.Course.StartsWith(query) ||
@@ -331,9 +352,8 @@ namespace ERPAPI.Controllers
                 .Select(q => new
                 {
                     q.CatchNo,
-                    
-                    ProjectName = _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.Name).FirstOrDefault(),
-                    GroupName = _context.Groups.Where(g => g.Id == _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.GroupId).FirstOrDefault()).Select(g => g.Name).FirstOrDefault(),
+                    //ProjectName = _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.Name).FirstOrDefault(),
+                    //GroupName = _context.Groups.Where(g => g.Id == _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.GroupId).FirstOrDefault()).Select(g => g.Name).FirstOrDefault(),
                     MatchedColumn = q.CatchNo.StartsWith(query) ? "CatchNo" :
                                     q.Subject.StartsWith(query) ? "Subject" :
                                     q.Course.StartsWith(query) ? "Course" : "Paper",
@@ -347,6 +367,7 @@ namespace ERPAPI.Controllers
 
             return Ok(new { TotalRecords = totalRecords, Results = results });
         }
+
 
 
         [HttpGet("GetQuantitySheetsByCatchNo/{catchNo}")]
@@ -486,6 +507,7 @@ namespace ERPAPI.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "An error occurred.", Details = ex.Message });
             }
         }
+
         [HttpGet("process-wise/{catchNo}")]
         public async Task<IActionResult> GetProcessWiseData(string catchNo)
         {
