@@ -507,6 +507,75 @@ namespace ERPAPI.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "An error occurred.", Details = ex.Message });
             }
         }
+
+
+        /* [HttpGet("process-wise/{catchNo}")]
+         public async Task<IActionResult> GetProcessWiseData(string catchNo)
+         {
+             var quantitySheet = await _context.QuantitySheets
+                 .Where(q => q.CatchNo == catchNo)
+                 .Select(q => new { q.QuantitySheetId, q.ProcessId, q.ProjectId })
+                 .FirstOrDefaultAsync();
+
+             if (quantitySheet == null)
+             {
+                 return NotFound("No data found for the given CatchNo.");
+             }
+
+             var projectProcesses = await _context.ProjectProcesses
+                 .Where(pp => pp.ProjectId == quantitySheet.ProjectId)
+                 .ToListAsync();
+
+             var transactions = await _context.Transaction
+                 .Where(t => t.QuantitysheetId == quantitySheet.QuantitySheetId)
+                 .ToListAsync();
+
+
+             var teamIds = transactions.SelectMany(t => t.TeamId).Distinct().ToList();
+             var teams = await _context.Teams
+                 .Where(team => teamIds.Contains(team.TeamId))
+                 .ToListAsync();
+             var userIds = teams.SelectMany(t => t.UserIds).Distinct().ToList();
+             var users = await _context.Users
+                 .Where(u => userIds.Contains(u.UserId))
+                 .ToListAsync();
+             var roles = await _context.Roles
+                 .ToListAsync();
+             var machines = await _context.Machine
+                 .ToListAsync();
+
+             var processWiseData = projectProcesses.ToDictionary(pp => pp.ProcessId, pp => transactions
+                 .Where(t => t.ProcessId == pp.ProcessId)
+                 .Select(t => new
+                 {
+                     ZoneDescription = _context.Zone.Where(z => z.ZoneId == t.ZoneId).Select(z => z.ZoneDescription).FirstOrDefault(),
+                     TeamDetails = teams
+                                  .Where(team => t.TeamId.Contains(team.TeamId))
+                                  .Select(team => new
+                                  {
+                                      team.TeamName,
+                                      UserDetails = users.Where(u => team.UserIds.Contains(u.UserId))
+                                          .Select(u => new
+                                          {
+                                              FullName = u.FirstName + " " + u.LastName,
+                                              RoleName = roles.Where(r => r.RoleId == u.RoleId).Select(r => r.RoleName).FirstOrDefault()
+                                          })
+                                          .ToList()
+                                  })
+                                  .ToList(),
+                     Users = _context.Users.Where(user => pp.UserId.Contains(user.UserId)).Select(u => new
+                     {
+                         FullName = u.FirstName + " " + u.LastName,
+                         RoleID = u.RoleId
+                     }).ToList(),
+                     t.Status,
+                     MachineName = machines.Where(m => m.MachineId == t.MachineId).Select(m => m.MachineName).FirstOrDefault()
+                 }).ToList());
+
+             return Ok(processWiseData);
+         }
+ */
+
         [HttpGet("process-wise/{catchNo}")]
         public async Task<IActionResult> GetProcessWiseData(string catchNo)
         {
@@ -527,49 +596,36 @@ namespace ERPAPI.Controllers
             var transactions = await _context.Transaction
                 .Where(t => t.QuantitysheetId == quantitySheet.QuantitySheetId)
                 .ToListAsync();
-            
-
-            var teamIds = transactions.SelectMany(t => t.TeamId).Distinct().ToList();
-            var teams = await _context.Teams
-                .Where(team => teamIds.Contains(team.TeamId))
-                .ToListAsync();
-            var userIds = teams.SelectMany(t => t.UserIds).Distinct().ToList();
-            var users = await _context.Users
-                .Where(u => userIds.Contains(u.UserId))
-                .ToListAsync();
-            var roles = await _context.Roles
-                .ToListAsync();
-            var machines = await _context.Machine
-                .ToListAsync();
 
             var processWiseData = projectProcesses.ToDictionary(pp => pp.ProcessId, pp => transactions
                 .Where(t => t.ProcessId == pp.ProcessId)
                 .Select(t => new
                 {
                     ZoneDescription = _context.Zone.Where(z => z.ZoneId == t.ZoneId).Select(z => z.ZoneDescription).FirstOrDefault(),
-                    TeamDetails = teams
-                                 .Where(team => t.TeamId.Contains(team.TeamId))
-                                 .Select(team => new
-                                 {
-                                     team.TeamName,
-                                     UserDetails = users.Where(u => team.UserIds.Contains(u.UserId))
-                                         .Select(u => new {
-                                             FullName = u.FirstName + " " + u.LastName,
-                                             RoleName = roles.Where(r => r.RoleId == u.RoleId).Select(r => r.RoleName).FirstOrDefault()
-                                         })
-                                         .ToList()
-                                 })
-                                 .ToList(),
-                    Users = _context.Users.Where(user => pp.UserId.Contains(user.UserId)).Select(u => new {
-                        FullName = u.FirstName + " " + u.LastName,
-                        RoleID = u.RoleId
-                    }).ToList(),
-            t.Status,
-                    MachineName = machines.Where(m => m.MachineId == t.MachineId).Select(m => m.MachineName).FirstOrDefault()
+                   // TeamIds = t.TeamId, 
+                    TeamMembers = _context.Users
+                .Where(u => t.TeamId.Contains(u.UserId))
+                .Select(u => new
+                {
+                    FullName = u.FirstName + " " + u.LastName,
+                    //RoleID = u.RoleId
+                }).ToList(),
+                    Supervisor = _context.Users
+                .Where(user => pp.UserId.Contains(user.UserId) && user.RoleId == 5)
+                .Select(u => new
+                {
+                    FullName = u.FirstName + " " + u.LastName,
+                    //RoleID = u.RoleId
+                }).ToList(),
+                    t.Status,
+                    MachineName = _context.Machine.Where(m => m.MachineId == t.MachineId).Select(m => m.MachineName).FirstOrDefault()
                 }).ToList());
 
             return Ok(processWiseData);
         }
+
+
+
 
     }
 }
