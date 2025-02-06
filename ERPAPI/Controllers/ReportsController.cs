@@ -671,39 +671,46 @@ namespace ERPAPI.Controllers
     .OrderBy(pp => pp.Sequence)
     .ToList();
 
-            var processWiseData = filteredProjectProcesses.ToDictionary(pp => pp.ProcessId, pp => transactions
-    .Where(t => t.ProcessId == pp.ProcessId)
-    .Select(t => new
+            var processWiseData = filteredProjectProcesses
+    .OrderBy(pp => pp.Sequence) // Ensure ordering before transformation
+    .Select(pp => new
     {
-        TransactionId = t.TransactionId,
-        ZoneDescription = _context.Zone
-            .Where(z => z.ZoneId == t.ZoneId)
-            .Select(z => z.ZoneDescription)
-            .FirstOrDefault(),
-        TeamMembers = _context.Users
-            .Where(u => t.TeamId.Contains(u.UserId))
-            .Select(u => new { FullName = u.FirstName + " " + u.LastName })
-            .ToList(),
-        Supervisor = _context.Users
-            .Where(user => pp.UserId.Contains(user.UserId) && user.RoleId == 5)
-            .Select(u => new { FullName = u.FirstName + " " + u.LastName })
-            .ToList(),
-        t.Status,
-        MachineName = _context.Machine
-            .Where(m => m.MachineId == t.MachineId)
-            .Select(m => m.MachineName)
-            .FirstOrDefault(),
-        StartTime = eventLogs
-            .Where(e => e.TransactionId == t.TransactionId)
-            .OrderBy(e => e.LoggedAT)
-            .Select(e => (DateTime?)e.LoggedAT)
-            .FirstOrDefault(),
-        EndTime = eventLogs
-            .Where(e => e.TransactionId == t.TransactionId)
-            .OrderByDescending(e => e.LoggedAT)
-            .Select(e => (DateTime?)e.LoggedAT)
-            .FirstOrDefault(),
-    }).ToList());
+        ProcessId = pp.ProcessId,
+        Transactions = transactions
+            .Where(t => t.ProcessId == pp.ProcessId)
+            .Select(t => new
+            {
+                TransactionId = t.TransactionId,
+                ZoneDescription = _context.Zone
+                    .Where(z => z.ZoneId == t.ZoneId)
+                    .Select(z => z.ZoneDescription)
+                    .FirstOrDefault(),
+                TeamMembers = _context.Users
+                    .Where(u => t.TeamId.Contains(u.UserId))
+                    .Select(u => new { FullName = u.FirstName + " " + u.LastName })
+                    .ToList(),
+                Supervisor = _context.Users
+                    .Where(user => pp.UserId.Contains(user.UserId) && user.RoleId == 5)
+                    .Select(u => new { FullName = u.FirstName + " " + u.LastName })
+                    .ToList(),
+                t.Status,
+                MachineName = _context.Machine
+                    .Where(m => m.MachineId == t.MachineId)
+                    .Select(m => m.MachineName)
+                    .FirstOrDefault(),
+                StartTime = eventLogs
+                    .Where(e => e.TransactionId == t.TransactionId)
+                    .OrderBy(e => e.LoggedAT)
+                    .Select(e => (DateTime?)e.LoggedAT)
+                    .FirstOrDefault(),
+                EndTime = eventLogs
+                    .Where(e => e.TransactionId == t.TransactionId)
+                    .OrderByDescending(e => e.LoggedAT)
+                    .Select(e => (DateTime?)e.LoggedAT)
+                    .FirstOrDefault(),
+            }).ToList()
+    })
+    .ToList(); // Convert to List to maintain order
 
             return Ok(processWiseData);
         }
