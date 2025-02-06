@@ -576,7 +576,7 @@ namespace ERPAPI.Controllers
          }
  */
 
-        [HttpGet("process-wise/{catchNo}")]
+        /*[HttpGet("process-wise/{catchNo}")]
         public async Task<IActionResult> GetProcessWiseData(string catchNo)
         {
             var quantitySheet = await _context.QuantitySheets
@@ -597,32 +597,118 @@ namespace ERPAPI.Controllers
                 .Where(t => t.QuantitysheetId == quantitySheet.QuantitySheetId)
                 .ToListAsync();
 
+            var eventLogs = await _context.EventLogs
+                .Where(e => transactions.Select(t => t.TransactionId).Contains(e.TransactionId.Value) && e.Event == "Status updated")
+                .ToListAsync();
+
             var processWiseData = projectProcesses.ToDictionary(pp => pp.ProcessId, pp => transactions
                 .Where(t => t.ProcessId == pp.ProcessId)
                 .Select(t => new
                 {
+                   
                     ZoneDescription = _context.Zone.Where(z => z.ZoneId == t.ZoneId).Select(z => z.ZoneDescription).FirstOrDefault(),
-                   // TeamIds = t.TeamId, 
                     TeamMembers = _context.Users
-                .Where(u => t.TeamId.Contains(u.UserId))
-                .Select(u => new
-                {
-                    FullName = u.FirstName + " " + u.LastName,
-                    //RoleID = u.RoleId
-                }).ToList(),
+                        .Where(u => t.TeamId.Contains(u.UserId))
+                        .Select(u => new
+                        {
+                            FullName = u.FirstName + " " + u.LastName
+                        }).ToList(),
                     Supervisor = _context.Users
-                .Where(user => pp.UserId.Contains(user.UserId) && user.RoleId == 5)
-                .Select(u => new
-                {
-                    FullName = u.FirstName + " " + u.LastName,
-                    //RoleID = u.RoleId
-                }).ToList(),
+                        .Where(user => pp.UserId.Contains(user.UserId) && user.RoleId == 5)
+                        .Select(u => new
+                        {
+                            FullName = u.FirstName + " " + u.LastName
+                        }).ToList(),
                     t.Status,
-                    MachineName = _context.Machine.Where(m => m.MachineId == t.MachineId).Select(m => m.MachineName).FirstOrDefault()
+                    MachineName = _context.Machine.Where(m => m.MachineId == t.MachineId).Select(m => m.MachineName).FirstOrDefault(),
+                    StartTime = eventLogs
+                        .Where(e => e.TransactionId == t.TransactionId && e.Event == "Status updated")
+                        .OrderBy(e => e.LoggedAT)
+                        .Select(e => (DateTime?)e.LoggedAT)
+                        .FirstOrDefault(),
+                    EndTime = eventLogs
+                        .Where(e => e.TransactionId == t.TransactionId && e.Event == "Status updated")
+                        .OrderByDescending(e => e.LoggedAT)
+                        .Select(e => (DateTime?)e.LoggedAT)
+                        .FirstOrDefault()
                 }).ToList());
 
             return Ok(processWiseData);
         }
+*/
+
+
+        [HttpGet("process-wise/{catchNo}")]
+        public async Task<IActionResult> GetProcessWiseData(string catchNo)
+        {
+            // Get the ProjectId of the entered CatchNo from the QuantitySheet table
+            var quantitySheet = await _context.QuantitySheets
+                .Where(q => q.CatchNo == catchNo)
+                .Select(q => new { q.QuantitySheetId, q.ProcessId, q.ProjectId })
+                .FirstOrDefaultAsync();
+
+            if (quantitySheet == null)
+            {
+                return NotFound("No data found for the given CatchNo.");
+            }
+
+            // Get the sequence of the ProjectId from the ProjectProcess table
+            var projectProcesses = await _context.ProjectProcesses
+                .Where(pp => pp.ProjectId == quantitySheet.ProjectId)
+                .OrderBy(pp => pp.Sequence)
+                .ToListAsync();
+
+            var transactions = await _context.Transaction
+                .Where(t => t.QuantitysheetId == quantitySheet.QuantitySheetId)
+                .ToListAsync();
+
+            var eventLogs = await _context.EventLogs
+                .Where(e => transactions.Select(t => t.TransactionId).Contains(e.TransactionId.Value) && e.Event == "Status updated")
+                .ToListAsync();
+
+            var filteredProjectProcesses = projectProcesses
+    .Where(pp => transactions.Any(t => t.ProcessId == pp.ProcessId))
+    .OrderBy(pp => pp.Sequence)
+    .ToList();
+
+            var processWiseData = filteredProjectProcesses.ToDictionary(pp => pp.ProcessId, pp => transactions
+    .Where(t => t.ProcessId == pp.ProcessId)
+    .Select(t => new
+    {
+        TransactionId = t.TransactionId,
+        ZoneDescription = _context.Zone
+            .Where(z => z.ZoneId == t.ZoneId)
+            .Select(z => z.ZoneDescription)
+            .FirstOrDefault(),
+        TeamMembers = _context.Users
+            .Where(u => t.TeamId.Contains(u.UserId))
+            .Select(u => new { FullName = u.FirstName + " " + u.LastName })
+            .ToList(),
+        Supervisor = _context.Users
+            .Where(user => pp.UserId.Contains(user.UserId) && user.RoleId == 5)
+            .Select(u => new { FullName = u.FirstName + " " + u.LastName })
+            .ToList(),
+        t.Status,
+        MachineName = _context.Machine
+            .Where(m => m.MachineId == t.MachineId)
+            .Select(m => m.MachineName)
+            .FirstOrDefault(),
+        StartTime = eventLogs
+            .Where(e => e.TransactionId == t.TransactionId)
+            .OrderBy(e => e.LoggedAT)
+            .Select(e => (DateTime?)e.LoggedAT)
+            .FirstOrDefault(),
+        EndTime = eventLogs
+            .Where(e => e.TransactionId == t.TransactionId)
+            .OrderByDescending(e => e.LoggedAT)
+            .Select(e => (DateTime?)e.LoggedAT)
+            .FirstOrDefault(),
+    }).ToList());
+
+            return Ok(processWiseData);
+        }
+
+
 
 
 
