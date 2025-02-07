@@ -352,8 +352,8 @@ namespace ERPAPI.Controllers
                 .Select(q => new
                 {
                     q.CatchNo,
-                    //ProjectName = _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.Name).FirstOrDefault(),
-                    //GroupName = _context.Groups.Where(g => g.Id == _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.GroupId).FirstOrDefault()).Select(g => g.Name).FirstOrDefault(),
+                    ProjectName = _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.Name).FirstOrDefault(),
+                    GroupName = _context.Groups.Where(g => g.Id == _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.GroupId).FirstOrDefault()).Select(g => g.Name).FirstOrDefault(),
                     MatchedColumn = q.CatchNo.StartsWith(query) ? "CatchNo" :
                                     q.Subject.StartsWith(query) ? "Subject" :
                                     q.Course.StartsWith(query) ? "Course" : "Paper",
@@ -470,10 +470,10 @@ namespace ERPAPI.Controllers
                                                      // Grouped Transaction Data
                         TransactionData = new
                         {
-                            ZoneDescriptions = relatedTransactions
+                            ZoneName = relatedTransactions
                                 .Select(t => t.ZoneId)
                                 .Distinct()
-                                .Select(zoneId => allZones.FirstOrDefault(z => z.ZoneId == zoneId)?.ZoneDescription)
+                                .Select(zoneId => allZones.FirstOrDefault(z => z.ZoneId == zoneId)?.ZoneNo)
                                 .Where(description => description != null)
                                 .ToList(),
                             TeamDetails = relatedTransactions
@@ -681,9 +681,9 @@ namespace ERPAPI.Controllers
             .Select(t => new
             {
                 TransactionId = t.TransactionId,
-                ZoneDescription = _context.Zone
+                ZoneName = _context.Zone
                     .Where(z => z.ZoneId == t.ZoneId)
-                    .Select(z => z.ZoneDescription)
+                    .Select(z => z.ZoneNo)
                     .FirstOrDefault(),
                 TeamMembers = _context.Users
                     .Where(u => t.TeamId.Contains(u.UserId))
