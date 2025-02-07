@@ -664,7 +664,20 @@ namespace ERPAPI.Controllers
 
             var eventLogs = await _context.EventLogs
                 .Where(e => transactions.Select(t => t.TransactionId).Contains(e.TransactionId.Value) && e.Event == "Status updated")
+                .Select(e => new { e.TransactionId, e.LoggedAT, e.EventTriggeredBy })
                 .ToListAsync();
+
+            var supervisorLogs = await _context.EventLogs
+        .Where(e => transactions.Select(t => t.TransactionId).Contains(e.TransactionId.Value))
+        .GroupBy(e => e.TransactionId)
+        .Select(g => new
+        {
+            TransactionId = g.Key,
+            EventTriggeredBy = g.Select(e => e.EventTriggeredBy).FirstOrDefault()
+        })
+        .ToListAsync();
+
+            var users = await _context.Users.ToListAsync();
 
             var filteredProjectProcesses = projectProcesses
     .Where(pp => transactions.Any(t => t.ProcessId == pp.ProcessId))
@@ -689,11 +702,18 @@ namespace ERPAPI.Controllers
                     .Where(u => t.TeamId.Contains(u.UserId))
                     .Select(u => new { FullName = u.FirstName + " " + u.LastName })
                     .ToList(),
-                Supervisor = _context.Users
+                /*Supervisor = _context.Users
                     .Where(user => pp.UserId.Contains(user.UserId) && user.RoleId == 5)
                     .Select(u => new { FullName = u.FirstName + " " + u.LastName })
                     .ToList(),
-                t.Status,
+                t.Status,*/
+                Supervisor = users
+                        .Where(u => u.UserId == supervisorLogs
+                            .Where(s => s.TransactionId == t.TransactionId)
+                            .Select(s => s.EventTriggeredBy)
+                            .FirstOrDefault())
+                        .Select(u => u.FirstName + " " + u.LastName)
+                        .FirstOrDefault(),
                 MachineName = _context.Machine
                     .Where(m => m.MachineId == t.MachineId)
                     .Select(m => m.MachineName)
@@ -708,7 +728,10 @@ namespace ERPAPI.Controllers
                     .OrderByDescending(e => e.LoggedAT)
                     .Select(e => (DateTime?)e.LoggedAT)
                     .FirstOrDefault(),
+               
             }).ToList()
+
+
     })
     .ToList(); // Convert to List to maintain order
 
