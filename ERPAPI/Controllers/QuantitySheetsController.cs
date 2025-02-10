@@ -208,7 +208,7 @@ public class QuantitySheetController : ControllerBase
 
         // Find all records that belong to the given lot
         var quantitySheets = await _context.QuantitySheets
-            .Where(q => q.LotNo == request.LotNo)
+            .Where(q => q.LotNo == request.LotNo && q.ProjectId == request.ProjectId)
             .ToListAsync();
 
         if (quantitySheets == null || quantitySheets.Count == 0)
@@ -231,6 +231,7 @@ public class QuantitySheetController : ControllerBase
     public class LotRequest
     {
         public string LotNo { get; set; }
+        public int ProjectId { get; set; }
     }
 
 
@@ -458,18 +459,21 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-  
 
 
+/*
     [HttpPut]
     public async Task<IActionResult> UpdateQuantitySheet([FromBody] List<QuantitySheet> newSheets)
     {
         if (newSheets == null || !newSheets.Any())
         {
+            Console.WriteLine("No data provided.");
             return BadRequest("No data provided.");
         }
 
         var projectId = newSheets.First().ProjectId;
+        Console.WriteLine($"ProjectId retrieved: {projectId}");
+
         var project = await _context.Projects
             .Where(p => p.ProjectId == projectId)
             .Select(p => new { p.TypeId, p.NoOfSeries })
@@ -477,24 +481,34 @@ public class QuantitySheetController : ControllerBase
 
         if (project == null)
         {
+            Console.WriteLine("Project not found.");
             return BadRequest("Project not found.");
         }
 
         var projectTypeId = project.TypeId;
+        Console.WriteLine($"Project TypeId: {projectTypeId}");
+
         var projectType = await _context.Types
             .Where(t => t.TypeId == projectTypeId)
             .Select(t => t.Types)
             .FirstOrDefaultAsync();
 
+        Console.WriteLine($"Project Type: {projectType}");
+
         // Adjust for "Booklet" type project if necessary
         if (projectType == "Booklet" && project.NoOfSeries.HasValue)
         {
             var noOfSeries = project.NoOfSeries.Value;
+            Console.WriteLine($"NoOfSeries: {noOfSeries}");
+
             var adjustedSheets = new List<QuantitySheet>();
 
             foreach (var sheet in newSheets)
             {
+                // Divide the quantity by the NoOfSeries for each sheet in a Booklet
                 var adjustedQuantity = sheet.Quantity / noOfSeries;
+                Console.WriteLine($"Adjusted Quantity for {sheet.CatchNo}: {adjustedQuantity}");
+
                 for (int i = 0; i < noOfSeries; i++)
                 {
                     var newSheet = new QuantitySheet
@@ -506,7 +520,7 @@ public class QuantitySheetController : ControllerBase
                         InnerEnvelope = sheet.InnerEnvelope,
                         OuterEnvelope = sheet.OuterEnvelope,
                         LotNo = sheet.LotNo,
-                        Quantity = adjustedQuantity,
+                        Quantity = adjustedQuantity,  // Adjusted quantity per series
                         PercentageCatch = 0, // Will be recalculated later
                         ProjectId = sheet.ProjectId,
                         ExamDate = sheet.ExamDate,
@@ -519,12 +533,15 @@ public class QuantitySheetController : ControllerBase
             }
 
             newSheets = adjustedSheets; // Replace with adjusted sheets
+            Console.WriteLine("Sheets adjusted for booklet project.");
         }
 
         // Get existing sheets for the same projectId
         var existingSheets = await _context.QuantitySheets
             .Where(s => s.ProjectId == projectId)
             .ToListAsync();
+
+        Console.WriteLine($"Existing sheets for projectId {projectId}: {existingSheets.Count}");
 
         // Prepare a list to track new sheets that need to be processed
         var processedNewSheets = new List<QuantitySheet>();
@@ -533,6 +550,7 @@ public class QuantitySheetController : ControllerBase
         {
             // For new sheets, clear the ProcessId and process it
             sheet.ProcessId.Clear();
+            Console.WriteLine($"Processing sheet for CatchNo: {sheet.CatchNo}");
             _processService.ProcessCatch(sheet);
             processedNewSheets.Add(sheet);
         }
@@ -541,27 +559,56 @@ public class QuantitySheetController : ControllerBase
         foreach (var newSheet in processedNewSheets)
         {
             var existingSheet = existingSheets
-                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.StopCatch == 0);
+                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.CatchNo == newSheet.CatchNo && s.StopCatch == 0);
 
             if (existingSheet != null)
             {
-                // Update the existing sheet
-                existingSheet.CatchNo = newSheet.CatchNo;
-                existingSheet.Paper = newSheet.Paper;
-                existingSheet.Course = newSheet.Course;
-                existingSheet.Subject = newSheet.Subject;
-                existingSheet.InnerEnvelope = newSheet.InnerEnvelope;
-                existingSheet.OuterEnvelope = newSheet.OuterEnvelope;
-                existingSheet.Quantity = newSheet.Quantity;
-                existingSheet.PercentageCatch = newSheet.PercentageCatch;
-                existingSheet.ExamDate = newSheet.ExamDate;
-                existingSheet.ExamTime = newSheet.ExamTime;
-                existingSheet.ProcessId = newSheet.ProcessId;
-                existingSheet.StopCatch = newSheet.StopCatch;
+                Console.WriteLine($"Found existing sheet for CatchNo: {newSheet.CatchNo}");
+
+                // Only update fields where new data is present
+                if (!string.IsNullOrEmpty(newSheet.Paper)) existingSheet.Paper = newSheet.Paper;
+                if (!string.IsNullOrEmpty(newSheet.Course)) existingSheet.Course = newSheet.Course;
+                if (!string.IsNullOrEmpty(newSheet.Subject)) existingSheet.Subject = newSheet.Subject;
+                if (!string.IsNullOrEmpty(newSheet.InnerEnvelope)) existingSheet.InnerEnvelope = newSheet.InnerEnvelope;
+                if (newSheet.OuterEnvelope > 0) existingSheet.OuterEnvelope = newSheet.OuterEnvelope;
+                if (!string.IsNullOrEmpty(newSheet.ExamDate)) existingSheet.ExamDate = newSheet.ExamDate;
+                if (!string.IsNullOrEmpty(newSheet.ExamTime)) existingSheet.ExamTime = newSheet.ExamTime;
+                if (newSheet.Quantity > 0) existingSheet.Quantity = newSheet.Quantity;
+                if (newSheet.Pages > 0) existingSheet.Pages = newSheet.Pages;
+
+                // If project is a "Booklet", update all matching CatchNo in the same LotNo
+                if (projectType == "Booklet")
+                {
+                    // Find all sheets with the same LotNo and CatchNo
+                    var matchingSheets = existingSheets
+                        .Where(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.CatchNo == newSheet.CatchNo && s.StopCatch == 0)
+                        .ToList();
+
+                    Console.WriteLine($"Found {matchingSheets.Count} matching sheets for CatchNo: {newSheet.CatchNo}");
+
+                    // Now update the Quantity for all matching sheets, divide by NoOfSeries
+                    var totalQuantity = newSheet.Quantity;
+
+
+                    foreach (var matchingSheet in matchingSheets)
+                    {
+                        matchingSheet.Quantity = totalQuantity;
+
+                        // Update other fields as necessary
+                        if (!string.IsNullOrEmpty(newSheet.Paper)) matchingSheet.Paper = newSheet.Paper;
+                        if (!string.IsNullOrEmpty(newSheet.Course)) matchingSheet.Course = newSheet.Course;
+                        if (!string.IsNullOrEmpty(newSheet.Subject)) matchingSheet.Subject = newSheet.Subject;
+                        if (!string.IsNullOrEmpty(newSheet.InnerEnvelope)) matchingSheet.InnerEnvelope = newSheet.InnerEnvelope;
+                        if (newSheet.OuterEnvelope > 0) matchingSheet.OuterEnvelope = newSheet.OuterEnvelope;
+                        if (!string.IsNullOrEmpty(newSheet.ExamDate)) matchingSheet.ExamDate = newSheet.ExamDate;
+                        if (!string.IsNullOrEmpty(newSheet.ExamTime)) matchingSheet.ExamTime = newSheet.ExamTime;
+                    }
+                }
             }
             else
             {
-                // If no existing sheet found, add it to the context for insertion
+                // If no existing sheet found for this CatchNo, add it to the context for insertion
+                Console.WriteLine($"No existing sheet found for CatchNo: {newSheet.CatchNo}. Adding new sheet.");
                 _context.QuantitySheets.Add(newSheet);
             }
         }
@@ -573,9 +620,11 @@ public class QuantitySheetController : ControllerBase
         foreach (var group in groupedSheets)
         {
             double totalQuantityForLot = group.Sum(sheet => sheet.Quantity);
+            Console.WriteLine($"Total quantity for LotNo {group.Key}: {totalQuantityForLot}");
 
             if (totalQuantityForLot == 0)
             {
+                Console.WriteLine($"Total quantity for lot {group.Key} is zero, cannot calculate percentages.");
                 return BadRequest($"Total quantity for lot {group.Key} is zero, cannot calculate percentages.");
             }
 
@@ -583,13 +632,198 @@ public class QuantitySheetController : ControllerBase
             foreach (var sheet in group)
             {
                 sheet.PercentageCatch = (sheet.Quantity / totalQuantityForLot) * 100;
+                Console.WriteLine($"Calculated percentage for CatchNo {sheet.CatchNo}: {sheet.PercentageCatch}%");
             }
         }
 
         await _context.SaveChangesAsync();
+        Console.WriteLine("Changes saved to the database.");
 
         return Ok(processedNewSheets);
     }
+*/
+
+
+        [HttpPut]
+    public async Task<IActionResult> UpdateQuantitySheet([FromBody] List<QuantitySheet> newSheets)
+    {
+        if (newSheets == null || !newSheets.Any())
+        {
+            Console.WriteLine("No data provided.");
+            return BadRequest("No data provided.");
+        }
+
+        var projectId = newSheets.First().ProjectId;
+        Console.WriteLine($"ProjectId retrieved: {projectId}");
+
+        var project = await _context.Projects
+            .Where(p => p.ProjectId == projectId)
+            .Select(p => new { p.TypeId, p.NoOfSeries })
+            .FirstOrDefaultAsync();
+
+        if (project == null)
+        {
+            Console.WriteLine("Project not found.");
+            return BadRequest("Project not found.");
+        }
+
+        var projectTypeId = project.TypeId;
+        Console.WriteLine($"Project TypeId: {projectTypeId}");
+
+        var projectType = await _context.Types
+            .Where(t => t.TypeId == projectTypeId)
+            .Select(t => t.Types)
+            .FirstOrDefaultAsync();
+
+        Console.WriteLine($"Project Type: {projectType}");
+
+        // Adjust for "Booklet" type project if necessary
+        if (projectType == "Booklet" && project.NoOfSeries.HasValue)
+        {
+            var noOfSeries = project.NoOfSeries.Value;
+            Console.WriteLine($"NoOfSeries: {noOfSeries}");
+
+            var adjustedSheets = new List<QuantitySheet>();
+
+            foreach (var sheet in newSheets)
+            {
+                // Divide the quantity by the NoOfSeries for each sheet in a Booklet
+                var adjustedQuantity = sheet.Quantity / noOfSeries;
+                Console.WriteLine($"Adjusted Quantity for {sheet.CatchNo}: {adjustedQuantity}");
+
+                for (int i = 0; i < noOfSeries; i++)
+                {
+                    var newSheet = new QuantitySheet
+                    {
+                        CatchNo = sheet.CatchNo,
+                        Paper = sheet.Paper,
+                        Course = sheet.Course,
+                        Subject = sheet.Subject,
+                        InnerEnvelope = sheet.InnerEnvelope,
+                        OuterEnvelope = sheet.OuterEnvelope,
+                        LotNo = sheet.LotNo,
+                        Quantity = adjustedQuantity,  // Adjusted quantity per series
+                        PercentageCatch = 0, // Will be recalculated later
+                        ProjectId = sheet.ProjectId,
+                        ExamDate = sheet.ExamDate,
+                        ExamTime = sheet.ExamTime,
+                        ProcessId = new List<int>(), // Empty list for new catch
+                        StopCatch = 0,
+                    };
+                    adjustedSheets.Add(newSheet);
+                }
+            }
+
+            newSheets = adjustedSheets; // Replace with adjusted sheets
+            Console.WriteLine("Sheets adjusted for booklet project.");
+        }
+
+        // Get existing sheets for the same projectId
+        var existingSheets = await _context.QuantitySheets
+            .Where(s => s.ProjectId == projectId)
+            .ToListAsync();
+
+        Console.WriteLine($"Existing sheets for projectId {projectId}: {existingSheets.Count}");
+
+        // Prepare a list to track new sheets that need to be processed
+        var processedNewSheets = new List<QuantitySheet>();
+
+        foreach (var sheet in newSheets)
+        {
+            // For new sheets, clear the ProcessId and process it
+            sheet.ProcessId.Clear();
+            Console.WriteLine($"Processing sheet for CatchNo: {sheet.CatchNo}");
+            _processService.ProcessCatch(sheet);
+            processedNewSheets.Add(sheet);
+        }
+
+        // Now handle inserting or updating the QuantitySheets based on ProjectId
+        foreach (var newSheet in processedNewSheets)
+        {
+            var existingSheet = existingSheets
+                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.CatchNo == newSheet.CatchNo && s.StopCatch == 0);
+
+            if (existingSheet != null)
+            {
+                Console.WriteLine($"Found existing sheet for CatchNo: {newSheet.CatchNo}");
+
+                // Only update fields where new data is present
+                if (!string.IsNullOrEmpty(newSheet.Paper)) existingSheet.Paper = newSheet.Paper;
+                if (!string.IsNullOrEmpty(newSheet.Course)) existingSheet.Course = newSheet.Course;
+                if (!string.IsNullOrEmpty(newSheet.Subject)) existingSheet.Subject = newSheet.Subject;
+                if (!string.IsNullOrEmpty(newSheet.InnerEnvelope)) existingSheet.InnerEnvelope = newSheet.InnerEnvelope;
+                if (newSheet.OuterEnvelope > 0) existingSheet.OuterEnvelope = newSheet.OuterEnvelope;
+                if (!string.IsNullOrEmpty(newSheet.ExamDate)) existingSheet.ExamDate = newSheet.ExamDate;
+                if (!string.IsNullOrEmpty(newSheet.ExamTime)) existingSheet.ExamTime = newSheet.ExamTime;
+                if (newSheet.Quantity > 0) existingSheet.Quantity = newSheet.Quantity;
+                if (newSheet.Pages > 0) existingSheet.Pages = newSheet.Pages;
+
+                // If project is a "Booklet", update all matching CatchNo in the same LotNo
+                if (projectType == "Booklet")
+                {
+                    // Find all sheets with the same LotNo and CatchNo
+                    var matchingSheets = existingSheets
+                        .Where(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.CatchNo == newSheet.CatchNo && s.StopCatch == 0)
+                        .ToList();
+
+                    Console.WriteLine($"Found {matchingSheets.Count} matching sheets for CatchNo: {newSheet.CatchNo}");
+
+                    // Now update the Quantity for all matching sheets, divide by NoOfSeries
+                    var totalQuantity = newSheet.Quantity;
+                   
+
+                    foreach (var matchingSheet in matchingSheets)
+                    {
+                        matchingSheet.Quantity = totalQuantity;
+
+                        // Update other fields as necessary
+                        if (!string.IsNullOrEmpty(newSheet.Paper)) matchingSheet.Paper = newSheet.Paper;
+                        if (!string.IsNullOrEmpty(newSheet.Course)) matchingSheet.Course = newSheet.Course;
+                        if (!string.IsNullOrEmpty(newSheet.Subject)) matchingSheet.Subject = newSheet.Subject;
+                        if (!string.IsNullOrEmpty(newSheet.InnerEnvelope)) matchingSheet.InnerEnvelope = newSheet.InnerEnvelope;
+                        if (newSheet.OuterEnvelope > 0) matchingSheet.OuterEnvelope = newSheet.OuterEnvelope;
+                        if (!string.IsNullOrEmpty(newSheet.ExamDate)) matchingSheet.ExamDate = newSheet.ExamDate;
+                        if (!string.IsNullOrEmpty(newSheet.ExamTime)) matchingSheet.ExamTime = newSheet.ExamTime;
+                    }
+                }
+            }
+            else
+            {
+                // If no existing sheet found for this CatchNo, add it to the context for insertion
+                Console.WriteLine($"No existing sheet found for CatchNo: {newSheet.CatchNo}. Adding new sheet.");
+                _context.QuantitySheets.Add(newSheet);
+            }
+        }
+
+        // Recalculate the percentages and save
+        var allSheets = existingSheets.Concat(processedNewSheets).ToList();
+        var groupedSheets = allSheets.GroupBy(sheet => sheet.LotNo);
+
+        foreach (var group in groupedSheets)
+        {
+            double totalQuantityForLot = group.Sum(sheet => sheet.Quantity);
+            Console.WriteLine($"Total quantity for LotNo {group.Key}: {totalQuantityForLot}");
+
+            if (totalQuantityForLot == 0)
+            {
+                Console.WriteLine($"Total quantity for lot {group.Key} is zero, cannot calculate percentages.");
+                return BadRequest($"Total quantity for lot {group.Key} is zero, cannot calculate percentages.");
+            }
+
+            // Calculate percentage catch for each sheet in the current group
+            foreach (var sheet in group)
+            {
+                sheet.PercentageCatch = (sheet.Quantity / totalQuantityForLot) * 100;
+                Console.WriteLine($"Calculated percentage for CatchNo {sheet.CatchNo}: {sheet.PercentageCatch}%");
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        Console.WriteLine("Changes saved to the database.");
+
+        return Ok(processedNewSheets);
+    }
+
 
     [HttpGet("Lots")]
     public async Task<ActionResult<IEnumerable<string>>> GetLots(int ProjectId)
@@ -643,7 +877,8 @@ public class QuantitySheetController : ControllerBase
                            prop.Name != "PercentageCatch" &&
                            prop.Name != "ProjectId" &&
                            prop.Name != "ProcessId" &&
-                           prop.Name != "Status")
+                           prop.Name != "Status" && 
+                           prop.Name != "StopCatch")
             .Select(prop => prop.Name)
             .ToList();
 
