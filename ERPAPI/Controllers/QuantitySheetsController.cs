@@ -467,7 +467,7 @@ public class QuantitySheetController : ControllerBase
 
 
 
-    [Authorize]
+
     [HttpPut]
     public async Task<IActionResult> UpdateQuantitySheet([FromBody] List<QuantitySheet> newSheets)
     {
@@ -501,6 +501,7 @@ public class QuantitySheetController : ControllerBase
 
             foreach (var sheet in newSheets)
             {
+                // Divide the quantity by the NoOfSeries for each sheet in a Booklet
                 var adjustedQuantity = sheet.Quantity / noOfSeries;
                 for (int i = 0; i < noOfSeries; i++)
                 {
@@ -513,7 +514,7 @@ public class QuantitySheetController : ControllerBase
                         InnerEnvelope = sheet.InnerEnvelope,
                         OuterEnvelope = sheet.OuterEnvelope,
                         LotNo = sheet.LotNo,
-                        Quantity = adjustedQuantity,
+                        Quantity = adjustedQuantity,  // Adjusted quantity per series
                         PercentageCatch = 0, // Will be recalculated later
                         ProjectId = sheet.ProjectId,
                         ExamDate = sheet.ExamDate,
@@ -548,27 +549,52 @@ public class QuantitySheetController : ControllerBase
         foreach (var newSheet in processedNewSheets)
         {
             var existingSheet = existingSheets
-                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.StopCatch == 0);
+                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.CatchNo == newSheet.CatchNo && s.StopCatch == 0);
 
             if (existingSheet != null)
             {
-                // Update the existing sheet
-                existingSheet.CatchNo = newSheet.CatchNo;
-                existingSheet.Paper = newSheet.Paper;
-                existingSheet.Course = newSheet.Course;
-                existingSheet.Subject = newSheet.Subject;
-                existingSheet.InnerEnvelope = newSheet.InnerEnvelope;
-                existingSheet.OuterEnvelope = newSheet.OuterEnvelope;
-                existingSheet.Quantity = newSheet.Quantity;
-                existingSheet.PercentageCatch = newSheet.PercentageCatch;
-                existingSheet.ExamDate = newSheet.ExamDate;
-                existingSheet.ExamTime = newSheet.ExamTime;
-                existingSheet.ProcessId = newSheet.ProcessId;
-                existingSheet.StopCatch = newSheet.StopCatch;
+                // Only update fields where new data is present
+                if (!string.IsNullOrEmpty(newSheet.Paper)) existingSheet.Paper = newSheet.Paper;
+                if (!string.IsNullOrEmpty(newSheet.Course)) existingSheet.Course = newSheet.Course;
+                if (!string.IsNullOrEmpty(newSheet.Subject)) existingSheet.Subject = newSheet.Subject;
+                if (!string.IsNullOrEmpty(newSheet.InnerEnvelope)) existingSheet.InnerEnvelope = newSheet.InnerEnvelope;
+                if (newSheet.OuterEnvelope > 0) existingSheet.OuterEnvelope = newSheet.OuterEnvelope;
+                if (!string.IsNullOrEmpty(newSheet.ExamDate)) existingSheet.ExamDate = newSheet.ExamDate;
+                if (!string.IsNullOrEmpty(newSheet.ExamTime)) existingSheet.ExamTime = newSheet.ExamTime;
+                if (newSheet.Quantity > 0) existingSheet.Quantity = newSheet.Quantity;
+                if (newSheet.Pages > 0) existingSheet.Pages = newSheet.Pages;
+
+                // If project is a "Booklet", update all matching CatchNo in the same LotNo
+                if (projectType == "Booklet")
+                {
+                    // Find all sheets with the same LotNo and CatchNo
+                    var matchingSheets = existingSheets
+                        .Where(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.CatchNo == newSheet.CatchNo && s.StopCatch == 0)
+                        .ToList();
+
+                    // Now update the Quantity for all matching sheets, divide by NoOfSeries
+                    var totalQuantity = newSheet.Quantity;
+                    var adjustedQuantity = totalQuantity / project.NoOfSeries.Value;
+
+                    foreach (var matchingSheet in matchingSheets)
+                    {
+                        // Update all matching sheets' quantity to the adjusted one
+                        matchingSheet.Quantity = adjustedQuantity;
+
+                        // Update other fields as necessary
+                        if (!string.IsNullOrEmpty(newSheet.Paper)) matchingSheet.Paper = newSheet.Paper;
+                        if (!string.IsNullOrEmpty(newSheet.Course)) matchingSheet.Course = newSheet.Course;
+                        if (!string.IsNullOrEmpty(newSheet.Subject)) matchingSheet.Subject = newSheet.Subject;
+                        if (!string.IsNullOrEmpty(newSheet.InnerEnvelope)) matchingSheet.InnerEnvelope = newSheet.InnerEnvelope;
+                        if (newSheet.OuterEnvelope > 0) matchingSheet.OuterEnvelope = newSheet.OuterEnvelope;
+                        if (!string.IsNullOrEmpty(newSheet.ExamDate)) matchingSheet.ExamDate = newSheet.ExamDate;
+                        if (!string.IsNullOrEmpty(newSheet.ExamTime)) matchingSheet.ExamTime = newSheet.ExamTime;
+                    }
+                }
             }
             else
             {
-                // If no existing sheet found, add it to the context for insertion
+                // If no existing sheet found for this CatchNo, add it to the context for insertion
                 _context.QuantitySheets.Add(newSheet);
             }
         }
@@ -597,6 +623,8 @@ public class QuantitySheetController : ControllerBase
 
         return Ok(processedNewSheets);
     }
+
+
 
     [Authorize]
     [HttpGet("Lots")]
