@@ -5,6 +5,6 @@ namespace ERPAPI.Services
 {
     public interface IProjectCompletionService
     {
-        Task<List<dynamic>> CalculateProjectCompletionPercentages();
+        Task<List<dynamic>> CalculateProjectCompletionPercentages(List<int> projectIds);
     }
 }

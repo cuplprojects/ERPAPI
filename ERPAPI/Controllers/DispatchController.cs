@@ -8,6 +8,7 @@ using ERPAPI.Data;
 using ERPAPI.Model;
 using ERPAPI.Services;
 using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -25,6 +26,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Dispatch
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetDispatches()
         {
@@ -60,6 +62,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Dispatch/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<Dispatch>> GetDispatch(int id)
         {
@@ -84,6 +87,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Dispatch/project/{projectId}/lot/{lotNo}
+        [Authorize]
         [HttpGet("project/{projectId}/lot/{lotNo}")]
         public async Task<ActionResult<IEnumerable<object>>> GetDispatchByProjectAndLot(int projectId, string lotNo)
         {
@@ -131,6 +135,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Dispatch/project/{projectId}/lot/{lotNo}
+        [Authorize]
         [HttpGet("project/{projectId}")]
         public async Task<ActionResult<IEnumerable<object>>> GetDispatchByProject(int projectId)
         {
@@ -178,6 +183,7 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/Dispatch/5
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutDispatch(int id, Dispatch dispatch)
         {
@@ -216,6 +222,7 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/Dispatch
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<Dispatch>> PostDispatch(Dispatch dispatch)
         {
@@ -235,6 +242,7 @@ namespace ERPAPI.Controllers
         }
 
         // DELETE: api/Dispatch/5
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteDispatch(int id)
         {

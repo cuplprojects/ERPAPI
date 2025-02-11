@@ -1,5 +1,6 @@
 ﻿using ERPAPI.Data;
 using ERPAPI.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -21,7 +22,7 @@ namespace ERPAPI.Controllers
             _context = context;
         }
 
-
+        [Authorize]
         [HttpGet("GetProjectProcesses")]
         public async Task<ActionResult<IEnumerable<ProjectProcess>>> GetProjectProcesses()
         {
@@ -41,7 +42,7 @@ namespace ERPAPI.Controllers
         }
 
 
-
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Project>>> GetProject()
         {
@@ -49,7 +50,7 @@ namespace ERPAPI.Controllers
         }
 
 
-
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<Project>> GetProjectById(int id)
         {
@@ -78,7 +79,7 @@ namespace ERPAPI.Controllers
         }
 
 
-
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<Project>> PostProject(Project project)
         {
@@ -111,7 +112,7 @@ namespace ERPAPI.Controllers
         }
 
 
-
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutProject(int id, Project project)
         {
@@ -159,6 +160,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Project/GetActiveProjects
+        [Authorize]
         [HttpGet("GetActiveProjects")]
         public async Task<ActionResult<IEnumerable<Project>>> GetActiveProjects()
         {
@@ -175,7 +177,7 @@ namespace ERPAPI.Controllers
         }
 
 
-
+        [Authorize]
         [HttpGet("GetDistinctProjectsForUser/{userId}")]
         public async Task<ActionResult<IEnumerable<Project>>> GetDistinctProjectsForUser(int userId)
         {
@@ -238,37 +240,6 @@ namespace ERPAPI.Controllers
                 return Ok(projects);
             }
         }
-
-
-        //[HttpGet("GetDistinctProjectsForUser/{userId}")]
-        //public async Task<ActionResult<IEnumerable<Project>>> GetDistinctProjectsForUser(int userId)
-        //{
-        //    // Fetch all project processes that contain the userId in the UserId list
-        //    var projectProcesses = await _context.ProjectProcesses
-        //        .AsNoTracking() // Optional: For read-only operations
-        //        .ToListAsync();
-
-        //    // Filter for processes where the UserId list contains the userId
-        //    var userAssignedProcesses = projectProcesses
-        //        .Where(pp => pp.UserId.Contains(userId)) // Client-side filtering
-        //        .Select(pp => pp.ProjectId) // Select the project IDs
-        //        .Distinct() // Ensure distinct project IDs
-        //        .ToList();
-
-        //    // If no project IDs are found, return 404
-        //    if (!userAssignedProcesses.Any())
-        //    {
-        //        return NotFound("No projects found for this user.");
-        //    }
-
-        //    // Now fetch the project details for the distinct project IDs
-        //    var projects = await _context.Projects
-        //        .Where(p => userAssignedProcesses.Contains(p.ProjectId)) // Filter projects by distinct IDs
-        //        .ToListAsync();
-
-        //    return Ok(projects);
-        //}
-
 
 
 

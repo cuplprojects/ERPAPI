@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
 using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -24,6 +25,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Zones
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetZones()
         {
@@ -61,6 +63,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Zones/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<Zone>> GetZone(int id)
         {
@@ -84,6 +87,7 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/Zones/5
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutZone(int id, Zone zone)
         {
@@ -133,6 +137,7 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/Zones
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<Zone>> PostZone(Zone zone)
         {
@@ -152,6 +157,7 @@ namespace ERPAPI.Controllers
         }
 
         // DELETE: api/Zones/5
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteZone(int id)
         {

@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -27,6 +28,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Teams
+        [Authorize]
         [HttpGet]
 
         public async Task<ActionResult<IEnumerable<object>>> GetTeams()
@@ -82,6 +84,7 @@ namespace ERPAPI.Controllers
 
 
         // GET: api/Teams/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<object>> GetTeam(int id)
         {
@@ -127,6 +130,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Teams/Process/{processId}
+        [Authorize]
         [HttpGet("Process/{processId}")]
         public async Task<ActionResult<IEnumerable<object>>> GetTeamsByProcessId(int processId)
         {
@@ -182,7 +186,7 @@ namespace ERPAPI.Controllers
         }
 
 
-
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<Team>> PostTeam(Team team)
         {
@@ -248,6 +252,7 @@ namespace ERPAPI.Controllers
 
 
         // PUT: api/Teams/5
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTeam(int id, Team team)
         {
@@ -342,6 +347,7 @@ namespace ERPAPI.Controllers
 
 
         // DELETE: api/Teams/5
+        [Authorize]
         [HttpDelete("{id}")]
      
         public async Task<IActionResult> DeleteTeam(int id)

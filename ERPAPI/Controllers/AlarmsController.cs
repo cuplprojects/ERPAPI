@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
 using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -24,6 +25,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Alarms
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Alarm>>> GetAlarm()
         {
@@ -40,6 +42,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Alarms/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<Alarm>> GetAlarm(int id)
         {
@@ -62,6 +65,7 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/Alarms/5
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutAlarm(int id, Alarm alarm)
         {
@@ -112,6 +116,7 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/Alarms
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<Alarm>> PostAlarm(Alarm alarm)
         {
@@ -131,6 +136,7 @@ namespace ERPAPI.Controllers
         }
 
         // DELETE: api/Alarms/5
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAlarm(int id)
         {

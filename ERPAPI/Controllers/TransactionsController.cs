@@ -11,6 +11,7 @@ using System.Diagnostics;
 using ERPAPI.Services;
 using ERPAPI.Service.ProjectTransaction;
 using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization;
 
 
 namespace ERPAPI.Controllers
@@ -33,6 +34,7 @@ namespace ERPAPI.Controllers
             _loggerService = loggerService;
         }
 
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetTransaction(int projectId, int processId)
         {
@@ -84,7 +86,7 @@ namespace ERPAPI.Controllers
         }
 
 
-
+        [Authorize]
         [HttpGet("GetProjectTransactionsDataOld")]
         public async Task<ActionResult<IEnumerable<object>>> GetProjectTransactionsDataOld(int projectId, int processId)
         {
@@ -243,7 +245,7 @@ namespace ERPAPI.Controllers
         }
 
 
-
+        [Authorize]
         [HttpGet("GetProjectTransactionsData")]
         public async Task<ActionResult<IEnumerable<object>>> GetProjectTransactionsData(int projectId, int processId)
         {
@@ -285,6 +287,7 @@ namespace ERPAPI.Controllers
 
 
         //GET: api/Transactions/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<Transaction>> GetTransaction(int id)
         {
@@ -301,6 +304,7 @@ namespace ERPAPI.Controllers
 
 
         // PUT: api/Transactions/5
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTransaction(int id, Transaction transaction)
         {
@@ -356,7 +360,7 @@ namespace ERPAPI.Controllers
         }
 
 
-
+        [Authorize]
         [HttpPut("quantitysheet/{quantitysheetId}")]
         public async Task<IActionResult> PutTransactionId(int quantitysheetId, Transaction transaction)
         {
@@ -412,6 +416,7 @@ namespace ERPAPI.Controllers
         }
 
         // TransactionController.cs
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> CreateTransaction([FromBody] Transaction transaction)
         {
@@ -652,6 +657,7 @@ namespace ERPAPI.Controllers
 
 
         // DELETE: api/Transactions/5
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTransaction(int id)
         {
@@ -672,15 +678,19 @@ namespace ERPAPI.Controllers
         }
 
 
-
+        [Authorize]
         [HttpGet("all-project-completion-percentages")]
-        public async Task<ActionResult> GetAllProjectCompletionPercentages()
+        public async Task<ActionResult> GetAllProjectCompletionPercentages([FromQuery] List<int> projectIds)
         {
-            var projectCompletionPercentages = await _projectCompletionService.CalculateProjectCompletionPercentages();
+            if (projectIds == null || !projectIds.Any())
+            {
+                return BadRequest("No project IDs provided.");
+            }
+            var projectCompletionPercentages = await _projectCompletionService.CalculateProjectCompletionPercentages(projectIds);
             return Ok(projectCompletionPercentages);
         }
 
-
+        [Authorize]
         [HttpGet("alarms")]
         public async Task<ActionResult<IEnumerable<object>>> GetAlarmsByProjectId(int projectId)
         {
@@ -719,7 +729,7 @@ namespace ERPAPI.Controllers
         }
 
 
-
+        [Authorize]
         [HttpGet("combined-percentages")]
         public async Task<ActionResult> GetCombinedPercentages(int projectId)
         {
@@ -903,6 +913,7 @@ namespace ERPAPI.Controllers
             public double TotalCatchQuantity { get; set; }
         }
 
+        [Authorize]
         [HttpGet("process-percentages")]
         public async Task<ActionResult> GetProcessPercentages(int projectId)
         {
@@ -995,7 +1006,7 @@ namespace ERPAPI.Controllers
             return Ok(result);
         }
 
-
+        [Authorize]
         [HttpGet("process-lot-percentages")]
         public async Task<ActionResult> GetProcessLotPercentages(int projectId)
         {
@@ -1104,7 +1115,7 @@ namespace ERPAPI.Controllers
             return Ok(result);
         }
 
-
+        [Authorize]
         [HttpGet("exists/{projectId}")]
         public async Task<ActionResult<bool>> TransactionExistsByProject(int projectId)
         {
@@ -1121,7 +1132,7 @@ namespace ERPAPI.Controllers
             }
         }
 
-
+        [Authorize]
         [HttpGet("CheckTransaction")]
         public async Task<IActionResult> CheckTransaction(int projectId, int lotNo)
         {
@@ -1136,6 +1147,9 @@ namespace ERPAPI.Controllers
             // Return the list of CatchNos in JSON format
             return Ok(quantitySheetIds);
         }
+
+
+        [Authorize]
         [HttpGet("{projectId}/withlogs")]
         public async Task<IActionResult> GetTransactionsWithEventLogsByProjectId(int projectId)
         {
