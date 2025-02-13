@@ -162,6 +162,8 @@ namespace ERPAPI.Controllers
                     .Where(d => d.ProjectId == projectId && d.LotNo == lotNo)
                     .ToListAsync(); // Fetch dispatch data
 
+                ;
+
                 // Map QuantitySheet data with required details
                 var result = quantitySheets.Select(q =>
                 {
@@ -258,7 +260,9 @@ namespace ERPAPI.Controllers
                                 .Distinct()
                                 .Select(machineId => allMachines.FirstOrDefault(m => m.MachineId == machineId)?.MachineName)
                                 .Where(name => name != null)
-                                .ToList()
+                                .ToList(),
+
+
                         }
                     };
                 });
@@ -271,6 +275,7 @@ namespace ERPAPI.Controllers
                 return StatusCode(StatusCodes.Status500InternalServerError, new { Message = "An error occurred.", Details = ex.Message });
             }
         }
+
 
 
 

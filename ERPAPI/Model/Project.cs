@@ -17,7 +17,7 @@ namespace ERPAPI.Model
         public string? SeriesName { get; set; }
         public DateTime Date { get; set; }
         public string? QuantityThreshold { get; set; } 
-        public DateTime? LastReleasedLotDate { get; set; }
+       
 
     }
 

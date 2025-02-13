@@ -249,7 +249,7 @@ public class QuantitySheetController : ControllerBase
             var project = await _context.Projects.FirstOrDefaultAsync(p => p.ProjectId == request.ProjectId);
             if (project != null)
             {
-                project.LastReleasedLotDate = DateTime.UtcNow;
+                
             }
 
             // Save changes to the database

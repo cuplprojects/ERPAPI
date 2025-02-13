@@ -198,7 +198,7 @@ namespace ERPAPI.Controllers
                 // Get all active projects if the RoleId is 1, 2, 3, or 4
                 var activeProjects = await _context.Projects
                     .Where(p => p.Status == true) // Assuming "Status" indicates active projects
-                    .OrderByDescending(p=>p.LastReleasedLotDate)
+                    .OrderByDescending(p=>p.ProjectId)
                     .ToListAsync();
 
                 return Ok(activeProjects);
@@ -231,7 +231,7 @@ namespace ERPAPI.Controllers
                 // Fetch the project details for the distinct ongoing project IDs assigned to the user
                 var projects = await _context.Projects
                     .Where(p => userAssignedOngoingProjects.Contains(p.ProjectId))
-                    .OrderByDescending(p => p.LastReleasedLotDate) // Order by LastReleasedLotDate in descending order
+                    .OrderByDescending(p => p.ProjectId) // Order by LastReleasedLotDate in descending order
                     .ToListAsync();
 
 
