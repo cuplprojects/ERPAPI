@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
 using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -24,6 +25,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Cameras
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Camera>>> GetCamera()
         {
@@ -40,6 +42,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Cameras/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<Camera>> GetCamera(int id)
         {
@@ -63,6 +66,7 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/Cameras/5
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutCamera(int id, Camera camera)
         {
@@ -113,7 +117,8 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/Cameras
-       [HttpPost]
+        [Authorize]
+        [HttpPost]
 public async Task<ActionResult<Camera>> PostCamera(Camera camera)
 {
     try
@@ -143,6 +148,7 @@ public async Task<ActionResult<Camera>> PostCamera(Camera camera)
 
 
         // DELETE: api/Cameras/5
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCamera(int id)
         {

@@ -9,6 +9,7 @@ using ERPAPI.Data;
 using ERPAPI.Model;
 using ERPAPI.Services;
 using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -26,6 +27,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Machines
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetMachines()
         {
@@ -51,6 +53,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Machines/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<Machine>> GetMachine(int id)
         {
@@ -72,6 +75,7 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/Machines/5
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutMachine(int id, Machine machine)
         {
@@ -135,6 +139,7 @@ namespace ERPAPI.Controllers
 
 
         // POST: api/Machines
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<Machine>> PostMachine(Machine machine)
         {
@@ -165,6 +170,7 @@ namespace ERPAPI.Controllers
 
 
         // DELETE: api/Machines/5
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteMachine(int id)
         {
