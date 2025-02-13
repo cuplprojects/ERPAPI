@@ -85,11 +85,11 @@ namespace ERPAPI.Controllers
                 // Query the database for projects with the given GroupId
                 var projects = await _context.Set<Project>()
                     .Where(p => p.GroupId == groupId)
-                    .Select(p => p.Name)
+                    .Select(p => new { p.ProjectId, p.Name })
                     .ToListAsync();
 
                 // Check if any projects exist for the given GroupId
-                if (projects == null || projects.Count == 0)
+                if (!projects.Any())
                 {
                     return NotFound(new { Message = "No projects found for the given GroupId." });
                 }
@@ -278,7 +278,6 @@ namespace ERPAPI.Controllers
 
 
 
-
         [HttpGet("GetCatchNoByProject/{projectId}")]
         public async Task<IActionResult> GetCatchNoByProject(int projectId)
         {
@@ -364,7 +363,9 @@ namespace ERPAPI.Controllers
                                     q.Course.StartsWith(query) ? "Course" : "Paper",
                     MatchedValue = q.CatchNo.StartsWith(query) ? q.CatchNo :
                                    q.Subject.StartsWith(query) ? q.Subject :
-                                   q.Course.StartsWith(query) ? q.Course : q.Paper
+                                   q.Course.StartsWith(query) ? q.Course : q.Paper,
+                    q.ProjectId,
+                    q.LotNo
                 })
                 .Skip((page - 1) * pageSize) // Skip records based on the page number
                 .Take(pageSize) // Limit the number of results per page
@@ -375,14 +376,14 @@ namespace ERPAPI.Controllers
 
 
 
-        [HttpGet("GetQuantitySheetsByCatchNo/{catchNo}")]
-        public async Task<IActionResult> GetQuantitySheetsByCatchNo(string catchNo)
+        [HttpGet("GetQuantitySheetsByCatchNo/{projectId}/{catchNo}")]
+        public async Task<IActionResult> GetQuantitySheetsByCatchNo(string catchNo, int projectId)
         {
             try
             {
                 // Fetch QuantitySheet data by CatchNo
                 var quantitySheets = await _context.Set<QuantitySheet>()
-                    .Where(q => q.CatchNo == catchNo)
+                    .Where(q => q.CatchNo == catchNo && q.ProjectId == projectId)
                     .ToListAsync();
 
                 if (quantitySheets == null || quantitySheets.Count == 0)
@@ -641,7 +642,6 @@ namespace ERPAPI.Controllers
             return Ok(processWiseData);
         }
 */
-
 
         [HttpGet("process-wise/{catchNo}")]
         public async Task<IActionResult> GetProcessWiseData(string catchNo)

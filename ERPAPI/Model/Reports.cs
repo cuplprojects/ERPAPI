@@ -10,5 +10,6 @@ namespace ERPAPI.Model
         public int ReportId { get; set; }
         public int UserId { get; set; }
         public List<string> Configuration { get; set; }
+        public int ProjectId { get; set; }
     }
 }

@@ -9,6 +9,7 @@ using ERPAPI.Data;
 using ERPAPI.Model;
 using ERPAPI.Services;
 using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -26,6 +27,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Processes
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<object>>> GetProcesses()
         {
@@ -60,6 +62,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Processes/process
+        [Authorize]
         [HttpGet("process")]
         public IActionResult GetCatchesByProcess(int processid)
         {
@@ -86,6 +89,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Processes/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<Process>> GetProcess(int id)
         {
@@ -107,6 +111,7 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/Processes/5
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutProcess(int id, Process process)
         {
@@ -157,6 +162,7 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/Processes
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<Process>> PostProcess(Process process)
         {
@@ -189,6 +195,7 @@ namespace ERPAPI.Controllers
 
 
         // DELETE: api/Processes/5
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProcess(int id)
         {

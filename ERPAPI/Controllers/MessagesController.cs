@@ -6,7 +6,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ERPAPI.Data;
 using ERPAPI.Model;
-using ERPAPI.Service; // Assuming your LoggerService namespace is here
+using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization; // Assuming your LoggerService namespace is here
 
 namespace ERPAPI.Controllers
 {
@@ -29,6 +30,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Messages
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Message>>> GetMessage()
         {
@@ -46,6 +48,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Messages/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<Message>> GetMessage(int id)
         {
@@ -70,6 +73,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Messages/5?lang=L1
+        [Authorize]
         [HttpGet("messagebyId/{id}")]
         public async Task<ActionResult> GetMessage(int id, [FromQuery] string lang)
         {
@@ -114,6 +118,7 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/Messages/5
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutMessage(int id, Message message)
         {
@@ -161,6 +166,7 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/Messages
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<Message>> PostMessage(Message message)
         {
@@ -179,6 +185,7 @@ namespace ERPAPI.Controllers
         }
 
         // DELETE: api/Messages/5
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteMessage(int id)
         {

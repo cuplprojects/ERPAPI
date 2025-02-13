@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -21,6 +22,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/CatchTeams
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<CatchTeam>>> GetCatchTeams()
         {
@@ -37,6 +39,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/CatchTeams/{id}
+        [Authorize]
         [HttpGet("{QuantitySheetId}")]
         public async Task<ActionResult<CatchTeam>> GetCatchTeam(int QuantitySheetId)
         {
@@ -59,6 +62,7 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/CatchTeams
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<IEnumerable<CatchTeam>>> PostCatchTeam([FromBody] List<CatchTeam> catchTeams)
         {
@@ -102,6 +106,7 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/CatchTeams/{id}
+        [Authorize]
         [HttpPut("{QuantitySheetId}")]
         public async Task<IActionResult> PutCatchTeam(int QuantitySheetId, [FromBody] CatchTeam catchTeam)
         {
@@ -140,6 +145,7 @@ namespace ERPAPI.Controllers
         }
 
         // DELETE: api/CatchTeams/{id}
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCatchTeam(int id)
         {
@@ -163,6 +169,7 @@ namespace ERPAPI.Controllers
             }
         }
 
+        [Authorize]
         [HttpPut]
         public async Task<IActionResult> PutCatchTeams([FromBody] List<CatchTeam> catchTeams)
         {
