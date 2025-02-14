@@ -225,10 +225,6 @@ public class QuantitySheetController : ControllerBase
         {
             sheet.Status = 1;
         }
-        var project = await _context.Projects
-            .Where(p => p.ProjectId == request.ProjectId)
-            .FirstOrDefaultAsync();
-        project.LastReleasedLotDate = DateTime.Now;
 
         // Save changes to the database
         await _context.SaveChangesAsync();
