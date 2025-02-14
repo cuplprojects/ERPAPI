@@ -1260,10 +1260,19 @@ namespace ERPAPI.Controllers
                 .FirstOrDefaultAsync();
 
             var type = project.TypeId;
-            Console.WriteLine(type); //1
-            var noofseries = project.NoOfSeries;
-            Console.WriteLine(noofseries); //4
 
+            var noofseries = project.NoOfSeries;
+
+
+            var independentprocesses = await _context.Processes
+                .Where(p => p.ProcessType == "Independent")
+                .Select(p => new { p.Id, p.RangeEnd })
+                .ToListAsync();
+
+            foreach (var p in independentprocesses)
+            {
+                Console.WriteLine(p); //15,1,2,3,4,
+            }
 
 
             var transactionDetails = await (from t in _context.Transaction
@@ -1369,6 +1378,56 @@ namespace ERPAPI.Controllers
             {
                 var currentProcess = finalizedProcessCounts[i];
                 ProcessCalculationResult previousProcess = null;
+                var independentProcess = independentprocesses.FirstOrDefault(p => p.RangeEnd == currentProcess.ProcessId);
+
+                // Check if an independent process was found
+                if (independentProcess != null)
+                {
+                    Console.WriteLine("Independent Process: " + independentProcess.RangeEnd + ", Current Process: " + currentProcess.ProcessId);
+
+                    // Now you can safely access independentProcess.RangeEnd
+                    if (independentProcess.RangeEnd == currentProcess.ProcessId)
+                    {
+                        Console.WriteLine("Going in Independent" + (independentProcess.RangeEnd));
+
+                        // Check if previous process sequence is 1, if yes, pick it directly
+                        previousProcess = finalizedProcessCounts.FirstOrDefault(p =>
+                processSequence.FirstOrDefault(seq => seq.ProcessId == p.ProcessId)?.Sequence ==
+                processSequence.FirstOrDefault(seq => seq.ProcessId == currentProcess.ProcessId)?.Sequence - 1);
+
+                        // If no process with sequence 1 is found, continue with the previous logic to find a dependent process
+                        previousProcess = finalizedProcessCounts.FirstOrDefault(p =>
+                            processSequence.FirstOrDefault(seq => seq.ProcessId == p.ProcessId)?.Sequence == currentProcess.ProcessSequence - 1);
+
+                        // Keep adjusting previousProcess by decrementing the ProcessSequence until ProcessType is "Dependent"
+                        while (previousProcess != null && previousProcess.ProcessType != "Dependent")
+                        {
+                            // Move to the previous process (decrement the ProcessSequence)
+                            previousProcess = finalizedProcessCounts.FirstOrDefault(p =>
+                                processSequence.FirstOrDefault(seq => seq.ProcessId == p.ProcessId)?.Sequence == previousProcess.ProcessSequence - 1);
+                        }
+
+                        // If we exit the loop and previousProcess is null or ProcessType is "Dependent"
+                        if (previousProcess != null && previousProcess.ProcessType == "Dependent")
+                        {
+                            // You found a dependent process, and previousProcess is set
+                            Console.WriteLine("[DEBUG] Found Dependent Process: " + previousProcess.ProcessId);
+                        }
+                        else
+                        {
+                            // Handle case where no dependent process was found
+                            Console.WriteLine("[DEBUG] No Dependent Process found, possibly reached the start.");
+                        }
+                    }
+
+                }
+                else
+                {
+                    Console.WriteLine("No Independent Process found for Current Process: " + currentProcess.ProcessId);
+                }
+
+                // Continue with other process logic
+
 
                 // If ProcessId is 4, set previous process to ProcessId 2
                 if (currentProcess.ProcessId == 4)
@@ -1395,15 +1454,20 @@ namespace ERPAPI.Controllers
                     previousProcess = finalizedProcessCounts.FirstOrDefault(p =>
                 processSequence.FirstOrDefault(seq => seq.ProcessId == p.ProcessId)?.Sequence ==
                 processSequence.FirstOrDefault(seq => seq.ProcessId == currentProcess.ProcessId)?.Sequence - 1);
+                    if (previousProcess == null)
+                    {
+                        // Handle the case where previousProcess is null, possibly by skipping or using default values
+                        continue;
+                    }
 
                     var digitalprintingcompleted = (finalizedProcessCounts.FirstOrDefault(p => p.ProcessId == 3).CompletedTotalQuantity);
                     var digitalcatchCompleted = finalizedProcessCounts.FirstOrDefault(p => p.ProcessId == 3).CompletedCount;
-                    currentProcess.InitialTotalQuantity = (digitalprintingcompleted / 4 + previousProcess.CompletedTotalQuantity / 4);
+                    currentProcess.InitialTotalQuantity = (digitalprintingcompleted / (noofseries ?? 1) + previousProcess.CompletedTotalQuantity / (noofseries ?? 1));
                     currentProcess.CompletedTotalQuantity /= (noofseries ?? 1);
                     currentProcess.WIPTotalQuantity /= (noofseries ?? 1);
                     currentProcess.CompletedCount /= (noofseries ?? 1);
                     currentProcess.WIPCount /= (noofseries ?? 1);
-                    currentProcess.TotalCatchNo = (previousProcess.TotalCatchNo / 4 + digitalcatchCompleted / 4);
+                    currentProcess.TotalCatchNo = (previousProcess.TotalCatchNo / (noofseries ?? 1) + digitalcatchCompleted / (noofseries ?? 1));
                     currentProcess.RemainingQuantity = currentProcess.InitialTotalQuantity - currentProcess.WIPTotalQuantity - currentProcess.CompletedTotalQuantity;
                     currentProcess.RemainingCatchNo = currentProcess.TotalCatchNo - currentProcess.WIPCount - currentProcess.CompletedCount;
                 }
@@ -1425,13 +1489,14 @@ namespace ERPAPI.Controllers
                 else if (currentProcess.ProcessType == "Independent")
                 {
                     // For other processes, set the previous process based on sequence
-                    previousProcess = finalizedProcessCounts.FirstOrDefault(p =>
-              processSequence.FirstOrDefault(seq => seq.ProcessId == p.ProcessId)?.Sequence == currentProcess.RangeStart);
+                    previousProcess = finalizedProcessCounts.FirstOrDefault(p => processSequence.FirstOrDefault(seq => seq.ProcessId == p.ProcessId)?.Sequence == currentProcess.RangeStart);
 
                 }
 
-                else
+                else if (independentProcess == null)
                 {
+
+                    Console.WriteLine("Going in else");
                     // For other processes, set the previous process based on sequence
                     previousProcess = finalizedProcessCounts.FirstOrDefault(p =>
                 processSequence.FirstOrDefault(seq => seq.ProcessId == p.ProcessId)?.Sequence ==
@@ -1442,7 +1507,7 @@ namespace ERPAPI.Controllers
                 // Only adjust if previous process is found
                 if (previousProcess != null && !(currentProcess.ProcessSequence == cuttingsequence.Sequence + 1) && type != 1)
                 {
-
+                    Console.WriteLine("Going in this" + (currentProcess.ProcessId) + "" + (previousProcess.ProcessId));
                     currentProcess.InitialTotalQuantity = previousProcess.CompletedTotalQuantity;
                     currentProcess.RemainingQuantity = currentProcess.InitialTotalQuantity - currentProcess.WIPTotalQuantity - currentProcess.CompletedTotalQuantity;
                     currentProcess.RemainingCatchNo = previousProcess.CompletedCount - currentProcess.WIPCount - currentProcess.CompletedCount;
@@ -1450,18 +1515,16 @@ namespace ERPAPI.Controllers
                 }
                 else if ((type == 1 && previousProcess != null) && !(currentProcess.ProcessSequence == cuttingsequence.Sequence + 1 && type == 1) && currentProcess.ProcessSequence > cuttingsequence.Sequence + 1)
                 {
-                    Console.WriteLine("Current Process" + (currentProcess.ProcessId));
-                    Console.WriteLine("Previous Process" + (previousProcess.ProcessId));
+
                     currentProcess.InitialTotalQuantity = previousProcess.CompletedTotalQuantity;
                     currentProcess.CompletedTotalQuantity /= (noofseries ?? 1);
                     currentProcess.WIPTotalQuantity /= (noofseries ?? 1);
                     currentProcess.CompletedCount /= (noofseries ?? 1);
                     currentProcess.WIPCount /= (noofseries ?? 1);
-                    // Console.WriteLine("Current Process" + (currentProcess.CompletedTotalQuantity));
                     currentProcess.RemainingQuantity = currentProcess.InitialTotalQuantity - currentProcess.WIPTotalQuantity - currentProcess.CompletedTotalQuantity;
                     currentProcess.RemainingCatchNo = previousProcess.CompletedCount - currentProcess.WIPCount - currentProcess.CompletedCount;
                     currentProcess.TotalCatchNo = previousProcess.CompletedCount;
-                    //Console.WriteLine("Current Process" + (currentProcess.TotalCatchNo));
+
 
                 }
                 else if ((type == 1 && previousProcess != null) && !(currentProcess.ProcessSequence == cuttingsequence.Sequence + 1 && type == 1) && currentProcess.ProcessSequence < cuttingsequence.Sequence + 1)
