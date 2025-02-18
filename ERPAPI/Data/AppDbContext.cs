@@ -30,6 +30,7 @@ namespace ERPAPI.Data
 
         public DbSet<Role> Roles { get; set; }
         public DbSet<Reports> Reports { get; set; }
+
         public DbSet<Machine> Machine { get; set; }
         public DbSet<Zone> Zone { get; set; }
         public DbSet<EventLog> EventLogs { get; set; } // Assuming you have event logs
