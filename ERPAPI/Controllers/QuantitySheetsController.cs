@@ -9,6 +9,8 @@ using System.Globalization;
 using NuGet.Protocol.Plugins;
 using Microsoft.CodeAnalysis;
 using Microsoft.AspNetCore.Authorization;
+using ERPAPI.Services;
+
 
 [ApiController]
 [Route("api/[controller]")]
@@ -226,7 +228,7 @@ public class QuantitySheetController : ControllerBase
         var project = await _context.Projects
             .Where(p => p.ProjectId == request.ProjectId)
             .FirstOrDefaultAsync();
-        project.LastReleasedLotDate = DateTime.Now;
+        //project.LastReleasedLotDate = DateTime.Now;
 
         // Save changes to the database
         await _context.SaveChangesAsync();
@@ -239,6 +241,8 @@ public class QuantitySheetController : ControllerBase
         public string LotNo { get; set; }
         public int ProjectId { get; set; }
     }
+
+
 
 
 
@@ -468,6 +472,8 @@ public class QuantitySheetController : ControllerBase
 
 
 
+
+    [Authorize]
     [HttpPut]
     public async Task<IActionResult> UpdateQuantitySheet([FromBody] List<QuantitySheet> newSheets)
     {
@@ -681,7 +687,8 @@ public class QuantitySheetController : ControllerBase
                            prop.Name != "PercentageCatch" &&
                            prop.Name != "ProjectId" &&
                            prop.Name != "ProcessId" &&
-                           prop.Name != "Status")
+                           prop.Name != "Status" &&
+                           prop.Name != "StopCatch")
             .Select(prop => prop.Name)
             .ToList();
 
@@ -943,7 +950,7 @@ public class QuantitySheetController : ControllerBase
             return NotFound($"QuantitySheet with id {id} not found.");
         }
 
-       var getCatchNo = sheetToUpdate.CatchNo;
+        var getCatchNo = sheetToUpdate.CatchNo;
         var projectId = sheetToUpdate.ProjectId;
         var lotNo = sheetToUpdate.LotNo;
         // Get all 'QuantitySheets' that have the same 'CatchNo' as the provided 'quantitySheet'
@@ -964,7 +971,7 @@ public class QuantitySheetController : ControllerBase
         // Save changes to the database
         await _context.SaveChangesAsync();
 
-   
+
 
         var remainingSheets = await _context.QuantitySheets
            .Where(s => s.ProjectId == projectId && s.LotNo == lotNo && s.StopCatch == 0)
@@ -1030,7 +1037,7 @@ public class QuantitySheetController : ControllerBase
         return _context.QuantitySheets.Any(e => e.QuantitySheetId == id);
     }
 
-   
+
 
     // First, create a DTO to handle the transfer request
     public class CatchTransferRequest
