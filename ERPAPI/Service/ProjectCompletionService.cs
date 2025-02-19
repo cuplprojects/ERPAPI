@@ -26,12 +26,12 @@ namespace ERPAPI.Services
             _transactionService = transactionService;
         }
 
-        public async Task<List<dynamic>> CalculateProjectCompletionPercentages(List<int> projectIds)
+        public async Task<List<dynamic>> CalculateProjectCompletionPercentages()
         {
             var projects = await _projectService.GetAllProjects();
             var projectCompletionPercentages = new List<dynamic>();
-            var filteredProjects = projects.Where(p => projectIds.Contains(p.ProjectId)).ToList();
-            foreach (var project in filteredProjects)
+
+            foreach (var project in projects)
             {
                 var projectId = project.ProjectId;
                 var projectProcesses = await _projectProcessService.GetProjectProcessesByProjectId(projectId);
@@ -121,4 +121,3 @@ namespace ERPAPI.Services
         }
     }
 }
-

@@ -8,8 +8,6 @@ using System.Linq;
 using System.Globalization;
 using NuGet.Protocol.Plugins;
 using Microsoft.CodeAnalysis;
-using Microsoft.AspNetCore.Authorization;
-using ERPAPI.Services;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -26,7 +24,6 @@ public class QuantitySheetController : ControllerBase
         _loggerService = loggerService;
     }
 
-    [Authorize]
     [HttpPost]
     public async Task<IActionResult> Post([FromBody] List<QuantitySheet> newSheets)
     {
@@ -142,7 +139,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(processedNewSheets);
     }
 
-    [Authorize]
+
     [HttpPut("update/{id}")]
     public async Task<IActionResult> Put(int id, [FromBody] QuantitySheet updatedSheet)
     {
@@ -200,7 +197,7 @@ public class QuantitySheetController : ControllerBase
 
 
 
-    [Authorize]
+
     [HttpPost("ReleaseForProduction")]
     public async Task<IActionResult> ReleaseForProduction([FromBody] LotRequest request)
     {
@@ -224,9 +221,6 @@ public class QuantitySheetController : ControllerBase
         {
             sheet.Status = 1;
         }
-        var project = await _context.Projects
-            .Where(p => p.ProjectId == request.ProjectId)
-            .FirstOrDefaultAsync();
 
         // Save changes to the database
         await _context.SaveChangesAsync();
@@ -243,7 +237,7 @@ public class QuantitySheetController : ControllerBase
 
 
 
-    [Authorize]
+
     [HttpGet("calculate-date-range")]
     public async Task<IActionResult> CalculateDateRange([FromQuery] string selectedLot, [FromQuery] int projectId)
     {
@@ -365,7 +359,7 @@ public class QuantitySheetController : ControllerBase
         }
     }
 
-    [Authorize]
+
     [HttpGet("lot-dates")]
     public async Task<ActionResult<Dictionary<string, object>>> GetLotDates(int projectId)
     {
@@ -418,7 +412,7 @@ public class QuantitySheetController : ControllerBase
         }
     }
 
-    [Authorize]
+
     [HttpPut("{id}")]
     public async Task<IActionResult> PutQuantitySheet(int id, QuantitySheet quantity)
     {
@@ -467,19 +461,16 @@ public class QuantitySheetController : ControllerBase
 
 
 
-    [Authorize]
+
     [HttpPut]
     public async Task<IActionResult> UpdateQuantitySheet([FromBody] List<QuantitySheet> newSheets)
     {
         if (newSheets == null || !newSheets.Any())
         {
-            Console.WriteLine("No data provided.");
             return BadRequest("No data provided.");
         }
 
         var projectId = newSheets.First().ProjectId;
-        Console.WriteLine($"ProjectId retrieved: {projectId}");
-
         var project = await _context.Projects
             .Where(p => p.ProjectId == projectId)
             .Select(p => new { p.TypeId, p.NoOfSeries })
@@ -487,34 +478,24 @@ public class QuantitySheetController : ControllerBase
 
         if (project == null)
         {
-            Console.WriteLine("Project not found.");
             return BadRequest("Project not found.");
         }
 
         var projectTypeId = project.TypeId;
-        Console.WriteLine($"Project TypeId: {projectTypeId}");
-
         var projectType = await _context.Types
             .Where(t => t.TypeId == projectTypeId)
             .Select(t => t.Types)
             .FirstOrDefaultAsync();
 
-        Console.WriteLine($"Project Type: {projectType}");
-
         // Adjust for "Booklet" type project if necessary
         if (projectType == "Booklet" && project.NoOfSeries.HasValue)
         {
             var noOfSeries = project.NoOfSeries.Value;
-            Console.WriteLine($"NoOfSeries: {noOfSeries}");
-
             var adjustedSheets = new List<QuantitySheet>();
 
             foreach (var sheet in newSheets)
             {
-                // Divide the quantity by the NoOfSeries for each sheet in a Booklet
                 var adjustedQuantity = sheet.Quantity / noOfSeries;
-                Console.WriteLine($"Adjusted Quantity for {sheet.CatchNo}: {adjustedQuantity}");
-
                 for (int i = 0; i < noOfSeries; i++)
                 {
                     var newSheet = new QuantitySheet
@@ -526,7 +507,7 @@ public class QuantitySheetController : ControllerBase
                         InnerEnvelope = sheet.InnerEnvelope,
                         OuterEnvelope = sheet.OuterEnvelope,
                         LotNo = sheet.LotNo,
-                        Quantity = adjustedQuantity,  // Adjusted quantity per series
+                        Quantity = adjustedQuantity,
                         PercentageCatch = 0, // Will be recalculated later
                         ProjectId = sheet.ProjectId,
                         ExamDate = sheet.ExamDate,
@@ -539,15 +520,12 @@ public class QuantitySheetController : ControllerBase
             }
 
             newSheets = adjustedSheets; // Replace with adjusted sheets
-            Console.WriteLine("Sheets adjusted for booklet project.");
         }
 
         // Get existing sheets for the same projectId
         var existingSheets = await _context.QuantitySheets
             .Where(s => s.ProjectId == projectId)
             .ToListAsync();
-
-        Console.WriteLine($"Existing sheets for projectId {projectId}: {existingSheets.Count}");
 
         // Prepare a list to track new sheets that need to be processed
         var processedNewSheets = new List<QuantitySheet>();
@@ -556,7 +534,6 @@ public class QuantitySheetController : ControllerBase
         {
             // For new sheets, clear the ProcessId and process it
             sheet.ProcessId.Clear();
-            Console.WriteLine($"Processing sheet for CatchNo: {sheet.CatchNo}");
             _processService.ProcessCatch(sheet);
             processedNewSheets.Add(sheet);
         }
@@ -565,56 +542,27 @@ public class QuantitySheetController : ControllerBase
         foreach (var newSheet in processedNewSheets)
         {
             var existingSheet = existingSheets
-                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.CatchNo == newSheet.CatchNo && s.StopCatch == 0);
+                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.StopCatch == 0);
 
             if (existingSheet != null)
             {
-                Console.WriteLine($"Found existing sheet for CatchNo: {newSheet.CatchNo}");
-
-                // Only update fields where new data is present
-                if (!string.IsNullOrEmpty(newSheet.Paper)) existingSheet.Paper = newSheet.Paper;
-                if (!string.IsNullOrEmpty(newSheet.Course)) existingSheet.Course = newSheet.Course;
-                if (!string.IsNullOrEmpty(newSheet.Subject)) existingSheet.Subject = newSheet.Subject;
-                if (!string.IsNullOrEmpty(newSheet.InnerEnvelope)) existingSheet.InnerEnvelope = newSheet.InnerEnvelope;
-                if (newSheet.OuterEnvelope > 0) existingSheet.OuterEnvelope = newSheet.OuterEnvelope;
-                if (!string.IsNullOrEmpty(newSheet.ExamDate)) existingSheet.ExamDate = newSheet.ExamDate;
-                if (!string.IsNullOrEmpty(newSheet.ExamTime)) existingSheet.ExamTime = newSheet.ExamTime;
-                if (newSheet.Quantity > 0) existingSheet.Quantity = newSheet.Quantity;
-                if (newSheet.Pages > 0) existingSheet.Pages = newSheet.Pages;
-
-                // If project is a "Booklet", update all matching CatchNo in the same LotNo
-                if (projectType == "Booklet")
-                {
-                    // Find all sheets with the same LotNo and CatchNo
-                    var matchingSheets = existingSheets
-                        .Where(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.CatchNo == newSheet.CatchNo && s.StopCatch == 0)
-                        .ToList();
-
-                    Console.WriteLine($"Found {matchingSheets.Count} matching sheets for CatchNo: {newSheet.CatchNo}");
-
-                    // Now update the Quantity for all matching sheets, divide by NoOfSeries
-                    var totalQuantity = newSheet.Quantity;
-
-
-                    foreach (var matchingSheet in matchingSheets)
-                    {
-                        matchingSheet.Quantity = totalQuantity;
-
-                        // Update other fields as necessary
-                        if (!string.IsNullOrEmpty(newSheet.Paper)) matchingSheet.Paper = newSheet.Paper;
-                        if (!string.IsNullOrEmpty(newSheet.Course)) matchingSheet.Course = newSheet.Course;
-                        if (!string.IsNullOrEmpty(newSheet.Subject)) matchingSheet.Subject = newSheet.Subject;
-                        if (!string.IsNullOrEmpty(newSheet.InnerEnvelope)) matchingSheet.InnerEnvelope = newSheet.InnerEnvelope;
-                        if (newSheet.OuterEnvelope > 0) matchingSheet.OuterEnvelope = newSheet.OuterEnvelope;
-                        if (!string.IsNullOrEmpty(newSheet.ExamDate)) matchingSheet.ExamDate = newSheet.ExamDate;
-                        if (!string.IsNullOrEmpty(newSheet.ExamTime)) matchingSheet.ExamTime = newSheet.ExamTime;
-                    }
-                }
+                // Update the existing sheet
+                existingSheet.CatchNo = newSheet.CatchNo;
+                existingSheet.Paper = newSheet.Paper;
+                existingSheet.Course = newSheet.Course;
+                existingSheet.Subject = newSheet.Subject;
+                existingSheet.InnerEnvelope = newSheet.InnerEnvelope;
+                existingSheet.OuterEnvelope = newSheet.OuterEnvelope;
+                existingSheet.Quantity = newSheet.Quantity;
+                existingSheet.PercentageCatch = newSheet.PercentageCatch;
+                existingSheet.ExamDate = newSheet.ExamDate;
+                existingSheet.ExamTime = newSheet.ExamTime;
+                existingSheet.ProcessId = newSheet.ProcessId;
+                existingSheet.StopCatch = newSheet.StopCatch;
             }
             else
             {
-                // If no existing sheet found for this CatchNo, add it to the context for insertion
-                Console.WriteLine($"No existing sheet found for CatchNo: {newSheet.CatchNo}. Adding new sheet.");
+                // If no existing sheet found, add it to the context for insertion
                 _context.QuantitySheets.Add(newSheet);
             }
         }
@@ -626,11 +574,9 @@ public class QuantitySheetController : ControllerBase
         foreach (var group in groupedSheets)
         {
             double totalQuantityForLot = group.Sum(sheet => sheet.Quantity);
-            Console.WriteLine($"Total quantity for LotNo {group.Key}: {totalQuantityForLot}");
 
             if (totalQuantityForLot == 0)
             {
-                Console.WriteLine($"Total quantity for lot {group.Key} is zero, cannot calculate percentages.");
                 return BadRequest($"Total quantity for lot {group.Key} is zero, cannot calculate percentages.");
             }
 
@@ -638,17 +584,14 @@ public class QuantitySheetController : ControllerBase
             foreach (var sheet in group)
             {
                 sheet.PercentageCatch = (sheet.Quantity / totalQuantityForLot) * 100;
-                Console.WriteLine($"Calculated percentage for CatchNo {sheet.CatchNo}: {sheet.PercentageCatch}%");
             }
         }
 
         await _context.SaveChangesAsync();
-        Console.WriteLine("Changes saved to the database.");
 
         return Ok(processedNewSheets);
     }
 
-    [Authorize]
     [HttpGet("Lots")]
     public async Task<ActionResult<IEnumerable<string>>> GetLots(int ProjectId)
     {
@@ -668,7 +611,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(sortedLotNumbers);
     }
 
-    [Authorize]
+
     [HttpGet("UnReleasedLots")]
     public async Task<ActionResult<IEnumerable<string>>> GetUnReleasedLots(int ProjectId)
     {
@@ -681,8 +624,6 @@ public class QuantitySheetController : ControllerBase
         return Ok(uniqueLotNumbers);
     }
 
-
-    [Authorize]
     [HttpGet("ReleasedLots")]
     public async Task<ActionResult<IEnumerable<string>>> GetReleasedLots(int ProjectId)
     {
@@ -695,7 +636,6 @@ public class QuantitySheetController : ControllerBase
         return Ok(uniqueLotNumbers);
     }
 
-    [Authorize]
     [HttpGet("Columns")]
     public IActionResult GetColumnNames()
     {
@@ -712,7 +652,6 @@ public class QuantitySheetController : ControllerBase
         return Ok(columnNames);
     }
 
-    [Authorize]
     [HttpGet("Catch")]
     public async Task<ActionResult<IEnumerable<object>>> GetCatches(int ProjectId, string lotNo)
     {
@@ -790,7 +729,7 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-    [Authorize]
+
     [HttpGet("Catches")]
     public async Task<ActionResult<IEnumerable<object>>> GetCatch(int ProjectId, string lotNo)
     {
@@ -867,7 +806,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize]
+
     [HttpGet("CatchByproject")]
     public async Task<ActionResult<IEnumerable<object>>> CatchByproject(int ProjectId)
     {
@@ -876,15 +815,12 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-    [Authorize]
-    [HttpGet("check-all-quantity-sheets")]
-    public async Task<ActionResult<IEnumerable<object>>> GetAllProjectsQuantitySheetStatus([FromQuery] List<int> projectIds)
-    {
-        // If no projectIds are passed, fetch all projects
 
-        var projects = projectIds.Any()
-            ? await _context.Projects.Where(p => projectIds.Contains(p.ProjectId)).ToListAsync()
-            : await _context.Projects.ToListAsync();
+    [HttpGet("check-all-quantity-sheets")]
+    public async Task<ActionResult<IEnumerable<object>>> GetAllProjectsQuantitySheetStatus()
+    {
+        // Get all projects from the database
+        var projects = await _context.Projects.ToListAsync();
 
         var result = new List<object>();
 
@@ -903,7 +839,6 @@ public class QuantitySheetController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize]
     [HttpPost]
     [Route("UpdatePages")]
     public async Task<IActionResult> UpdatePages([FromBody] List<PageUpdateRequest> updateRequests)
@@ -954,7 +889,6 @@ public class QuantitySheetController : ControllerBase
         public int Pages { get; set; }
     }
 
-    [Authorize]
     [HttpPost("StopCatch")]
     public async Task<IActionResult> StopCatch(int id)
     {
@@ -1012,7 +946,7 @@ public class QuantitySheetController : ControllerBase
     }
 
 
-    [Authorize]
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteQuantitysheet(int id)
     {
@@ -1066,7 +1000,6 @@ public class QuantitySheetController : ControllerBase
         public string? NewExamDate { get; set; }  // Optional exam date in dd-MM-yyyy format
     }
 
-    [Authorize]
     [HttpPut("transfer-catches")]
     public async Task<IActionResult> TransferCatches([FromBody] CatchTransferRequest request)
     {
@@ -1205,7 +1138,6 @@ public class QuantitySheetController : ControllerBase
         }
     }
     // Get Exam Dates for a given project and lot
-    [Authorize]
     [HttpGet("exam-dates")]
     public async Task<ActionResult<IEnumerable<string>>> GetExamDates(int projectId, string lotNo)
     {
@@ -1232,7 +1164,6 @@ public class QuantitySheetController : ControllerBase
     }
 
     // Get Lot Data for a given project and lot
-    [Authorize]
     [HttpGet("lot-data")]
     public async Task<ActionResult<IEnumerable<QuantitySheet>>> GetLotData(int projectId, string lotNo)
     {
@@ -1250,7 +1181,6 @@ public class QuantitySheetController : ControllerBase
 
 
     // Get Catch Data for a given project, lot, and catch
-    [Authorize]
     [HttpGet("catch-data")]
     public async Task<ActionResult<IEnumerable<QuantitySheet>>> GetCatchData(int projectId, string lotNo, string catchNo)
     {
@@ -1268,7 +1198,6 @@ public class QuantitySheetController : ControllerBase
         return Ok(catchData);
     }
 
-    [Authorize]
     [HttpDelete("DeleteByProjectId/{projectId}")]
     public async Task<IActionResult> DeleteByProjectId(int projectId)
     {
