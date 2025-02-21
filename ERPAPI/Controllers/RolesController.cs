@@ -9,6 +9,7 @@ using ERPAPI.Data;
 using ERPAPI.Model;
 using ERPAPI.Services;
 using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -26,6 +27,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Roles
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Role>>> GetRole()
         {
@@ -42,6 +44,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Roles/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<Role>> GetRole(int id)
         {
@@ -63,6 +66,7 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/Roles/5
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutRole(int id, Role role)
         {
@@ -113,6 +117,7 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/Roles
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<Role>> PostRole(Role role)
         {
@@ -148,6 +153,7 @@ namespace ERPAPI.Controllers
         }
 
         // DELETE: api/Roles/5
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteRole(int id)
         {

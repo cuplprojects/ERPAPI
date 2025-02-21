@@ -9,6 +9,7 @@ using ERPAPI.Data;
 using ERPAPI.Model;
 using ERPAPI.Services;
 using ERPAPI.Service;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ERPAPI.Controllers
 {
@@ -26,6 +27,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Groups
+        [Authorize]
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Group>>> GetGroups()
         {
@@ -42,6 +44,7 @@ namespace ERPAPI.Controllers
         }
 
         // GET: api/Groups/5
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<ActionResult<Group>> GetGroup(int id)
         {
@@ -65,6 +68,7 @@ namespace ERPAPI.Controllers
         }
 
         // PUT: api/Groups/5
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> PutGroup(int id, Group @group)
         {
@@ -115,6 +119,7 @@ namespace ERPAPI.Controllers
         }
 
         // POST: api/Groups
+        [Authorize]
         [HttpPost]
         public async Task<ActionResult<Group>> PostGroup(Group @group)
         {
@@ -134,6 +139,7 @@ namespace ERPAPI.Controllers
         }
 
         // DELETE: api/Groups/5
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteGroup(int id)
         {

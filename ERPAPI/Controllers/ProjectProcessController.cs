@@ -1,5 +1,6 @@
 using ERPAPI.Data;
 using ERPAPI.Model;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +19,7 @@ namespace ERPAPI.Controllers
             _context = context;
         }
 
-
+        [Authorize]
         [HttpGet("GetProjectProcesses")]
         public async Task<ActionResult<IEnumerable<ProjectProcess>>> GetProjectProcesses()
         {
@@ -37,7 +38,7 @@ namespace ERPAPI.Controllers
             return Ok(projectProcesses);
         }
 
-
+        [Authorize]
         [HttpGet("GetProcesses")]
         public async Task<ActionResult<IEnumerable<int>>> GetProcesses(int projectId)
         {
@@ -48,7 +49,7 @@ namespace ERPAPI.Controllers
             return Ok(processIds);
         }
 
-
+        [Authorize]
         [HttpGet("GetProjectProcesses/{projectId}")]
         public async Task<IActionResult> GetProjectProcesses(int projectId)
         {
@@ -82,6 +83,7 @@ namespace ERPAPI.Controllers
 
 
         // GET: api/ProjectProcess/{userId}/{projectId}
+        [Authorize]
         [HttpGet()]
         public async Task<ActionResult<IEnumerable<object>>> GetProjectProcesses(int userId, int projectId)
         {
@@ -146,7 +148,7 @@ namespace ERPAPI.Controllers
             return Ok(orderedProcesses);
         }
 
-
+        [Authorize]
         [HttpGet("ByProjectAndSequence/{projectId}/{sequenceId}")]
         public async Task<ActionResult<object>> GetProcessByProjectAndSequence(int projectId, int sequenceId)
         {
@@ -190,7 +192,7 @@ namespace ERPAPI.Controllers
             return Ok(process);
         }
 
-
+        [Authorize]
         [HttpPost("AddProcessesToProject")]
         public async Task<IActionResult> AddProcessesToProject([FromBody] AddProcessesDto addProcessesDto)
         {
@@ -275,6 +277,7 @@ namespace ERPAPI.Controllers
             return _context.ProjectProcesses.Any(e => e.Id == id);
         }
 
+        [Authorize]
         [HttpGet("GetProcessesWithUsers/{projectId}")]
         public async Task<ActionResult<object>> GetProcessesWithUsers(int projectId)
         {
@@ -313,7 +316,7 @@ namespace ERPAPI.Controllers
             };
         }
 
-
+        [Authorize]
         [HttpPost("UpdateProcessUsers/{projectId}")]
         public async Task<IActionResult> UpdateProcessUsers(int projectId, [FromBody] Dictionary<int, List<int>> userIdsByProcessId)
         {
@@ -357,7 +360,7 @@ namespace ERPAPI.Controllers
         }
 
 
-
+        [Authorize]
         [HttpPut("UpdateProcesses")]
         public async Task<IActionResult> UpdateProcesses([FromBody] ProjectProcess process)
         {
@@ -415,7 +418,7 @@ namespace ERPAPI.Controllers
             return Ok("Process updated successfully!");
         }
 
-
+        [Authorize]
         [HttpPost("DeleteProcessesFromProject")]
         public async Task<IActionResult> DeleteProcessesFromProject([FromBody] DeleteRequest request)
         {
@@ -438,6 +441,8 @@ namespace ERPAPI.Controllers
 
             return NoContent(); // Return 204 No Content
         }
+
+        [Authorize]
         [HttpPost("UpdateProcessFeatures")]
         public async Task<IActionResult> UpdateProcessFeatures([FromBody] UpdateProcessFeaturesRequest request)
         {
@@ -464,7 +469,7 @@ namespace ERPAPI.Controllers
             return Ok("Process features updated successfully!");
         }
 
-
+        [Authorize]
         [HttpPost("UpdateProcessSequence")]
         public async Task<IActionResult> UpdateProcessSequence([FromBody] List<UpdateSequenceDto> sequenceUpdates)
         {
