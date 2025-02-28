@@ -144,68 +144,6 @@ namespace ERPAPI.Controllers
             }
         }
 
-        /*   [HttpGet("ZonalDisplay")]
-           public async Task<IActionResult> ZonalDisplay(int id)
-           {
-               try
-               {
-                   var display = await _context.Displays.Where(p => p.DisplayId == id).ToListAsync();
-                   var displayIds = display.SelectMany(d=>d.Zones).ToList();
-                   var runningcatch = await _context.Transaction.Where(x => displayIds.Contains(x.ZoneId) && x.Status == 1).ToListAsync();
-                   var project = await _context.Projects.ToListAsync();
-                   var process = await _context.Processes.ToListAsync();
-                   var supervisor = await _context.ProjectProcesses.ToListAsync();
-                   var machine = await _context.Machine.ToListAsync();
-                   var quantitysheet = await _context.QuantitySheets.ToListAsync();
-                   var zones = await _context.Zone.ToListAsync();
-                   var user = await _context.Users.Where(u => u.RoleId == 5 || u.RoleId == 6 || u.RoleId == 3).ToListAsync();
-
-                   var transaction = runningcatch
-                       .GroupBy(x => new {x.ZoneId, x.ProcessId, x.ProjectId })  // Grouping by ProcessId and ProjectId
-                       .Select(group => new
-                       {
-                           ZoneId = group.Key.ZoneId,
-                           ProcessId = group.Key.ProcessId,  // This is the ProcessId of the group
-                           ProjectId = group.Key.ProjectId,  // This is the ProjectId of the group
-                           Transactions = group.Select(x => new
-                           {
-                               x.LotNo,
-                               TeamName = string.Join(", ", user
-                                   .Where(u => x.TeamId.Contains(u.UserId))  // Find all users whose UserId is in the TeamId list
-                                   .Select(u => u.FirstName + " " + u.LastName)),
-                               ZoneNo = zones.FirstOrDefault(z => z.ZoneId == x.ZoneId)?.ZoneNo,
-                               CurrentProcess = process.FirstOrDefault(s => s.Id == x.ProcessId)?.Name,
-                               PreviousProcess = GetPreviousProcess(process, x.ProcessId, supervisor, x.ProjectId),
-                               QuantitySheet = quantitysheet.FirstOrDefault(q => q.QuantitySheetId == x.QuantitysheetId)?.Quantity,
-                               CatchNo = quantitysheet.FirstOrDefault(q => q.QuantitySheetId == x.QuantitysheetId)?.CatchNo,
-                               MachineName = machine.FirstOrDefault(m => m.MachineId == x.MachineId)?.MachineName,
-                               ProjectName = project.FirstOrDefault(p => p.ProjectId == x.ProjectId)?.Name,
-                               Supervisor = string.Join(", ", user
-                                   .Where(u => supervisor.FirstOrDefault(s => s.ProcessId == x.ProcessId)?.UserId.Contains(u.UserId) == true)
-                                   .Select(u => u.FirstName + " " + u.LastName))
-                           }).ToList()
-                       }).ToList();
-
-                   var orderedTransactions = transaction
-              .OrderBy(g => g.ZoneId)
-              .ThenBy(g => g.ProcessId)
-              .ThenBy(g => g.ProjectId)
-              .ToList();
-
-                   if (runningcatch == null || !transaction.Any())
-                   {
-                       return NotFound();
-                   }
-
-                   return Ok(orderedTransactions);
-               }
-               catch (Exception ex)
-               {
-                   return StatusCode(500, "Internal server error");
-               }
-           }*/
-
-
 
         [HttpGet("ZonalDisplay")]
         public async Task<IActionResult> ZonalDisplay(int id)
@@ -236,19 +174,16 @@ namespace ERPAPI.Controllers
                             {
                                 ProcessId = processGroup.Key,
                                 ProcessName = process.FirstOrDefault(p => p.Id == processGroup.Key)?.Name,
-                                // Get supervisor for the process
                                 Supervisor = string.Join(", ", user
                                     .Where(u => supervisor
                                         .Any(s => s.ProcessId == processGroup.Key && s.UserId.Contains(u.UserId)))
                                     .Select(u => u.FirstName + " " + u.LastName)),
-                                // Group by ProjectId within Process
                                 Projects = processGroup
                                     .GroupBy(x => x.ProjectId)
                                     .Select(projectGroup => new
                                     {
                                         ProjectId = projectGroup.Key,
                                         ProjectName = project.FirstOrDefault(p => p.ProjectId == projectGroup.Key)?.Name,
-                                        // Group by LotNo within Project
                                         Lots = projectGroup
                                             .GroupBy(x => x.LotNo)
                                             .Select(lotGroup => new
@@ -258,20 +193,64 @@ namespace ERPAPI.Controllers
                                                     .Select(catchGroup => new
                                                     {
                                                         QuantitysheetId = catchGroup.QuantitysheetId,
-                                                        CatchNo = quantitysheet.Where(p=>p.ProjectId==projectGroup.Key)
+                                                        // Get series letter based on QuantitySheetId
+                                                        CatchNoWithSeries = quantitysheet
+                                                            .Where(p => p.ProjectId == projectGroup.Key)
+                                                            .Where(q => q.CatchNo == quantitysheet
+                                                                .FirstOrDefault(q => q.QuantitySheetId == catchGroup.QuantitysheetId)?.CatchNo)
+                                                            .Select((q, index) => new
+                                                            {
+                                                                // Split SeriesName into characters
+                                                                /* CatchNoWithSeries =
+                                                                     project.FirstOrDefault(p => p.ProjectId == projectGroup.Key)?
+                                                                         .SeriesName?.ToCharArray() // Split SeriesName into characters
+                                                                         .ElementAtOrDefault(index) // Safely fetch the series letter based on index
+                                                                 is char series && !char.IsWhiteSpace(series) // Ensure series is valid
+                                                                     ? $"{q.CatchNo}-{series}" // Append CatchNo with series (e.g., 9121-A)
+                                                                     : q.CatchNo, // Fall back to just the CatchNo if series is invalid*/
+
+                                                                CatchNoWithSeries = string.IsNullOrEmpty(project.FirstOrDefault(p => p.ProjectId == projectGroup.Key)?.SeriesName)
+                                                    ? q.CatchNo // If SeriesName is empty, just use CatchNo
+                                                    : $"{q.CatchNo}-{project.FirstOrDefault(p => p.ProjectId == projectGroup.Key)?.SeriesName?.ToCharArray().ElementAtOrDefault(index)}", // Otherwise, append series
+
+
+                                                                q.QuantitySheetId
+                                                            })
+                                                            .FirstOrDefault(q => q.QuantitySheetId == catchGroup.QuantitysheetId)?.CatchNoWithSeries, // Match based on QuantitySheetId
+
+                                                        // Fetch the actual CatchNo
+                                                        CatchNo = quantitysheet
+                                                            .Where(p => p.ProjectId == projectGroup.Key)
                                                             .FirstOrDefault(q => q.QuantitySheetId == catchGroup.QuantitysheetId)?.CatchNo,
-                                                        Quantity = quantitysheet.Where(p => p.ProjectId == projectGroup.Key)
-                                                            .FirstOrDefault(q => q.QuantitySheetId == catchGroup.QuantitysheetId).Quantity,
+
+                                                        Quantity = (processGroup.Key != 15 && processGroup.Key != 1 && processGroup.Key != 2 && processGroup.Key != 3 && processGroup.Key != 4)
+                                                            ? quantitysheet
+                                                                .Where(q => q.CatchNo == quantitysheet
+                                                                .Where(c => c.QuantitySheetId == catchGroup.QuantitysheetId)
+                                                                .Select(c => c.CatchNo)
+                                                                .FirstOrDefault())
+                                                                .Sum(q => q.Quantity)
+                                                            : quantitysheet
+                                                                .Where(p => p.ProjectId == projectGroup.Key)
+                                                                .FirstOrDefault(q => q.QuantitySheetId == catchGroup.QuantitysheetId)?.Quantity,
+
                                                         Machine = machine.FirstOrDefault(m => m.MachineId == catchGroup.MachineId)?.MachineName,
                                                         Team = string.Join(", ", user
                                                             .Where(u => catchGroup.TeamId.Contains(u.UserId))
                                                             .Select(u => u.FirstName + " " + u.LastName)),
                                                         PreviousProcess = GetPreviousProcess(process, catchGroup.ProcessId, supervisor, catchGroup.ProjectId),
                                                     })
+                                                    .ToList()
                                             }).ToList()
                                     }).ToList()
                             }).ToList()
                     }).ToList();
+
+
+
+
+
+
 
                 if (groupedByZone == null || !groupedByZone.Any())
                 {

@@ -82,15 +82,20 @@ public class QuantitySheetController : ControllerBase
                         ExamTime = sheet.ExamTime,
                         ProcessId = new List<int>(), // Start with an empty list for the new catch
                         StopCatch = 0,
-
                     };
                     adjustedSheets.Add(newSheet);
                 }
             }
-
             newSheets = adjustedSheets;
         }
 
+        foreach (var sheet in newSheets)
+        {
+            if (string.IsNullOrWhiteSpace(sheet.LotNo))
+            {
+                return BadRequest($"The LotNo field is required for sheet with CatchNo: {sheet.CatchNo}.");
+            }
+        }
         var existingSheets = await _context.QuantitySheets
             .Where(s => s.ProjectId == projectId && newSheets.Select(ns => ns.LotNo).Contains(s.LotNo))
             .ToListAsync();
@@ -1253,11 +1258,11 @@ public class QuantitySheetController : ControllerBase
 
     [Authorize]
     [HttpDelete("DeleteByProjectId/{projectId}")]
-    public async Task<IActionResult> DeleteByProjectId(int projectId)
+    public async Task<IActionResult> DeleteByProjectId(int projectId, string LotNo)
     {
         // Find all quantity sheets for the given projectId
         var sheetsToDelete = await _context.QuantitySheets
-            .Where(s => s.ProjectId == projectId)
+            .Where(s => s.ProjectId == projectId && s.LotNo==LotNo.ToString())
             .ToListAsync();
 
         if (sheetsToDelete == null || !sheetsToDelete.Any())
