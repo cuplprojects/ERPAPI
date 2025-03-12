@@ -228,11 +228,11 @@ namespace ERPAPI.Controllers
                     return new
                     {
                         q.CatchNo,
-                        q.Paper,
+                        q.PaperTitle,
                         q.ExamDate,
                         q.ExamTime,
-                        q.Course,
-                        q.Subject,
+                        q.CourseId,
+                        q.SubjectId,
                         q.InnerEnvelope,
                         q.OuterEnvelope,
                         q.LotNo,
@@ -331,7 +331,7 @@ namespace ERPAPI.Controllers
             }
         }
 
-        [HttpGet("search")]
+       /* [HttpGet("search")]
         public async Task<IActionResult> SearchQuantitySheet(
     [FromQuery] string query,
     [FromQuery] int page = 1,
@@ -364,18 +364,16 @@ namespace ERPAPI.Controllers
                 .CountAsync(q => q.CatchNo.StartsWith(query) ||
                                 q.Subject.StartsWith(query) ||
                                 q.Course.StartsWith(query) ||
-                                (q.Paper != null && q.Paper.StartsWith(query)));
+                                (q.PaperTitle != null && q.PaperTitle.StartsWith(query)));
 
             var results = await queryable
                 .Where(q => q.CatchNo.StartsWith(query) ||
                             q.Subject.StartsWith(query) ||
                             q.Course.StartsWith(query) ||
-                            (q.Paper != null && q.Paper.StartsWith(query)))
+                            (q.PaperTitle != null && q.PaperTitle.StartsWith(query)))
                 .Select(q => new
                 {
                     q.CatchNo,
-                    //ProjectName = _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.Name).FirstOrDefault(),
-                    //GroupName = _context.Groups.Where(g => g.Id == _context.Projects.Where(p => p.ProjectId == q.ProjectId).Select(p => p.GroupId).FirstOrDefault()).Select(g => g.Name).FirstOrDefault(),
                     MatchedColumn = q.CatchNo.StartsWith(query) ? "CatchNo" :
                                     q.Subject.StartsWith(query) ? "Subject" :
                                     q.Course.StartsWith(query) ? "Course" : "Paper",
@@ -390,7 +388,7 @@ namespace ERPAPI.Controllers
                 .ToListAsync();
 
             return Ok(new { TotalRecords = totalRecords, Results = results });
-        }
+        }*/
 
 
 
@@ -470,11 +468,12 @@ namespace ERPAPI.Controllers
                     return new
                     {
                         q.CatchNo,
-                        q.Paper,
+                        q.PaperTitle,
+                        q.PaperNumber,
                         q.ExamDate,
                         q.ExamTime,
-                        q.Course,
-                        q.Subject,
+                        q.CourseId,
+                        q.SubjectId,
                         q.InnerEnvelope,
                         q.OuterEnvelope,
                         q.LotNo,
@@ -598,11 +597,7 @@ namespace ERPAPI.Controllers
                     .Where(u => t.TeamId.Contains(u.UserId))
                     .Select(u => new { FullName = u.FirstName + " " + u.LastName })
                     .ToList(),
-                /*Supervisor = _context.Users
-                    .Where(user => pp.UserId.Contains(user.UserId) && user.RoleId == 5)
-                    .Select(u => new { FullName = u.FirstName + " " + u.LastName })
-                    .ToList(),
-                t.Status,*/
+               
                 Supervisor = users
                         .Where(u => u.UserId == supervisorLogs
                             .Where(s => s.TransactionId == t.TransactionId)
@@ -633,12 +628,6 @@ namespace ERPAPI.Controllers
 
             return Ok(processWiseData);
         }
-
-
-
-
-
-
 
     }
 }

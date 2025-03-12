@@ -23,7 +23,8 @@ namespace ERPAPI.Data
         public DbSet<Display> Displays { get; set; }
         public DbSet<Message> Message { get; set; }
         public DbSet<TextLabel> TextLabel { get; set; }
-
+        public DbSet<Course> Courses { get; set; }
+        public DbSet<Subject> Subjects { get; set; }
         public DbSet<User> Users { get; set; } // Assuming this is already present
         public DbSet<UserAuth> UserAuths { get; set; } // Add this for UserAuth
         public DbSet<SecurityQuestion> SecurityQuestions { get; set; }

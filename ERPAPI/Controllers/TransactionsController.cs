@@ -142,7 +142,6 @@ namespace ERPAPI.Controllers
 
                 var zone = allZone.FirstOrDefault(z => z.ZoneId == t.ZoneId);
                 var zoneNo = zone != null ? zone.ZoneNo : null;
-
                 var machine = allMachine.FirstOrDefault(z => z.MachineId == t.MachineId);
                 var machinename = machine != null ? machine.MachineName : null;
 
@@ -167,14 +166,11 @@ namespace ERPAPI.Controllers
                 };
             }).ToList();
 
-            // Apply the logic for SeriesName from Project (using Project.SeriesName)
             var quantitySheetDataWithSeriesName = quantitySheetData
                 .GroupBy(q => q.CatchNo)  // Group by CatchNo for SeriesName assignment
                 .Select(group =>
                 {
                     var seriesName = project?.SeriesName ?? "";  // Get the SeriesName from the project
-
-                    // Assign SeriesName based on the group
                     var quantitySheetsWithSeriesName = group.Select((q, index) =>
                     {
                         var seriesLetter = index < seriesName.Length ? seriesName[index].ToString() : ""; // Use SeriesName from project
@@ -184,17 +180,30 @@ namespace ERPAPI.Controllers
                             q.ProjectId,
                             q.LotNo,
                             q.CatchNo,
-                            q.Paper,
+                            q.PaperTitle,
+                            q.PrivateCode,
+                            q.NEPCode,
+                            q.MSSStatus,
+                            q.TTFStatus,
                             q.ExamDate,
                             q.ExamTime,
-                            q.Course,
-                            q.Subject,
+                            q.CourseId,
+                            CourseName = _context.Courses.FirstOrDefault(c => c.CourseId == q.CourseId)?.CourseName,
+                            q.SubjectId,
+                            SubjectName = _context.Subjects.FirstOrDefault(s => s.SubjectId == q.SubjectId)?.SubjectName,
                             q.InnerEnvelope,
                             q.OuterEnvelope,
                             q.Quantity,
                             q.Pages,
                             q.PercentageCatch,
-
+                            q.Status,
+                            q.StopCatch,
+                            q.ProcessId,
+                            q.PaperNumber,
+                            q.QPId,
+                            q.MaxMarks,
+                            q.Duration,
+                            q.Language,
                             SeriesName = seriesLetter,  // Assign the SeriesName here
                             ProcessIds = q.ProcessId,   // Assuming ProcessIds is a list, map it directly
                         };
@@ -223,11 +232,20 @@ namespace ERPAPI.Controllers
                     q.ProjectId,
                     q.LotNo,
                     q.CatchNo,
-                    q.Paper,
+                    q.PaperTitle,
                     q.ExamDate,
                     q.ExamTime,
-                    q.Course,
-                    q.Subject,
+                    q.CourseId,
+                    q.SubjectId,
+                    q.PaperNumber,
+                    q.QPId,
+                    q.MaxMarks,
+                    q.Duration,
+                    q.NEPCode,
+                    q.PrivateCode,
+                    q.MSSStatus,
+                    q.TTFStatus,
+                    q.Status,
                     q.Pages,
                     q.InnerEnvelope,
                     q.OuterEnvelope,
@@ -1206,11 +1224,11 @@ namespace ERPAPI.Controllers
                                         {
                                             q.QuantitySheetId,
                                             q.CatchNo,
-                                            Paper = q.Paper ?? string.Empty,
+                                            Paper = q.PaperTitle ?? string.Empty,
                                             q.ExamDate,
                                             q.ExamTime,
-                                            q.Course,
-                                            q.Subject,
+                                            q.CourseId,
+                                            q.SubjectId,
                                             InnerEnvelope = q.InnerEnvelope ?? string.Empty,
                                             OuterEnvelope = q.OuterEnvelope ?? 0,
                                             LotNo = q.LotNo ?? string.Empty,
