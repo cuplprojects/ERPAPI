@@ -8,6 +8,7 @@ using ERPAPI.Data;
 using ERPAPI.Model;
 using ERPAPI.Service;
 using Microsoft.AspNetCore.Authorization;
+using System.Diagnostics;
 
 namespace ERPAPI.Controllers
 {
@@ -57,7 +58,7 @@ namespace ERPAPI.Controllers
             }
             catch (Exception ex)
             {
-           
+
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -73,7 +74,7 @@ namespace ERPAPI.Controllers
 
                 if (zone == null)
                 {
-                   
+
                     return NotFound();
                 }
 
@@ -81,7 +82,7 @@ namespace ERPAPI.Controllers
             }
             catch (Exception ex)
             {
-               
+
                 return StatusCode(500, "Internal server error");
             }
         }
@@ -155,6 +156,8 @@ namespace ERPAPI.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
+
+      
 
         // DELETE: api/Zones/5
         [Authorize]

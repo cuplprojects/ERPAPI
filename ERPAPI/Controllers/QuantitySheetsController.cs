@@ -67,9 +67,10 @@ public class QuantitySheetController : ControllerBase
                     var newSheet = new QuantitySheet
                     {
                         CatchNo = sheet.CatchNo,
-                        Paper = sheet.Paper,
-                        Course = sheet.Course,
-                        Subject = sheet.Subject,
+                        PaperTitle = sheet.PaperTitle,
+                        PaperNumber = sheet.PaperNumber,
+                        CourseId = sheet.CourseId,
+                        SubjectId = sheet.SubjectId,
                         InnerEnvelope = sheet.InnerEnvelope,
                         OuterEnvelope = sheet.OuterEnvelope,
                         LotNo = sheet.LotNo,
@@ -82,15 +83,20 @@ public class QuantitySheetController : ControllerBase
                         ExamTime = sheet.ExamTime,
                         ProcessId = new List<int>(), // Start with an empty list for the new catch
                         StopCatch = 0,
-
                     };
                     adjustedSheets.Add(newSheet);
                 }
             }
-
             newSheets = adjustedSheets;
         }
 
+        foreach (var sheet in newSheets)
+        {
+            if (string.IsNullOrWhiteSpace(sheet.LotNo))
+            {
+                return BadRequest($"The LotNo field is required for sheet with CatchNo: {sheet.CatchNo}.");
+            }
+        }
         var existingSheets = await _context.QuantitySheets
             .Where(s => s.ProjectId == projectId && newSheets.Select(ns => ns.LotNo).Contains(s.LotNo))
             .ToListAsync();
@@ -143,7 +149,7 @@ public class QuantitySheetController : ControllerBase
         return Ok(processedNewSheets);
     }
 
-    [Authorize]
+    //[Authorize]
     [HttpPut("update/{id}")]
     public async Task<IActionResult> Put(int id, [FromBody] QuantitySheet updatedSheet)
     {
@@ -161,9 +167,10 @@ public class QuantitySheetController : ControllerBase
         }
 
         // Update the fields with the new values
-        existingSheet.Paper = updatedSheet.Paper;
-        existingSheet.Course = updatedSheet.Course;
-        existingSheet.Subject = updatedSheet.Subject;
+        existingSheet.PaperTitle = updatedSheet.PaperTitle;
+        existingSheet.PaperNumber = updatedSheet.PaperNumber;
+        existingSheet.CourseId = updatedSheet.CourseId;
+        existingSheet.SubjectId = updatedSheet.SubjectId;
         existingSheet.ExamDate = updatedSheet.ExamDate;
         existingSheet.ExamTime = updatedSheet.ExamTime;
         existingSheet.InnerEnvelope = updatedSheet.InnerEnvelope;
@@ -468,6 +475,7 @@ public class QuantitySheetController : ControllerBase
 
 
 
+
     [Authorize]
     [HttpPut]
     public async Task<IActionResult> UpdateQuantitySheet([FromBody] List<QuantitySheet> newSheets)
@@ -502,19 +510,21 @@ public class QuantitySheetController : ControllerBase
 
             foreach (var sheet in newSheets)
             {
+                // Divide the quantity by the NoOfSeries for each sheet in a Booklet
                 var adjustedQuantity = sheet.Quantity / noOfSeries;
                 for (int i = 0; i < noOfSeries; i++)
                 {
                     var newSheet = new QuantitySheet
                     {
                         CatchNo = sheet.CatchNo,
-                        Paper = sheet.Paper,
-                        Course = sheet.Course,
-                        Subject = sheet.Subject,
+                        PaperTitle = sheet.PaperTitle,
+                        PaperNumber = sheet.PaperNumber,
+                        CourseId = sheet.CourseId,
+                        SubjectId = sheet.SubjectId,
                         InnerEnvelope = sheet.InnerEnvelope,
                         OuterEnvelope = sheet.OuterEnvelope,
                         LotNo = sheet.LotNo,
-                        Quantity = adjustedQuantity,
+                        Quantity = adjustedQuantity,  // Adjusted quantity per series
                         PercentageCatch = 0, // Will be recalculated later
                         ProjectId = sheet.ProjectId,
                         ExamDate = sheet.ExamDate,
@@ -549,27 +559,54 @@ public class QuantitySheetController : ControllerBase
         foreach (var newSheet in processedNewSheets)
         {
             var existingSheet = existingSheets
-                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.StopCatch == 0);
+                .FirstOrDefault(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.CatchNo == newSheet.CatchNo && s.StopCatch == 0);
 
             if (existingSheet != null)
             {
-                // Update the existing sheet
-                existingSheet.CatchNo = newSheet.CatchNo;
-                existingSheet.Paper = newSheet.Paper;
-                existingSheet.Course = newSheet.Course;
-                existingSheet.Subject = newSheet.Subject;
-                existingSheet.InnerEnvelope = newSheet.InnerEnvelope;
-                existingSheet.OuterEnvelope = newSheet.OuterEnvelope;
-                existingSheet.Quantity = newSheet.Quantity;
-                existingSheet.PercentageCatch = newSheet.PercentageCatch;
-                existingSheet.ExamDate = newSheet.ExamDate;
-                existingSheet.ExamTime = newSheet.ExamTime;
-                existingSheet.ProcessId = newSheet.ProcessId;
-                existingSheet.StopCatch = newSheet.StopCatch;
+                // Only update fields where new data is present
+                if (!string.IsNullOrEmpty(newSheet.PaperTitle)) existingSheet.PaperTitle = newSheet.PaperTitle;
+                if (!string.IsNullOrEmpty(newSheet.PaperNumber)) existingSheet.PaperNumber = newSheet.PaperNumber;
+                if (newSheet.CourseId>0) existingSheet.CourseId = newSheet.CourseId;
+                if (newSheet.SubjectId>0) existingSheet.SubjectId = newSheet.SubjectId;
+                if (!string.IsNullOrEmpty(newSheet.InnerEnvelope)) existingSheet.InnerEnvelope = newSheet.InnerEnvelope;
+                if (newSheet.OuterEnvelope > 0) existingSheet.OuterEnvelope = newSheet.OuterEnvelope;
+                if (!string.IsNullOrEmpty(newSheet.ExamDate)) existingSheet.ExamDate = newSheet.ExamDate;
+                if (!string.IsNullOrEmpty(newSheet.ExamTime)) existingSheet.ExamTime = newSheet.ExamTime;
+                if (newSheet.Quantity > 0) existingSheet.Quantity = newSheet.Quantity;
+                if (newSheet.Pages > 0) existingSheet.Pages = newSheet.Pages;
+
+                // If project is a "Booklet", update all matching CatchNo in the same LotNo
+                if (projectType == "Booklet")
+                {
+                    // Find all sheets with the same LotNo and CatchNo
+                    var matchingSheets = existingSheets
+                        .Where(s => s.LotNo == newSheet.LotNo && s.ProjectId == newSheet.ProjectId && s.CatchNo == newSheet.CatchNo && s.StopCatch == 0)
+                        .ToList();
+
+                    // Now update the Quantity for all matching sheets, divide by NoOfSeries
+                    var totalQuantity = newSheet.Quantity;
+                    var adjustedQuantity = totalQuantity / project.NoOfSeries.Value;
+
+                    foreach (var matchingSheet in matchingSheets)
+                    {
+                        // Update all matching sheets' quantity to the adjusted one
+                        matchingSheet.Quantity = adjustedQuantity;
+
+                        // Update other fields as necessary
+                        if (!string.IsNullOrEmpty(newSheet.PaperTitle)) matchingSheet.PaperTitle = newSheet.PaperTitle;
+                        if (!string.IsNullOrEmpty(newSheet.PaperNumber)) matchingSheet.PaperNumber = newSheet.PaperNumber;
+                        if (newSheet.CourseId>0) matchingSheet.CourseId = newSheet.CourseId;
+                        if (newSheet.SubjectId>0) matchingSheet.SubjectId = newSheet.SubjectId;
+                        if (!string.IsNullOrEmpty(newSheet.InnerEnvelope)) matchingSheet.InnerEnvelope = newSheet.InnerEnvelope;
+                        if (newSheet.OuterEnvelope > 0) matchingSheet.OuterEnvelope = newSheet.OuterEnvelope;
+                        if (!string.IsNullOrEmpty(newSheet.ExamDate)) matchingSheet.ExamDate = newSheet.ExamDate;
+                        if (!string.IsNullOrEmpty(newSheet.ExamTime)) matchingSheet.ExamTime = newSheet.ExamTime;
+                    }
+                }
             }
             else
             {
-                // If no existing sheet found, add it to the context for insertion
+                // If no existing sheet found for this CatchNo, add it to the context for insertion
                 _context.QuantitySheets.Add(newSheet);
             }
         }
@@ -598,6 +635,8 @@ public class QuantitySheetController : ControllerBase
 
         return Ok(processedNewSheets);
     }
+
+
 
     [Authorize]
     [HttpGet("Lots")]
@@ -673,11 +712,12 @@ public class QuantitySheetController : ControllerBase
             {
                 r.QuantitySheetId,
                 r.CatchNo,
-                r.Paper,
+                r.PaperTitle,
                 r.ExamDate,
                 r.ExamTime,
-                r.Course,
-                r.Subject,
+                r.CourseId,
+                r.SubjectId,
+                r.PaperNumber,
                 r.InnerEnvelope,
                 r.OuterEnvelope,
                 r.LotNo,
@@ -687,6 +727,16 @@ public class QuantitySheetController : ControllerBase
                 r.ProcessId,
                 r.Pages,
                 r.StopCatch,
+                r.MaxMarks,
+                r.Duration,
+                r.MSSStatus,
+                r.TTFStatus,
+                r.Language,
+                r.ExamTypeId,
+                r.QPId,
+                r.NEPCode,
+                r.PrivateCode,
+                r.Status,
             })
             .ToListAsync();
 
@@ -714,27 +764,45 @@ public class QuantitySheetController : ControllerBase
             return "Invalid Date";
         }
 
-        // Process each item in the current lot and check for overlap only if lotNo is not "1"
-        var result = currentLotData.Select(current => new
-        {
-            current.QuantitySheetId,
-            current.CatchNo,
-            current.Paper,
-            ExamDate = ConvertToIndianDate(current.ExamDate),
-            current.ExamTime,
-            current.Course,
-            current.Subject,
-            current.InnerEnvelope,
-            current.OuterEnvelope,
-            current.LotNo,
-            current.Quantity,
-            current.PercentageCatch,
-            current.ProjectId,
-            current.ProcessId,
-            current.Pages,
-            current.StopCatch,
-            IsExamDateOverlapped = lotNo != "1" && previousExamDates.Contains(current.ExamDate)
-        }).ToList();
+        var result = (from current in currentLotData
+                      join subject in _context.Subjects on current.SubjectId equals subject.SubjectId into subjectJoin
+                      join course in _context.Courses on current.CourseId equals course.CourseId into courseJoin
+                      from sub in subjectJoin.DefaultIfEmpty()  // In case there's no matching subject
+                      from courses in courseJoin.DefaultIfEmpty()  // In case there's no matching course
+                      select new
+                      {
+                          current.QuantitySheetId,
+                          current.CatchNo,
+                          current.PaperTitle,
+                          current.PaperNumber,
+                          ExamDate = ConvertToIndianDate(current.ExamDate),
+                          current.ExamTime,
+                          current.CourseId,
+                          CourseName = courses?.CourseName,
+                          SubjectName = sub?.SubjectName,
+                          current.SubjectId,
+                          current.InnerEnvelope,
+                          current.OuterEnvelope,
+                          current.LotNo,
+                          current.Quantity,
+                          current.PercentageCatch,
+                          current.ProjectId,
+                          current.ProcessId,
+                          current.Pages,
+                          current.StopCatch,
+                          current.QPId,
+                          current.NEPCode,
+                          current.PrivateCode,
+                          current.MaxMarks,
+                          current.Duration,
+                          current.MSSStatus,
+                          current.TTFStatus,
+                          current.Language,
+                          current.ExamTypeId,
+                          current.Status,
+                          IsExamDateOverlapped = lotNo != "1" && previousExamDates.Contains(current.ExamDate)
+                      }).ToList();
+
 
         return Ok(result);
     }
@@ -751,11 +819,18 @@ public class QuantitySheetController : ControllerBase
             {
                 r.QuantitySheetId,
                 r.CatchNo,
-                r.Paper,
+                r.PaperTitle,
+                r.MaxMarks,
+                r.Duration,
+                r.MSSStatus,
+                r.TTFStatus,
+                r.Language,
+                r.ExamTypeId,
+                r.PaperNumber,
                 r.ExamDate,
                 r.ExamTime,
-                r.Course,
-                r.Subject,
+                r.CourseId,
+                r.SubjectId,
                 r.InnerEnvelope,
                 r.OuterEnvelope,
                 r.LotNo,
@@ -765,6 +840,10 @@ public class QuantitySheetController : ControllerBase
                 r.ProcessId,
                 r.Pages,
                 r.StopCatch,
+                r.QPId,
+                r.NEPCode,
+                r.PrivateCode,
+                r.Status,
             })
             .ToListAsync();
 
@@ -772,7 +851,6 @@ public class QuantitySheetController : ControllerBase
         {
             return Ok(new List<object>()); // Return empty if no data for current lot
         }
-
         // Retrieve previous lots' data with only necessary ExamDate field for overlap check, if not lot 1
         var previousExamDates = lotNo != "1"
             ? await _context.QuantitySheets
@@ -793,26 +871,45 @@ public class QuantitySheetController : ControllerBase
         }
 
         // Process each item in the current lot and check for overlap only if lotNo is not "1"
-        var result = currentLotData.Select(current => new
-        {
-            current.QuantitySheetId,
-            current.CatchNo,
-            current.Paper,
-            ExamDate = ConvertToIndianDate(current.ExamDate),
-            current.ExamTime,
-            current.Course,
-            current.Subject,
-            current.InnerEnvelope,
-            current.OuterEnvelope,
-            current.LotNo,
-            current.Quantity,
-            current.PercentageCatch,
-            current.ProjectId,
-            current.ProcessId,
-            current.Pages,
-            current.StopCatch,
-            IsExamDateOverlapped = lotNo != "1" && previousExamDates.Contains(current.ExamDate)
-        }).ToList();
+        var result = (from current in currentLotData
+                      join subject in _context.Subjects on current.SubjectId equals subject.SubjectId into subjectJoin
+                      join course in _context.Courses on current.CourseId equals course.CourseId into courseJoin
+                      from sub in subjectJoin.DefaultIfEmpty()  // In case there's no matching subject
+                      from courses in courseJoin.DefaultIfEmpty()  // In case there's no matching course
+                      select new
+                      {
+                          current.QuantitySheetId,
+                          current.CatchNo,
+                          current.PaperTitle,
+                          current.PaperNumber,
+                          ExamDate = ConvertToIndianDate(current.ExamDate),
+                          current.ExamTime,
+                          current.CourseId,
+                          CourseName = courses?.CourseName,  
+                          SubjectName = sub?.SubjectName, 
+                          current.SubjectId,
+                          current.InnerEnvelope,
+                          current.OuterEnvelope,
+                          current.LotNo,
+                          current.Quantity,
+                          current.PercentageCatch,
+                          current.ProjectId,
+                          current.ProcessId,
+                          current.Pages,
+                          current.StopCatch,
+                          current.QPId,
+                          current.NEPCode,
+                          current.PrivateCode,
+                          current.MaxMarks,
+                          current.Duration,
+                          current.MSSStatus,
+                          current.TTFStatus,
+                          current.Language,
+                          current.ExamTypeId,
+                          current.Status,
+                          IsExamDateOverlapped = lotNo != "1" && previousExamDates.Contains(current.ExamDate)
+                      }).ToList();
+
 
         return Ok(result);
     }
@@ -1220,11 +1317,11 @@ public class QuantitySheetController : ControllerBase
 
     [Authorize]
     [HttpDelete("DeleteByProjectId/{projectId}")]
-    public async Task<IActionResult> DeleteByProjectId(int projectId)
+    public async Task<IActionResult> DeleteByProjectId(int projectId, string LotNo)
     {
         // Find all quantity sheets for the given projectId
         var sheetsToDelete = await _context.QuantitySheets
-            .Where(s => s.ProjectId == projectId)
+            .Where(s => s.ProjectId == projectId && s.LotNo==LotNo.ToString())
             .ToListAsync();
 
         if (sheetsToDelete == null || !sheetsToDelete.Any())
