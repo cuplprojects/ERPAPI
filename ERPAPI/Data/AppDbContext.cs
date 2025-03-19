@@ -31,6 +31,7 @@ namespace ERPAPI.Data
 
         public DbSet<Role> Roles { get; set; }
         public DbSet<Reports> Reports { get; set; }
+
         public DbSet<Machine> Machine { get; set; }
         public DbSet<Zone> Zone { get; set; }
         public DbSet<EventLog> EventLogs { get; set; } // Assuming you have event logs
@@ -39,6 +40,9 @@ namespace ERPAPI.Data
         public DbSet<Team> Teams { get; set; }
         public DbSet<CatchTeam> CatchTeams { get; set; }
         public DbSet<Dispatch> Dispatch { get; set; }
+        public DbSet<Notification> Notifications{ get; set; }
+        public DbSet<MessageType> MessageTypes{ get; set; }
+        public DbSet<DisplaySettings> DisplaySettings{ get; set; }
 
 
 

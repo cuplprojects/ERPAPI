@@ -1417,11 +1417,13 @@ namespace ERPAPI.Controllers
                     {
                         Console.WriteLine("Going in Independent" + (independentProcess.RangeEnd));
 
+
                         var independentprocess = finalizedProcessCounts.FirstOrDefault(p => p.ProcessId == independentProcess.Id);
 
                         previousProcess = finalizedProcessCounts.FirstOrDefault(p =>
                         processSequence.FirstOrDefault(seq => seq.ProcessId == p.ProcessId)?.Sequence ==
                         processSequence.FirstOrDefault(seq => seq.ProcessId == currentProcess.ProcessId)?.Sequence - 1);
+
 
                         // If no process with sequence 1 is found, continue with the previous logic to find a dependent process
                         previousProcess = finalizedProcessCounts.FirstOrDefault(p =>
@@ -1441,6 +1443,7 @@ namespace ERPAPI.Controllers
                             // You found a dependent process, and previousProcess is set
                             Console.WriteLine("[DEBUG] Found Dependent Process: " + previousProcess.ProcessId);
                         }
+
                         if (independentprocess != null && previousProcess != null)
                         {
                             if (independentprocess.CompletedCount < previousProcess.CompletedCount)
@@ -1455,6 +1458,7 @@ namespace ERPAPI.Controllers
                                 Console.WriteLine("Selected process from while loop as previous process.");
                             }
                         }
+
                         else
                         {
                             // Handle case where no dependent process was found
@@ -1541,7 +1545,7 @@ namespace ERPAPI.Controllers
                 }
                 else if (currentProcess.ProcessType == "Independent")
                 {
-                    Console.WriteLine("ProcessId", currentProcess.ProcessId);
+
                     previousProcess = finalizedProcessCounts.FirstOrDefault(p => processSequence.FirstOrDefault(seq => seq.ProcessId == p.ProcessId)?.Sequence == currentProcess.RangeStart);
 
                 }
